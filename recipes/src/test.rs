@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::unit::*;
+use crate::*;
 use VolumeMeasure::*;
 
 use std::convert::Into;
@@ -73,4 +73,133 @@ fn test_volume_normalize() {
     assert_normalize!(Ltr, into_qrt, "not a ltr after normalize call");
     assert_normalize!(Gal, into_ltr, "not a gal after normalize call");
     assert_normalize!(Gal, into_tsp, "not a gal after normalize call");
+}
+
+#[test]
+fn test_ingredient_display() {
+    let cases = vec![
+        (
+            Ingredient::new("onion", Form::Chopped, Measure::cup(1.into()), "Produce"),
+            "1 cup onion (chopped)",
+        ),
+        (
+            Ingredient::new("onion", Form::Chopped, Measure::cup(2.into()), "Produce"),
+            "2 cups onion (chopped)",
+        ),
+        (
+            Ingredient::new("onion", Form::Chopped, Measure::tbsp(1.into()), "Produce"),
+            "1 tbsp onion (chopped)",
+        ),
+        (
+            Ingredient::new("onion", Form::Chopped, Measure::tbsp(2.into()), "Produce"),
+            "2 tbsps onion (chopped)",
+        ),
+        (
+            Ingredient::new("soy sauce", Form::Whole, Measure::floz(1.into()), "Produce"),
+            "1 floz soy sauce",
+        ),
+        (
+            Ingredient::new("soy sauce", Form::Whole, Measure::floz(2.into()), "Produce"),
+            "2 floz soy sauce",
+        ),
+        (
+            Ingredient::new("soy sauce", Form::Whole, Measure::qrt(1.into()), "Produce"),
+            "1 qrt soy sauce",
+        ),
+        (
+            Ingredient::new("soy sauce", Form::Whole, Measure::qrt(2.into()), "Produce"),
+            "2 qrts soy sauce",
+        ),
+        (
+            Ingredient::new("soy sauce", Form::Whole, Measure::pint(1.into()), "Produce"),
+            "1 pint soy sauce",
+        ),
+        (
+            Ingredient::new("soy sauce", Form::Whole, Measure::pint(2.into()), "Produce"),
+            "2 pints soy sauce",
+        ),
+        (
+            Ingredient::new("soy sauce", Form::Whole, Measure::gal(1.into()), "Produce"),
+            "1 gal soy sauce",
+        ),
+        (
+            Ingredient::new("soy sauce", Form::Whole, Measure::gal(2.into()), "Produce"),
+            "2 gals soy sauce",
+        ),
+        (
+            Ingredient::new("soy sauce", Form::Whole, Measure::ml(1.into()), "Produce"),
+            "1 ml soy sauce",
+        ),
+        (
+            Ingredient::new("soy sauce", Form::Whole, Measure::ml(2.into()), "Produce"),
+            "2 ml soy sauce",
+        ),
+        (
+            Ingredient::new("soy sauce", Form::Whole, Measure::ltr(1.into()), "Produce"),
+            "1 ltr soy sauce",
+        ),
+        (
+            Ingredient::new("soy sauce", Form::Whole, Measure::ltr(2.into()), "Produce"),
+            "2 ltr soy sauce",
+        ),
+        (
+            Ingredient::new("apple", Form::Whole, Measure::count(1), "Produce"),
+            "1 apple",
+        ),
+        (
+            Ingredient::new("salt", Form::Whole, Measure::gram(1.into()), "Produce"),
+            "1 gram salt",
+        ),
+        (
+            Ingredient::new("salt", Form::Whole, Measure::gram(2.into()), "Produce"),
+            "2 grams salt",
+        ),
+        (
+            Ingredient::new("onion", Form::Minced, Measure::cup(1.into()), "Produce"),
+            "1 cup onion (minced)",
+        ),
+        (
+            Ingredient::new(
+                "pepper",
+                Form::Ground,
+                Measure::tsp(Ratio::new(1, 2).into()),
+                "Produce",
+            ),
+            "1/2 tsp pepper (ground)",
+        ),
+        (
+            Ingredient::new(
+                "pepper",
+                Form::Ground,
+                Measure::tsp(Ratio::new(3, 2).into()),
+                "Produce",
+            ),
+            "1 1/2 tsps pepper (ground)",
+        ),
+        (
+            Ingredient::new("apple", Form::Sliced, Measure::count(1), "Produce"),
+            "1 apple (sliced)",
+        ),
+        (
+            Ingredient::new("potato", Form::Mashed, Measure::count(1), "Produce"),
+            "1 potato (mashed)",
+        ),
+        (
+            Ingredient::new(
+                "potato",
+                Form::Custom("blanched".to_owned()),
+                Measure::count(1),
+                "Produce",
+            ),
+            "1 potato (blanched)",
+        ),
+    ];
+    for (i, expected) in cases {
+        assert_eq!(format!("{}", i), expected);
+    }
+}
+
+#[test]
+fn test_recipe_display() {
+    todo!()
 }

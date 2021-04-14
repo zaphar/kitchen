@@ -44,9 +44,10 @@ pub enum VolumeMeasure {
     Gal(Quantity), // 3800 ml
     /// Fluid Ounces
     Floz(Quantity), // 30 ml
-    /// Milliliter Measurements.
     // Metric volume measurements.
+    /// Milliliter Measurements.
     ML(Quantity), // Base unit
+    // Liter Measurements.
     Ltr(Quantity), // 1000 ml
 }
 use VolumeMeasure::{Cup, Floz, Gal, Ltr, Pint, Qrt, Tbsp, Tsp, ML};
@@ -76,6 +77,13 @@ impl VolumeMeasure {
             Qrt(qty) => *qty * QRT,
             Gal(qty) => *qty * GAL,
             Ltr(qty) => *qty * LTR,
+        }
+    }
+
+    pub fn plural(&self) -> bool {
+        match self {
+            Tsp(qty) | Tbsp(qty) | Cup(qty) | Pint(qty) | Qrt(qty) | Gal(qty) | Floz(qty)
+            | ML(qty) | Ltr(qty) => qty.plural(),
         }
     }
 
@@ -181,12 +189,12 @@ impl PartialEq for VolumeMeasure {
 impl Display for VolumeMeasure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Tsp(qty) => write!(f, "{} tsp", qty),
-            Tbsp(qty) => write!(f, "{} tbsp", qty),
-            Cup(qty) => write!(f, "{} cup", qty),
-            Pint(qty) => write!(f, "{} pint", qty),
-            Qrt(qty) => write!(f, "{} qrt", qty),
-            Gal(qty) => write!(f, "{} gal", qty),
+            Tsp(qty) => write!(f, "{} tsp{}", qty, if qty.plural() { "s" } else { "" }),
+            Tbsp(qty) => write!(f, "{} tbsp{}", qty, if qty.plural() { "s" } else { "" }),
+            Cup(qty) => write!(f, "{} cup{}", qty, if qty.plural() { "s" } else { "" }),
+            Pint(qty) => write!(f, "{} pint{}", qty, if qty.plural() { "s" } else { "" }),
+            Qrt(qty) => write!(f, "{} qrt{}", qty, if qty.plural() { "s" } else { "" }),
+            Gal(qty) => write!(f, "{} gal{}", qty, if qty.plural() { "s" } else { "" }),
             Floz(qty) => write!(f, "{} floz", qty),
             ML(qty) => write!(f, "{} ml", qty),
             Ltr(qty) => write!(f, "{} ltr", qty),
@@ -216,6 +224,18 @@ impl Measure {
         Volume(Tbsp(qty))
     }
 
+    pub fn floz(qty: Quantity) -> Self {
+        Volume(Floz(qty))
+    }
+
+    pub fn ml(qty: Quantity) -> Self {
+        Volume(ML(qty))
+    }
+
+    pub fn ltr(qty: Quantity) -> Self {
+        Volume(Ltr(qty))
+    }
+
     pub fn cup(qty: Quantity) -> Self {
         Volume(Cup(qty))
     }
@@ -239,6 +259,22 @@ impl Measure {
     pub fn gram(qty: Quantity) -> Self {
         Gram(qty)
     }
+
+    pub fn measure_type(&self) -> String {
+        match self {
+            Volume(_) => "Volume",
+            Count(_) => "Count",
+            Gram(_) => "Weight",
+        }
+        .to_owned()
+    }
+
+    pub fn plural(&self) -> bool {
+        match self {
+            Volume(vm) => vm.plural(),
+            Count(qty) | Gram(qty) => qty.plural(),
+        }
+    }
 }
 
 impl Display for Measure {
@@ -246,7 +282,7 @@ impl Display for Measure {
         match self {
             Volume(vm) => write!(w, "{}", vm),
             Count(qty) => write!(w, "{}", qty),
-            Gram(qty) => write!(w, "{} grams", qty),
+            Gram(qty) => write!(w, "{} gram{}", qty, if qty.plural() { "s" } else { "" }),
         }
     }
 }
@@ -299,6 +335,13 @@ impl Quantity {
         match self {
             Whole(v) => v as f32,
             Frac(v) => (*v.numer() / *v.denom()) as f32,
+        }
+    }
+
+    pub fn plural(&self) -> bool {
+        match self {
+            Whole(v) => *v > 1,
+            Frac(r) => *r > Ratio::new(1, 1),
         }
     }
 }
