@@ -79,89 +79,114 @@ fn test_volume_normalize() {
 fn test_ingredient_display() {
     let cases = vec![
         (
-            Ingredient::new("onion", Form::Chopped, Measure::cup(1.into()), "Produce"),
+            Ingredient::new(
+                "onion",
+                Some("chopped".to_owned()),
+                Measure::cup(1.into()),
+                "Produce",
+            ),
             "1 cup onion (chopped)",
         ),
         (
-            Ingredient::new("onion", Form::Chopped, Measure::cup(2.into()), "Produce"),
+            Ingredient::new(
+                "onion",
+                Some("chopped".to_owned()),
+                Measure::cup(2.into()),
+                "Produce",
+            ),
             "2 cups onion (chopped)",
         ),
         (
-            Ingredient::new("onion", Form::Chopped, Measure::tbsp(1.into()), "Produce"),
+            Ingredient::new(
+                "onion",
+                Some("chopped".to_owned()),
+                Measure::tbsp(1.into()),
+                "Produce",
+            ),
             "1 tbsp onion (chopped)",
         ),
         (
-            Ingredient::new("onion", Form::Chopped, Measure::tbsp(2.into()), "Produce"),
+            Ingredient::new(
+                "onion",
+                Some("chopped".to_owned()),
+                Measure::tbsp(2.into()),
+                "Produce",
+            ),
             "2 tbsps onion (chopped)",
         ),
         (
-            Ingredient::new("soy sauce", Form::Whole, Measure::floz(1.into()), "Produce"),
+            Ingredient::new("soy sauce", None, Measure::floz(1.into()), "Produce"),
             "1 floz soy sauce",
         ),
         (
-            Ingredient::new("soy sauce", Form::Whole, Measure::floz(2.into()), "Produce"),
+            Ingredient::new("soy sauce", None, Measure::floz(2.into()), "Produce"),
             "2 floz soy sauce",
         ),
         (
-            Ingredient::new("soy sauce", Form::Whole, Measure::qrt(1.into()), "Produce"),
+            Ingredient::new("soy sauce", None, Measure::qrt(1.into()), "Produce"),
             "1 qrt soy sauce",
         ),
         (
-            Ingredient::new("soy sauce", Form::Whole, Measure::qrt(2.into()), "Produce"),
+            Ingredient::new("soy sauce", None, Measure::qrt(2.into()), "Produce"),
             "2 qrts soy sauce",
         ),
         (
-            Ingredient::new("soy sauce", Form::Whole, Measure::pint(1.into()), "Produce"),
+            Ingredient::new("soy sauce", None, Measure::pint(1.into()), "Produce"),
             "1 pint soy sauce",
         ),
         (
-            Ingredient::new("soy sauce", Form::Whole, Measure::pint(2.into()), "Produce"),
+            Ingredient::new("soy sauce", None, Measure::pint(2.into()), "Produce"),
             "2 pints soy sauce",
         ),
         (
-            Ingredient::new("soy sauce", Form::Whole, Measure::gal(1.into()), "Produce"),
+            Ingredient::new("soy sauce", None, Measure::gal(1.into()), "Produce"),
             "1 gal soy sauce",
         ),
         (
-            Ingredient::new("soy sauce", Form::Whole, Measure::gal(2.into()), "Produce"),
+            Ingredient::new("soy sauce", None, Measure::gal(2.into()), "Produce"),
             "2 gals soy sauce",
         ),
         (
-            Ingredient::new("soy sauce", Form::Whole, Measure::ml(1.into()), "Produce"),
+            Ingredient::new("soy sauce", None, Measure::ml(1.into()), "Produce"),
             "1 ml soy sauce",
         ),
         (
-            Ingredient::new("soy sauce", Form::Whole, Measure::ml(2.into()), "Produce"),
+            Ingredient::new("soy sauce", None, Measure::ml(2.into()), "Produce"),
             "2 ml soy sauce",
         ),
         (
-            Ingredient::new("soy sauce", Form::Whole, Measure::ltr(1.into()), "Produce"),
+            Ingredient::new("soy sauce", None, Measure::ltr(1.into()), "Produce"),
             "1 ltr soy sauce",
         ),
         (
-            Ingredient::new("soy sauce", Form::Whole, Measure::ltr(2.into()), "Produce"),
+            Ingredient::new("soy sauce", None, Measure::ltr(2.into()), "Produce"),
             "2 ltr soy sauce",
         ),
         (
-            Ingredient::new("apple", Form::Whole, Measure::count(1), "Produce"),
+            Ingredient::new("apple", None, Measure::count(1), "Produce"),
             "1 apple",
         ),
         (
-            Ingredient::new("salt", Form::Whole, Measure::gram(1.into()), "Produce"),
+            Ingredient::new("salt", None, Measure::gram(1.into()), "Produce"),
             "1 gram salt",
         ),
         (
-            Ingredient::new("salt", Form::Whole, Measure::gram(2.into()), "Produce"),
+            Ingredient::new("salt", None, Measure::gram(2.into()), "Produce"),
             "2 grams salt",
         ),
         (
-            Ingredient::new("onion", Form::Minced, Measure::cup(1.into()), "Produce"),
+            Ingredient::new(
+                "onion",
+                Some("minced".to_owned()),
+                Measure::cup(1.into()),
+                "Produce",
+            ),
             "1 cup onion (minced)",
         ),
         (
             Ingredient::new(
                 "pepper",
-                Form::Ground,
+                Some("ground".to_owned()),
                 Measure::tsp(Ratio::new(1, 2).into()),
                 "Produce",
             ),
@@ -170,24 +195,34 @@ fn test_ingredient_display() {
         (
             Ingredient::new(
                 "pepper",
-                Form::Ground,
+                Some("ground".to_owned()),
                 Measure::tsp(Ratio::new(3, 2).into()),
                 "Produce",
             ),
             "1 1/2 tsps pepper (ground)",
         ),
         (
-            Ingredient::new("apple", Form::Sliced, Measure::count(1), "Produce"),
+            Ingredient::new(
+                "apple",
+                Some("sliced".to_owned()),
+                Measure::count(1),
+                "Produce",
+            ),
             "1 apple (sliced)",
         ),
         (
-            Ingredient::new("potato", Form::Mashed, Measure::count(1), "Produce"),
+            Ingredient::new(
+                "potato",
+                Some("mashed".to_owned()),
+                Measure::count(1),
+                "Produce",
+            ),
             "1 potato (mashed)",
         ),
         (
             Ingredient::new(
                 "potato",
-                Form::Custom("blanched".to_owned()),
+                Some("blanched".to_owned()),
                 Measure::count(1),
                 "Produce",
             ),

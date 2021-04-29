@@ -18,17 +18,29 @@ use std::collections::BTreeMap;
 use unit::*;
 
 /// A Recipe with a title, description, and a series of steps.
+#[derive(Debug, Clone, PartialEq)]
 pub struct Recipe {
+    pub id: Option<i64>,
     pub title: String,
     pub desc: String,
     pub steps: Vec<Step>,
 }
 
 impl Recipe {
-    pub fn new(title: String, desc: String) -> Self {
+    pub fn new<S: Into<String>>(title: S, desc: S) -> Self {
         Self {
-            title,
-            desc,
+            id: None,
+            title: title.into(),
+            desc: desc.into(),
+            steps: Vec::new(),
+        }
+    }
+
+    pub fn new_id<S: Into<String>>(id: i64, title: S, desc: S) -> Self {
+        Self {
+            id: Some(id),
+            title: title.into(),
+            desc: desc.into(),
             steps: Vec::new(),
         }
     }
@@ -69,44 +81,92 @@ impl Recipe {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct StepKey(i64, i64);
+
+impl StepKey {
+    pub fn recipe_id(&self) -> i64 {
+        self.0
+    }
+    pub fn step_idx(&self) -> i64 {
+        self.1
+    }
+}
+
 /// A Recipe step. It has the time for the step if there is one, instructions, and an ingredients
 /// list.
+#[derive(Debug, Clone, PartialEq)]
 pub struct Step {
     pub prep_time: Option<std::time::Duration>,
     pub instructions: String,
     pub ingredients: Vec<Ingredient>,
 }
 
-/// Form of the ingredient.
-#[derive(PartialEq, Eq, Debug, PartialOrd, Ord, Clone)]
-pub enum Form {
-    Whole, // default
-    Chopped,
-    Minced,
-    Sliced,
-    Ground,
-    Mashed,
-    Custom(String),
+impl Step {
+    pub fn new<S: Into<String>>(prep_time: Option<std::time::Duration>, instructions: S) -> Self {
+        Self {
+            prep_time: prep_time,
+            instructions: instructions.into(),
+            ingredients: Vec::new(),
+        }
+    }
+
+    pub fn new_id<S: Into<String>>(
+        prep_time: Option<std::time::Duration>,
+        instructions: S,
+    ) -> Self {
+        Self {
+            prep_time: prep_time,
+            instructions: instructions.into(),
+            ingredients: Vec::new(),
+        }
+    }
+
+    pub fn add_ingredients(&mut self, mut ingredients: Vec<Ingredient>) {
+        self.ingredients.append(&mut ingredients);
+    }
+
+    pub fn add_ingredient(&mut self, ingredient: Ingredient) {
+        self.ingredients.push(ingredient);
+    }
 }
 
 /// Unique identifier for an Ingredient. Ingredients are identified by name, form,
 /// and measurement type. (Volume, Count, Weight)
 #[derive(PartialEq, PartialOrd, Eq, Ord)]
-pub struct IngredientKey(String, Form, String);
+pub struct IngredientKey(String, Option<String>, String);
 
 /// Ingredient in a recipe. The `name` and `form` fields with the measurement type
 /// uniquely identify an ingredient.
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Ingredient {
+    pub id: Option<i64>,
     pub name: String,
-    pub form: Form,
+    pub form: Option<String>,
     pub amt: Measure,
     pub category: String,
 }
 
 impl Ingredient {
-    pub fn new<S: Into<String>>(name: S, form: Form, amt: Measure, category: S) -> Self {
+    pub fn new<S: Into<String>>(name: S, form: Option<String>, amt: Measure, category: S) -> Self {
         Self {
+            id: None,
+            name: name.into(),
+            form,
+            amt,
+            category: category.into(),
+        }
+    }
+
+    pub fn new_id<S: Into<String>>(
+        id: i64,
+        name: S,
+        form: Option<String>,
+        amt: Measure,
+        category: S,
+    ) -> Self {
+        Self {
+            id: Some(id),
             name: name.into(),
             form,
             amt,
@@ -127,19 +187,10 @@ impl Ingredient {
 impl std::fmt::Display for Ingredient {
     fn fmt(&self, w: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(w, "{} {}", self.amt, self.name)?;
-        write!(
-            w,
-            " ({})",
-            match self.form {
-                Form::Whole => return Ok(()),
-                Form::Chopped => "chopped",
-                Form::Minced => "minced",
-                Form::Sliced => "sliced",
-                Form::Ground => "ground",
-                Form::Mashed => "mashed",
-                Form::Custom(ref s) => return write!(w, " ({})", s),
-            }
-        )
+        if let Some(f) = &self.form {
+            write!(w, " ({})", f)?;
+        }
+        Ok(())
     }
 }
 
