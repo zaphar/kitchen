@@ -47,7 +47,7 @@ fn test_schema_creation() {
 #[test]
 fn test_recipe_store_update_roundtrip_full() {
     let mut in_memory = init_sqlite_store!();
-
+    let tx = in_memory.start_transaction().unwrap();
     let mut recipe = Recipe::new("my recipe", "my description");
     let mut step1 = Step::new(
         Some(std::time::Duration::from_secs(60 * 30)),
@@ -65,17 +65,15 @@ fn test_recipe_store_update_roundtrip_full() {
     let step2 = Step::new(None, "combine ingredients");
     recipe.add_steps(vec![step1.clone(), step2.clone()]);
 
-    in_memory
-        .store_recipe(&mut recipe)
+    tx.store_recipe(&mut recipe)
         .expect("We expect the recpe to store successfully");
-    assert!(recipe.id.is_some());
 
-    let recipes: Vec<Recipe> = in_memory
+    let recipes: Vec<Recipe> = tx
         .fetch_all_recipes()
         .expect("We expect to get recipes back out");
     assert_eq!(recipes.len(), 1);
-    let recipe: Option<Recipe> = in_memory
-        .fetch_recipe("my recipe")
+    let recipe: Option<Recipe> = tx
+        .fetch_recipe_by_title("my recipe")
         .expect("We expect the recipe to come back out");
     assert!(recipe.is_some());
     let recipe = recipe.unwrap();
@@ -97,6 +95,7 @@ fn test_recipe_store_update_roundtrip_full() {
 #[test]
 fn test_fetch_recipe_ingredients() {
     let mut in_memory = init_sqlite_store!();
+    let tx = in_memory.start_transaction().unwrap();
     let mut recipe = Recipe::new("my recipe", "my description");
     let mut step1 = Step::new(
         Some(std::time::Duration::from_secs(60 * 30)),
@@ -114,12 +113,11 @@ fn test_fetch_recipe_ingredients() {
     let step2 = Step::new(None, "combine ingredients");
     recipe.add_steps(vec![step1.clone(), step2.clone()]);
 
-    in_memory
-        .store_recipe(&mut recipe)
+    tx.store_recipe(&mut recipe)
         .expect("We expect the recpe to store successfully");
 
-    let ingredients = in_memory
-        .fetch_recipe_ingredients(recipe.id.unwrap())
+    let ingredients = tx
+        .fetch_recipe_ingredients(recipe.id)
         .expect("We expect to fetch ingredients for the recipe");
     assert_eq!(ingredients.len(), 2);
     assert_eq!(ingredients, step1.ingredients);

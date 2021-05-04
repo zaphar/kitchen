@@ -15,12 +15,48 @@ pub mod unit;
 
 use std::collections::BTreeMap;
 
+use chrono::NaiveDate;
+use uuid::{self, Uuid};
+
 use unit::*;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Mealplan {
+    pub id: uuid::Uuid,
+    pub start_date: Option<NaiveDate>,
+    pub recipes: Vec<Recipe>,
+}
+
+impl Mealplan {
+    pub fn new() -> Self {
+        Self::new_id(uuid::Uuid::new_v4())
+    }
+
+    pub fn new_id(id: Uuid) -> Self {
+        Self {
+            id: id,
+            start_date: None,
+            recipes: Vec::new(),
+        }
+    }
+
+    pub fn with_start_date(mut self, start_date: NaiveDate) -> Self {
+        self.start_date = Some(start_date);
+        self
+    }
+
+    pub fn add_recipes<Iter>(&mut self, recipes: Iter)
+    where
+        Iter: IntoIterator<Item = Recipe>,
+    {
+        self.recipes.extend(recipes.into_iter())
+    }
+}
 
 /// A Recipe with a title, description, and a series of steps.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Recipe {
-    pub id: Option<i64>,
+    pub id: uuid::Uuid, // TODO(jwall): use uuid instead?
     pub title: String,
     pub desc: String,
     pub steps: Vec<Step>,
@@ -29,16 +65,16 @@ pub struct Recipe {
 impl Recipe {
     pub fn new<S: Into<String>>(title: S, desc: S) -> Self {
         Self {
-            id: None,
+            id: uuid::Uuid::new_v4(),
             title: title.into(),
             desc: desc.into(),
             steps: Vec::new(),
         }
     }
 
-    pub fn new_id<S: Into<String>>(id: i64, title: S, desc: S) -> Self {
+    pub fn new_id<S: Into<String>>(id: uuid::Uuid, title: S, desc: S) -> Self {
         Self {
-            id: Some(id),
+            id: id,
             title: title.into(),
             desc: desc.into(),
             steps: Vec::new(),
@@ -46,7 +82,10 @@ impl Recipe {
     }
 
     /// Add steps to the end of the recipe.
-    pub fn add_steps(&mut self, steps: Vec<Step>) {
+    pub fn add_steps<Iter>(&mut self, steps: Iter)
+    where
+        Iter: IntoIterator<Item = Step>,
+    {
         self.steps.extend(steps.into_iter());
     }
 
@@ -122,8 +161,11 @@ impl Step {
         }
     }
 
-    pub fn add_ingredients(&mut self, mut ingredients: Vec<Ingredient>) {
-        self.ingredients.append(&mut ingredients);
+    pub fn add_ingredients<Iter>(&mut self, ingredients: Iter)
+    where
+        Iter: IntoIterator<Item = Ingredient>,
+    {
+        self.ingredients.extend(ingredients.into_iter());
     }
 
     pub fn add_ingredient(&mut self, ingredient: Ingredient) {
@@ -140,7 +182,7 @@ pub struct IngredientKey(String, Option<String>, String);
 /// uniquely identify an ingredient.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ingredient {
-    pub id: Option<i64>,
+    pub id: Option<i64>, // TODO(jwall): use uuid instead?
     pub name: String,
     pub form: Option<String>,
     pub amt: Measure,
