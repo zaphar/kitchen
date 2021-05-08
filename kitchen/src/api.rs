@@ -21,7 +21,9 @@ pub struct Api {
 }
 
 impl Api {
-    // mealplan
+    pub fn new_recipe_from_str(&self, input: &str) {}
+
+    pub fn new_mealplan_from_str(&self, input: &str) {}
 }
 
 impl From<SqliteBackend> for Api {

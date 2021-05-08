@@ -56,7 +56,7 @@ impl Mealplan {
 /// A Recipe with a title, description, and a series of steps.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Recipe {
-    pub id: uuid::Uuid, // TODO(jwall): use uuid instead?
+    pub id: uuid::Uuid,
     pub title: String,
     pub desc: String,
     pub steps: Vec<Step>,
@@ -72,7 +72,7 @@ impl Recipe {
         }
     }
 
-    pub fn new_id<S: Into<String>>(id: uuid::Uuid, title: S, desc: S) -> Self {
+    pub fn new_with_id<S: Into<String>>(id: uuid::Uuid, title: S, desc: S) -> Self {
         Self {
             id: id,
             title: title.into(),
@@ -120,18 +120,6 @@ impl Recipe {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct StepKey(i64, i64);
-
-impl StepKey {
-    pub fn recipe_id(&self) -> i64 {
-        self.0
-    }
-    pub fn step_idx(&self) -> i64 {
-        self.1
-    }
-}
-
 /// A Recipe step. It has the time for the step if there is one, instructions, and an ingredients
 /// list.
 #[derive(Debug, Clone, PartialEq)]
@@ -143,17 +131,6 @@ pub struct Step {
 
 impl Step {
     pub fn new<S: Into<String>>(prep_time: Option<std::time::Duration>, instructions: S) -> Self {
-        Self {
-            prep_time: prep_time,
-            instructions: instructions.into(),
-            ingredients: Vec::new(),
-        }
-    }
-
-    pub fn new_id<S: Into<String>>(
-        prep_time: Option<std::time::Duration>,
-        instructions: S,
-    ) -> Self {
         Self {
             prep_time: prep_time,
             instructions: instructions.into(),
@@ -200,7 +177,7 @@ impl Ingredient {
         }
     }
 
-    pub fn new_id<S: Into<String>>(
+    pub fn new_with_id<S: Into<String>>(
         id: i64,
         name: S,
         form: Option<String>,

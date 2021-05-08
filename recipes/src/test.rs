@@ -233,8 +233,3 @@ fn test_ingredient_display() {
         assert_eq!(format!("{}", i), expected);
     }
 }
-
-#[test]
-fn test_recipe_display() {
-    todo!()
-}

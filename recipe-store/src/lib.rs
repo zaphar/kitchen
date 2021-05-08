@@ -237,7 +237,7 @@ impl<'conn> TxHandle<'conn> {
         let id: Uuid = r.get(0)?;
         let title: String = r.get(1)?;
         let desc: String = r.get(2)?;
-        Ok(Recipe::new_id(id, title, desc))
+        Ok(Recipe::new_with_id(id, title, desc))
     }
 
     fn map_ingredient_row(r: &rusqlite::Row) -> Result<Ingredient, rusqlite::Error> {
