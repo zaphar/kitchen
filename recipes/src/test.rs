@@ -16,6 +16,7 @@ use VolumeMeasure::*;
 
 use std::convert::Into;
 
+use abortable_parser::{Result as ParseResult, StrIter};
 use num_rational::Ratio;
 
 #[test]
@@ -231,5 +232,109 @@ fn test_ingredient_display() {
     ];
     for (i, expected) in cases {
         assert_eq!(format!("{}", i), expected);
+    }
+}
+
+use Measure::*;
+
+#[test]
+fn test_ratio_parse() {
+    if let ParseResult::Complete(_, rat) = parse::ratio(StrIter::new("1/2")) {
+        assert_eq!(rat, Ratio::new(1, 2))
+    } else {
+        assert!(false)
+    }
+}
+
+#[test]
+fn test_quantity_parse() {
+    for (i, expected) in vec![
+        ("1 ", Quantity::Whole(1)),
+        ("1/2 ", Quantity::Frac(Ratio::new(1, 2))),
+        ("1 1/2 ", Quantity::Frac(Ratio::new(3, 2))),
+    ] {
+        match parse::quantity(StrIter::new(i)) {
+            ParseResult::Complete(_, qty) => assert_eq!(qty, expected),
+            err => assert!(false, "{:?}", err),
+        }
+    }
+}
+
+#[test]
+fn test_ingredient_name_parse() {
+    for (i, expected) in vec![("flour ", "flour"), ("flour (", "flour")] {
+        match parse::ingredient_name(StrIter::new(i)) {
+            ParseResult::Complete(_, n) => assert_eq!(n, expected),
+            err => assert!(false, "{:?}", err),
+        }
+    }
+}
+
+#[test]
+fn test_ingredient_parse() {
+    for (i, expected) in vec![
+        (
+            "1 cup flour ",
+            Ingredient::new("flour", None, Volume(Cup(Quantity::Whole(1))), ""),
+        ),
+        (
+            "\t1 cup flour ",
+            Ingredient::new("flour", None, Volume(Cup(Quantity::Whole(1))), ""),
+        ),
+        (
+            "1 cup apple (chopped)",
+            Ingredient::new(
+                "apple",
+                Some("chopped".to_owned()),
+                Volume(Cup(Quantity::Whole(1))),
+                "",
+            ),
+        ),
+        (
+            "1 cup apple (chopped) ",
+            Ingredient::new(
+                "apple",
+                Some("chopped".to_owned()),
+                Volume(Cup(Quantity::Whole(1))),
+                "",
+            ),
+        ),
+    ] {
+        match ingredient(StrIter::new(i)) {
+            ParseResult::Complete(_, ing) => assert_eq!(ing, expected),
+            err => assert!(false, "{:?}", err),
+        }
+    }
+}
+
+#[test]
+fn test_ingredient_list_parse() {
+    for (i, expected) in vec![
+        (
+            "1 cup flour ",
+            vec![Ingredient::new(
+                "flour",
+                None,
+                Volume(Cup(Quantity::Whole(1))),
+                "",
+            )],
+        ),
+        (
+            "1 cup flour \n1/2 tsp butter ",
+            vec![
+                Ingredient::new("flour", None, Volume(Cup(Quantity::Whole(1))), ""),
+                Ingredient::new(
+                    "butter",
+                    None,
+                    Volume(Tsp(Quantity::Frac(Ratio::new(1, 2)))),
+                    "",
+                ),
+            ],
+        ),
+    ] {
+        match ingredient_list(StrIter::new(i)) {
+            ParseResult::Complete(_, ing) => assert_eq!(ing, expected),
+            err => assert!(false, "{:?}", err),
+        }
     }
 }

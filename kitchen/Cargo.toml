@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 recipes = {path = "../recipes" }
 recipe-store = {path = "../recipe-store" }
+rustyline = "~8.0.0"

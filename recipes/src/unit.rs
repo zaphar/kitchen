@@ -22,14 +22,14 @@ use std::{
     convert::TryFrom,
     fmt::Display,
     ops::{Add, Div, Mul, Sub},
-    str::FromStr,
 };
 
 use abortable_parser::{
-    self, consume_all, do_each, either, make_fn, not, optional, peek, run, text_token, trap,
-    Result, StrIter,
+    consume_all, do_each, either, make_fn, not, optional, peek, text_token, trap, Result, StrIter,
 };
 use num_rational::Ratio;
+
+use crate::parse::measure;
 
 #[derive(Copy, Clone, Debug)]
 /// Volume Measurements for ingredients in a recipe.
@@ -285,21 +285,7 @@ impl Measure {
 
     pub fn parse(input: &str) -> std::result::Result<Self, String> {
         Ok(match measure(StrIter::new(input)) {
-            Result::Complete(_, (qty, Some(unit))) => match unit {
-                "tsp" => Volume(Tsp(qty)),
-                "tbsp" => Volume(Tbsp(qty)),
-                "floz" => Volume(Floz(qty)),
-                "ml" => Volume(ML(qty)),
-                "ltr" => Volume(Ltr(qty)),
-                "cup" => Volume(Cup(qty)),
-                "qrt" => Volume(Qrt(qty)),
-                "pint" | "pnt" => Volume(Pint(qty)),
-                "cnt" => Count(qty),
-                "g" => Gram(qty),
-                "gram" => Gram(qty),
-                u => return Err(format!("Invalid unit {}", u)),
-            },
-            Result::Complete(_, (qty, None)) => Count(qty),
+            Result::Complete(i, measure) => measure,
             Result::Abort(e) | Result::Fail(e) => {
                 return Err(format!("Failed to parse as Measure {:?}", e))
             }
@@ -468,98 +454,3 @@ impl Display for Quantity {
         }
     }
 }
-
-make_fn!(nonzero<StrIter, ()>,
-    peek!(not!(do_each!(
-        n => consume_all!(text_token!("0")),
-        _ => optional!(ws),
-        (n)
-    )))
-);
-
-make_fn!(num<StrIter, u32>,
-    do_each!(
-        n => consume_all!(either!(
-            text_token!("0"),
-            text_token!("1"),
-            text_token!("2"),
-            text_token!("3"),
-            text_token!("4"),
-            text_token!("5"),
-            text_token!("6"),
-            text_token!("7"),
-            text_token!("8"),
-            text_token!("9")
-        )),
-        (u32::from_str(n).unwrap())
-    )
-);
-
-make_fn!(ws<StrIter, &str>,
-    consume_all!(either!(
-        text_token!(" "),
-        text_token!("\t")
-    ))
-);
-
-make_fn!(ratio<StrIter, Ratio<u32>>,
-    do_each!(
-        // First we assert non-zero numerator
-        _ => nonzero,
-        numer => num,
-        _ => optional!(ws),
-        _ => text_token!("/"),
-        _ => optional!(ws),
-        denom => num,
-        (Ratio::new(numer, denom))
-    )
-);
-
-make_fn!(unit<StrIter, &str>,
-    do_each!(
-        u => either!(
-            text_token!("tsp"),
-            text_token!("tbsp"),
-            text_token!("floz"),
-            text_token!("ml"),
-            text_token!("ltr"),
-            text_token!("cup"),
-            text_token!("qrt"),
-            text_token!("pint"),
-            text_token!("pnt"),
-            text_token!("gal"),
-            text_token!("gal"),
-            text_token!("cnt"),
-            text_token!("g"),
-            text_token!("gram")),
-        (u))
-);
-
-make_fn!(
-    quantity<StrIter, Quantity>,
-     either!(
-        do_each!(
-            whole => num,
-            frac => ratio,
-            (Quantity::Whole(whole) + Quantity::Frac(frac))
-        ),
-        do_each!(
-            frac => ratio,
-            (Quantity::Frac(frac))
-        ),
-        do_each!(
-            whole => num,
-            (Quantity::whole(whole))
-        )
-    )
-);
-
-make_fn!(
-    measure<StrIter, (Quantity, Option<&str>)>,
-    do_each!(
-        qty => quantity,
-        _ => optional!(ws),
-        unit => optional!(unit),
-        ((qty, unit))
-    )
-);

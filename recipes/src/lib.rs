@@ -11,13 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+mod parse;
 pub mod unit;
 
 use std::collections::BTreeMap;
+use std::str::FromStr;
 
 use chrono::NaiveDate;
 use uuid::{self, Uuid};
 
+use parse::{ingredient, measure};
 use unit::*;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -200,6 +203,26 @@ impl Ingredient {
             self.form.clone(),
             self.amt.measure_type(),
         );
+    }
+
+    pub fn parse(s: &str) -> Result<Ingredient, String> {
+        Ok(match ingredient(abortable_parser::StrIter::new(s)) {
+            abortable_parser::Result::Complete(_, ing) => ing,
+            abortable_parser::Result::Abort(e) | abortable_parser::Result::Fail(e) => {
+                return Err(format!("Failed to parse as Ingredient {:?}", e))
+            }
+            abortable_parser::Result::Incomplete(_) => {
+                return Err(format!("Incomplete input: {}", s))
+            }
+        })
+    }
+}
+
+impl FromStr for Ingredient {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ingredient::parse(s)
     }
 }
 
