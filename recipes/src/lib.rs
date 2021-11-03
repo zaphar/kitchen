@@ -61,27 +61,35 @@ impl Mealplan {
 pub struct Recipe {
     pub id: uuid::Uuid,
     pub title: String,
-    pub desc: String,
+    pub desc: Option<String>,
     pub steps: Vec<Step>,
 }
 
 impl Recipe {
-    pub fn new<S: Into<String>>(title: S, desc: S) -> Self {
+    pub fn new<S: Into<String>>(title: S, desc: Option<S>) -> Self {
         Self {
             id: uuid::Uuid::new_v4(),
             title: title.into(),
-            desc: desc.into(),
+            desc: desc.map(|s| s.into()),
             steps: Vec::new(),
         }
     }
 
-    pub fn new_with_id<S: Into<String>>(id: uuid::Uuid, title: S, desc: S) -> Self {
+    pub fn new_with_id<S: Into<String>>(id: uuid::Uuid, title: S, desc: Option<S>) -> Self {
         Self {
             id: id,
             title: title.into(),
-            desc: desc.into(),
+            desc: desc.map(|s| s.into()),
             steps: Vec::new(),
         }
+    }
+
+    pub fn with_steps<Iter>(mut self, steps: Iter) -> Self
+    where
+        Iter: IntoIterator<Item = Step>,
+    {
+        self.add_steps(steps);
+        self
     }
 
     /// Add steps to the end of the recipe.

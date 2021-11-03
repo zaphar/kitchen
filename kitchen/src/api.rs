@@ -11,23 +11,3 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::convert::From;
-
-use recipe_store::{RecipeStore, SqliteBackend};
-use recipes::*;
-
-pub struct Api {
-    store: SqliteBackend,
-}
-
-impl Api {
-    pub fn new_recipe_from_str(&self, input: &str) {}
-
-    pub fn new_mealplan_from_str(&self, input: &str) {}
-}
-
-impl From<SqliteBackend> for Api {
-    fn from(store: SqliteBackend) -> Self {
-        Api { store }
-    }
-}

@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-abortable_parser = "~0.2.5"
+abortable_parser = "~0.2.6"
 chrono = "~0.4"
 
 [dependencies.uuid]
