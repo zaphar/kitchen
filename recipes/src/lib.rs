@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-mod parse;
+pub mod parse;
 pub mod unit;
 
 use std::collections::BTreeMap;
@@ -20,7 +20,7 @@ use std::str::FromStr;
 use chrono::NaiveDate;
 use uuid::{self, Uuid};
 
-use parse::{ingredient, measure};
+use parse::*;
 use unit::*;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -139,6 +139,14 @@ impl Step {
             instructions: instructions.into(),
             ingredients: Vec::new(),
         }
+    }
+
+    pub fn with_ingredients<Iter>(mut self, ingredients: Iter) -> Step
+    where
+        Iter: IntoIterator<Item = Ingredient>,
+    {
+        self.add_ingredients(ingredients);
+        self
     }
 
     pub fn add_ingredients<Iter>(&mut self, ingredients: Iter)

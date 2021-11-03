@@ -21,8 +21,80 @@ use num_rational::Ratio;
 
 use crate::{
     unit::{Measure, Measure::*, Quantity, VolumeMeasure::*},
-    Ingredient,
+    Ingredient, Recipe, Step,
 };
+
+make_fn!(
+    pub recipe<StrIter, Recipe>,
+    do_each!(
+        title => title,
+        _ => optional!(para_separator),
+        desc => optional!(do_each!(
+            _ => peek!(not!(step_prefix)),
+            desc => description,
+            (desc)
+        )),
+        _ => optional!(para_separator),
+        steps => step_list,
+        (Recipe::new(title, desc).with_steps(steps))
+    )
+);
+
+make_fn!(
+    pub title<StrIter, &str>,
+    do_each!(
+        _ => text_token!("title:"),
+        _ => optional!(ws),
+        title => until!(text_token!("\n")),
+        _ => text_token!("\n"),
+        (title)
+    )
+);
+
+make_fn!(
+    para_separator<StrIter, &str>,
+    do_each!(
+        _ => text_token!("\n"),
+        _ => optional!(ws),
+        _ => text_token!("\n"),
+        ("")
+    )
+);
+
+make_fn!(
+    pub description<StrIter, &str>,
+    until!(either!(
+        discard!(para_separator),
+        eoi,
+    ))
+);
+
+make_fn!(
+    pub step_prefix<StrIter, &str>,
+    do_each!(
+        _ => text_token!("step:"),
+        _ => optional!(ws),
+        _ => para_separator,
+        ("")
+    )
+);
+
+make_fn!(
+    pub step<StrIter, Step>,
+    do_each!(
+        _ => step_prefix,
+        ingredients => ingredient_list,
+        _ => para_separator,
+        desc => description,
+        _ => either!(discard!(para_separator), eoi),
+        (Step::new(None, desc).with_ingredients(ingredients))
+    )
+);
+
+make_fn!(
+    pub step_list<StrIter, Vec<Step>>,
+    repeat!(step)
+);
 
 make_fn!(ws<StrIter, &str>,
     consume_all!(either!(

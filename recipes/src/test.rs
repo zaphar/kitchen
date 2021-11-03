@@ -338,3 +338,87 @@ fn test_ingredient_list_parse() {
         }
     }
 }
+
+#[test]
+fn test_single_step() {
+    let step = "step: 
+
+1 tbsp flour
+2 tbsp butter
+1 cup apple (chopped)
+
+Saute apples in butter until golden brown. Add flour slowly
+until thickens. Set aside to cool.";
+
+    match parse::step(StrIter::new(step)) {
+        ParseResult::Complete(_, step) => {
+            assert_eq!(step.ingredients.len(), 3);
+            assert_eq!(
+                step.instructions,
+                "Saute apples in butter until golden brown. Add flour slowly
+until thickens. Set aside to cool."
+            );
+        }
+        err => assert!(false, "{:?}", err),
+    }
+}
+
+#[test]
+fn test_multiple_steps() {
+    let steps = "step:
+
+1 tbsp flour
+2 tbsp butter
+1 cup apple (chopped)
+
+Saute apples in butter until golden brown. Add flour slowly
+until thickens. Set aside to cool.
+
+step:
+
+1 tbsp flour
+2 tbsp butter
+
+Saute apples in butter until golden brown. Add flour slowly
+until thickened. Set aside to cool.
+";
+
+    match parse::step_list(StrIter::new(steps)) {
+        ParseResult::Complete(_, steps) => {
+            assert_eq!(steps.len(), 2);
+        }
+        err => assert!(false, "{:?}", err),
+    }
+}
+
+#[test]
+fn test_recipe_multiple_steps() {
+    let recipe = "title: gooey apple bake
+
+A simple gooey apple bake recipe.
+
+step:
+
+1 tbsp flour
+2 tbsp butter
+1 cup apple (chopped)
+
+Saute apples in butter until golden brown. Add flour slowly
+until thickens. Set aside to cool.
+
+step:
+
+1 tbsp flour
+2 tbsp butter
+
+Saute apples in butter until golden brown. Add flour slowly
+until thickened. Set aside to cool.
+";
+
+    match parse::recipe(StrIter::new(recipe)) {
+        ParseResult::Complete(_, recipe) => {
+            assert_eq!(recipe.steps.len(), 2);
+        }
+        err => assert!(false, "{:?}", err),
+    }
+}
