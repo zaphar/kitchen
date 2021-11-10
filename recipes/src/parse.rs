@@ -24,6 +24,14 @@ use crate::{
     Ingredient, Recipe, Step,
 };
 
+pub fn as_recipe(i: &str) -> std::result::Result<Recipe, String> {
+    match recipe(StrIter::new(i)) {
+        Result::Abort(e) | Result::Fail(e) => Err(format!("Parse Failure: {:?}", e)),
+        Result::Incomplete(_) => Err(format!("Incomplete recipe can not parse")),
+        Result::Complete(_, r) => Ok(r),
+    }
+}
+
 make_fn!(
     pub recipe<StrIter, Recipe>,
     do_each!(

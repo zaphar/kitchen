@@ -24,9 +24,7 @@ use std::{
     ops::{Add, Div, Mul, Sub},
 };
 
-use abortable_parser::{
-    consume_all, do_each, either, make_fn, not, optional, peek, text_token, trap, Result, StrIter,
-};
+use abortable_parser::{Result, StrIter};
 use num_rational::Ratio;
 
 use crate::parse::measure;
@@ -285,7 +283,7 @@ impl Measure {
 
     pub fn parse(input: &str) -> std::result::Result<Self, String> {
         Ok(match measure(StrIter::new(input)) {
-            Result::Complete(i, measure) => measure,
+            Result::Complete(_, measure) => measure,
             Result::Abort(e) | Result::Fail(e) => {
                 return Err(format!("Failed to parse as Measure {:?}", e))
             }
