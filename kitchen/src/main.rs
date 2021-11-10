@@ -13,6 +13,8 @@
 // limitations under the License.
 mod cli;
 
+use std::env;
+
 use recipes::Recipe;
 
 use clap;
@@ -32,6 +34,7 @@ where
             (@arg INPUT: +required "Input recipe file to parse")
         )
     )
+    .setting(clap::AppSettings::SubcommandRequiredElseHelp)
 }
 
 fn output_recipe_info(r: Recipe, print_ingredients: bool) {
