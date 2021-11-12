@@ -14,8 +14,8 @@
 use std::str::FromStr;
 
 use abortable_parser::{
-    ascii_digit, ascii_ws, consume_all, discard, do_each, either, eoi, make_fn, not, optional,
-    peek, repeat, separated, text_token, trap, until, Result, StrIter,
+    ascii_digit, ascii_ws, consume_all, discard, do_each, either, eoi, make_fn, must, not,
+    optional, peek, repeat, separated, text_token, trap, until, Result, StrIter,
 };
 use num_rational::Ratio;
 
@@ -91,7 +91,7 @@ make_fn!(
     pub step<StrIter, Step>,
     do_each!(
         _ => step_prefix,
-        ingredients => ingredient_list,
+        ingredients => must!(ingredient_list),
         _ => para_separator,
         desc => description,
         _ => either!(discard!(para_separator), eoi),
@@ -101,7 +101,15 @@ make_fn!(
 
 make_fn!(
     pub step_list<StrIter, Vec<Step>>,
-    repeat!(step)
+    do_each!(
+        first_step => must!(step),
+        rest => repeat!(step),
+        ({
+            let mut steps = vec![first_step];
+            steps.extend(rest);
+            steps
+        })
+    )
 );
 
 make_fn!(ws<StrIter, &str>,
@@ -148,6 +156,8 @@ make_fn!(unit<StrIter, &str>,
             text_token!("floz"),
             text_token!("ml"),
             text_token!("ltr"),
+            text_token!("lb"),
+            text_token!("oz"),
             text_token!("cup"),
             text_token!("qrt"),
             text_token!("pint"),
@@ -212,6 +222,9 @@ pub fn measure(i: StrIter) -> abortable_parser::Result<StrIter, Measure> {
                     Some("qrt") | Some("quart") => Volume(Qrt(qty)),
                     Some("pint") | Some("pnt") => Volume(Pint(qty)),
                     Some("cnt") | Some("count") => Count(qty),
+                    Some("lb") => Measure::lb(qty),
+                    Some("oz") => Measure::oz(qty),
+                    Some("kg") => Measure::kilogram(qty),
                     Some("g") => Gram(qty),
                     Some("gram") => Gram(qty),
                     Some(u) => {
@@ -237,8 +250,10 @@ pub fn measure(i: StrIter) -> abortable_parser::Result<StrIter, Measure> {
 make_fn!(
     pub ingredient_name<StrIter, &str>,
     do_each!(
-        name => until!(ascii_ws),
-        _ => ws,
+        name => until!(either!(
+            discard!(text_token!("\n")),
+            eoi,
+            discard!(text_token!("(")))),
         (name)
     )
 );
@@ -260,6 +275,7 @@ make_fn!(
         measure => measure,
         name => ingredient_name,
         modifier => optional!(ingredient_modifier),
+        _ => optional!(ws),
         (Ingredient::new(name, modifier.map(|s| s.to_owned()), measure, ""))
     )
 );

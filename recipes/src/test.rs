@@ -418,6 +418,7 @@ until thickened. Set aside to cool.
     match parse::recipe(StrIter::new(recipe)) {
         ParseResult::Complete(_, recipe) => {
             assert_eq!(recipe.steps.len(), 2);
+            assert_eq!(recipe.steps[0].ingredients.len(), 3);
         }
         err => assert!(false, "{:?}", err),
     }

@@ -40,8 +40,8 @@ where
 fn output_recipe_info(r: Recipe, print_ingredients: bool) {
     println!("Title: {}", r.title);
     println!("");
-    println!("Ingredients:");
     if print_ingredients {
+        println!("Ingredients:");
         for (_, ing) in r.get_ingredients() {
             print!("\t* {}", ing.amt);
             println!(" {}", ing.name);

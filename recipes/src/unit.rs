@@ -263,6 +263,21 @@ impl Measure {
         Gram(qty)
     }
 
+    pub fn kilogram(qty: Quantity) -> Self {
+        Gram(qty * Quantity::Whole(1000))
+    }
+
+    // TODO(jwall): Should these be separate units with conversions?
+    pub fn lb(qty: Quantity) -> Self {
+        // This is an approximation obviously
+        Gram(qty * (Quantity::Whole(453) + Quantity::Frac(Ratio::new(6, 10))))
+    }
+
+    pub fn oz(qty: Quantity) -> Self {
+        // This is an approximation obviously
+        Gram(qty * (Quantity::Whole(28) + Quantity::Frac(Ratio::new(4, 10))))
+    }
+
     pub fn measure_type(&self) -> String {
         match self {
             Volume(_) => "Volume",
