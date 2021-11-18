@@ -24,10 +24,7 @@ use std::{
     ops::{Add, Div, Mul, Sub},
 };
 
-use abortable_parser::{Result, StrIter};
 use num_rational::Ratio;
-
-use crate::parse::measure;
 
 #[derive(Copy, Clone, Debug)]
 /// Volume Measurements for ingredients in a recipe.
@@ -394,17 +391,6 @@ impl Measure {
             Weight(wm) => wm.plural(),
         }
     }
-
-    // TODO(jwall): Remove this it's unnecessary
-    pub fn parse(input: &str) -> std::result::Result<Self, String> {
-        Ok(match measure(StrIter::new(input)) {
-            Result::Complete(_, measure) => measure,
-            Result::Abort(e) | Result::Fail(e) => {
-                return Err(format!("Failed to parse as Measure {:?}", e))
-            }
-            Result::Incomplete(_) => return Err(format!("Incomplete input: {}", input)),
-        })
-    }
 }
 
 impl Display for Measure {
@@ -412,7 +398,6 @@ impl Display for Measure {
         match self {
             Volume(vm) => write!(w, "{}", vm),
             Count(qty) => write!(w, "{}", qty),
-            // TODO(jwall): Should I allow auto convert upwards for the grams to kgs?
             Weight(wm) => write!(w, "{}", wm),
         }
     }

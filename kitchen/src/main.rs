@@ -56,7 +56,6 @@ fn main() {
         let recipe_file = matches.value_of("INPUT").unwrap();
         match cli::parse_recipe(recipe_file) {
             Ok(r) => {
-                // TODO(jwall): handle our recipe dump
                 output_recipe_info(r, matches.is_present("ingredients"));
             }
             Err(e) => {
