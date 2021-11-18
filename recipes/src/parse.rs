@@ -14,13 +14,13 @@
 use std::str::FromStr;
 
 use abortable_parser::{
-    ascii_digit, ascii_ws, consume_all, discard, do_each, either, eoi, make_fn, must, not,
-    optional, peek, repeat, separated, text_token, trap, until, Result, StrIter,
+    ascii_digit, consume_all, discard, do_each, either, eoi, make_fn, must, not, optional, peek,
+    repeat, separated, text_token, trap, until, Result, StrIter,
 };
 use num_rational::Ratio;
 
 use crate::{
-    unit::{Measure, Measure::*, Quantity, VolumeMeasure::*},
+    unit::{Measure, Measure::*, Quantity, VolumeMeasure::*, WeightMeasure::*},
     Ingredient, Recipe, Step,
 };
 
@@ -222,11 +222,10 @@ pub fn measure(i: StrIter) -> abortable_parser::Result<StrIter, Measure> {
                     Some("qrt") | Some("quart") => Volume(Qrt(qty)),
                     Some("pint") | Some("pnt") => Volume(Pint(qty)),
                     Some("cnt") | Some("count") => Count(qty),
-                    Some("lb") => Measure::lb(qty),
-                    Some("oz") => Measure::oz(qty),
-                    Some("kg") => Measure::kilogram(qty),
-                    Some("g") => Gram(qty),
-                    Some("gram") => Gram(qty),
+                    Some("lb") => Weight(Pound(qty)),
+                    Some("oz") => Weight(Oz(qty)),
+                    Some("kg") => Weight(Kilogram(qty)),
+                    Some("g") | Some("gram") => Weight(Gram(qty)),
                     Some(u) => {
                         return Result::Abort(abortable_parser::Error::new(
                             format!("Invalid Unit {}", u),
@@ -254,7 +253,7 @@ make_fn!(
             discard!(text_token!("\n")),
             eoi,
             discard!(text_token!("(")))),
-        (name)
+        (name.trim())
     )
 );
 

@@ -65,6 +65,11 @@ const QRT: Quantity = Quantity::Whole(960);
 const LTR: Quantity = Quantity::Whole(1000);
 const GAL: Quantity = Quantity::Whole(3840);
 
+// multiplier constants for various units into grams
+const LB: Quantity = Quantity::Frac(Ratio::new_raw(4535924, 10000));
+const OZ: Quantity = Quantity::Frac(Ratio::new_raw(2834952, 100000));
+const KG: Quantity = Quantity::Whole(1000);
+
 const ONE: Quantity = Quantity::Whole(1);
 
 impl VolumeMeasure {
@@ -205,6 +210,102 @@ impl Display for VolumeMeasure {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum WeightMeasure {
+    Gram(Quantity),
+    Kilogram(Quantity),
+    Pound(Quantity),
+    Oz(Quantity),
+}
+
+impl WeightMeasure {
+    pub fn get_grams(&self) -> Quantity {
+        match self {
+            &Self::Gram(ref qty) => *qty,
+            &Self::Kilogram(ref qty) => *qty * KG,
+            &Self::Pound(ref qty) => *qty * LB,
+            &Self::Oz(ref qty) => *qty * OZ,
+        }
+    }
+
+    pub fn plural(&self) -> bool {
+        match self {
+            &Self::Gram(qty) | &Self::Kilogram(qty) | &Self::Pound(qty) | &Self::Oz(qty) => {
+                qty.plural()
+            }
+        }
+    }
+
+    pub fn into_gram(self) -> Self {
+        Self::Gram(self.get_grams())
+    }
+
+    pub fn into_kilo(self) -> Self {
+        Self::Kilogram(self.get_grams() / KG)
+    }
+
+    pub fn into_pound(self) -> Self {
+        Self::Pound(self.get_grams() / LB)
+    }
+
+    pub fn into_oz(self) -> Self {
+        Self::Oz(self.get_grams() / OZ)
+    }
+
+    pub fn normalize(self) -> Self {
+        let grams = self.get_grams();
+        if (grams / KG) >= ONE {
+            return self.into_kilo();
+        }
+        if (grams / LB) >= ONE {
+            return self.into_pound();
+        }
+        if (grams / OZ) >= ONE {
+            return self.into_oz();
+        }
+        return self.into_gram();
+    }
+}
+
+macro_rules! weight_op {
+    ($trait:ident, $method:ident) => {
+        impl $trait for WeightMeasure {
+            type Output = Self;
+
+            fn $method(self, lhs: Self) -> Self::Output {
+                let (l, r) = (self.get_grams(), lhs.get_grams());
+                WeightMeasure::Gram($trait::$method(l, r))
+            }
+        }
+    };
+}
+
+weight_op!(Add, add);
+weight_op!(Sub, sub);
+
+impl PartialEq for WeightMeasure {
+    fn eq(&self, lhs: &Self) -> bool {
+        let rhs = self.get_grams();
+        let lhs = lhs.get_grams();
+        PartialEq::eq(&rhs, &lhs)
+    }
+}
+
+impl Display for WeightMeasure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            &Self::Gram(qty) => write!(f, "{} gram{}", qty, if qty.plural() { "s" } else { "" }),
+            &Self::Kilogram(qty) => {
+                write!(f, "{} kilogram{}", qty, if qty.plural() { "s" } else { "" })
+            }
+            &Self::Pound(qty) => write!(f, "{} lb{}", qty, if qty.plural() { "s" } else { "" }),
+            &Self::Oz(qty) => write!(f, "{} oz", qty),
+        }
+    }
+}
+
+use WeightMeasure::{Gram, Kilogram, Oz, Pound};
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 /// Measurements in a Recipe with associated units for them.
 pub enum Measure {
@@ -213,10 +314,10 @@ pub enum Measure {
     /// Simple count of items
     Count(Quantity),
     /// Weight measure as Grams base unit
-    Gram(Quantity),
+    Weight(WeightMeasure),
 }
 
-use Measure::{Count, Gram, Volume};
+use Measure::{Count, Volume, Weight};
 
 impl Measure {
     pub fn tsp(qty: Quantity) -> Self {
@@ -260,29 +361,28 @@ impl Measure {
     }
 
     pub fn gram(qty: Quantity) -> Self {
-        Gram(qty)
+        Weight(Gram(qty))
     }
 
     pub fn kilogram(qty: Quantity) -> Self {
-        Gram(qty * Quantity::Whole(1000))
+        Weight(Kilogram(qty))
     }
 
-    // TODO(jwall): Should these be separate units with conversions?
     pub fn lb(qty: Quantity) -> Self {
-        // This is an approximation obviously
-        Gram(qty * (Quantity::Whole(453) + Quantity::Frac(Ratio::new(6, 10))))
+        // This is an approximation
+        Weight(Pound(qty))
     }
 
     pub fn oz(qty: Quantity) -> Self {
-        // This is an approximation obviously
-        Gram(qty * (Quantity::Whole(28) + Quantity::Frac(Ratio::new(4, 10))))
+        // This is an approximation
+        Weight(Oz(qty))
     }
 
     pub fn measure_type(&self) -> String {
         match self {
             Volume(_) => "Volume",
             Count(_) => "Count",
-            Gram(_) => "Weight",
+            Weight(_) => "Weight",
         }
         .to_owned()
     }
@@ -290,12 +390,12 @@ impl Measure {
     pub fn plural(&self) -> bool {
         match self {
             Volume(vm) => vm.plural(),
-            Count(qty) | Gram(qty) => qty.plural(),
+            Count(qty) => qty.plural(),
+            Weight(wm) => wm.plural(),
         }
     }
 
-    // TODO(jwall): parse from string.
-
+    // TODO(jwall): Remove this it's unnecessary
     pub fn parse(input: &str) -> std::result::Result<Self, String> {
         Ok(match measure(StrIter::new(input)) {
             Result::Complete(_, measure) => measure,
@@ -312,7 +412,8 @@ impl Display for Measure {
         match self {
             Volume(vm) => write!(w, "{}", vm),
             Count(qty) => write!(w, "{}", qty),
-            Gram(qty) => write!(w, "{} gram{}", qty, if qty.plural() { "s" } else { "" }),
+            // TODO(jwall): Should I allow auto convert upwards for the grams to kgs?
+            Weight(wm) => write!(w, "{}", wm),
         }
     }
 }

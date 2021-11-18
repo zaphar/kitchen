@@ -108,7 +108,7 @@ impl Recipe {
     /// Get entire ingredients list for each step of the recipe. With duplicate
     /// ingredients added together.
     pub fn get_ingredients(&self) -> BTreeMap<IngredientKey, Ingredient> {
-        use Measure::{Count, Gram, Volume};
+        use Measure::{Count, Volume, Weight};
         self.steps
             .iter()
             .map(|s| s.ingredients.iter())
@@ -121,7 +121,7 @@ impl Recipe {
                     let amt = match (acc[&key].amt, i.amt) {
                         (Volume(rvm), Volume(lvm)) => Volume(lvm + rvm),
                         (Count(lqty), Count(rqty)) => Count(lqty + rqty),
-                        (Gram(lqty), Gram(rqty)) => Gram(lqty + rqty),
+                        (Weight(lqty), Weight(rqty)) => Weight(lqty + rqty),
                         _ => unreachable!(),
                     };
                     acc.get_mut(&key).map(|i| i.amt = amt);
