@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crate::*;
-use VolumeMeasure::*;
+use crate::{VolumeMeasure::*, WeightMeasure::*};
 
 use std::convert::Into;
 
@@ -56,7 +56,7 @@ fn test_volume_math() {
 
 macro_rules! assert_normalize {
     ($typ:path, $conv:ident, $msg:expr) => {
-        if let $typ(qty) = dbg!($typ(1.into()).$conv().normalize()) {
+        if let $typ(qty) = $typ(1.into()).$conv().normalize() {
             assert_eq!(qty, 1.into());
         } else {
             assert!(false, $msg);
@@ -300,7 +300,7 @@ fn test_ingredient_parse() {
             ),
         ),
     ] {
-        match ingredient(StrIter::new(i)) {
+        match parse::ingredient(StrIter::new(i)) {
             ParseResult::Complete(_, ing) => assert_eq!(ing, expected),
             err => assert!(false, "{:?}", err),
         }
@@ -332,7 +332,7 @@ fn test_ingredient_list_parse() {
             ],
         ),
     ] {
-        match ingredient_list(StrIter::new(i)) {
+        match parse::ingredient_list(StrIter::new(i)) {
             ParseResult::Complete(_, ing) => assert_eq!(ing, expected),
             err => assert!(false, "{:?}", err),
         }
@@ -413,11 +413,19 @@ step:
 
 Saute apples in butter until golden brown. Add flour slowly
 until thickened. Set aside to cool.
+
+step:
+
+1 tbsp flour
+2 tbsp butter
+
+Saute apples in butter until golden brown. Add flour slowly
+until thickened. Set aside to cool.
 ";
 
     match parse::recipe(StrIter::new(recipe)) {
         ParseResult::Complete(_, recipe) => {
-            assert_eq!(recipe.steps.len(), 2);
+            assert_eq!(recipe.steps.len(), 3);
             assert_eq!(recipe.steps[0].ingredients.len(), 3);
         }
         err => assert!(false, "{:?}", err),

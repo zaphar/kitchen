@@ -15,7 +15,7 @@ mod cli;
 
 use std::env;
 
-use recipes::Recipe;
+use recipes::{IngredientAccumulator, Recipe};
 
 use clap;
 use clap::{clap_app, crate_authors, crate_version};
@@ -33,6 +33,10 @@ where
             (@arg ingredients: -i --ingredients "Output the ingredients list.")
             (@arg INPUT: +required "Input recipe file to parse")
         )
+        (@subcommand groceries =>
+            (about: "print out a grocery list for a set of recipes")
+            (@arg INPUT: +required "Input menu file to parse. One recipe file per line.")
+        )
     )
     .setting(clap::AppSettings::SubcommandRequiredElseHelp)
 }
@@ -42,10 +46,21 @@ fn output_recipe_info(r: Recipe, print_ingredients: bool) {
     println!("");
     if print_ingredients {
         println!("Ingredients:");
-        for (_, ing) in r.get_ingredients() {
-            print!("\t* {}", ing.amt);
-            println!(" {}", ing.name);
+        for (_, i) in r.get_ingredients() {
+            print!("\t* {}", i.amt);
+            println!(" {}", i.name);
         }
+    }
+}
+
+fn output_ingredients_list(rs: Vec<Recipe>) {
+    let mut acc = IngredientAccumulator::new();
+    for r in rs {
+        acc.accumulate_from(&r);
+    }
+    for (_, i) in acc.ingredients() {
+        print!("{}", i.amt);
+        println!(" {}", i.name);
     }
 }
 
@@ -57,6 +72,17 @@ fn main() {
         match cli::parse_recipe(recipe_file) {
             Ok(r) => {
                 output_recipe_info(r, matches.is_present("ingredients"));
+            }
+            Err(e) => {
+                eprintln!("{:?}", e);
+            }
+        }
+    } else if let Some(matches) = matches.subcommand_matches("groceries") {
+        // The input argument is required so if we made it here then it's safe to unrwap this value.
+        let menu_file = matches.value_of("INPUT").unwrap();
+        match cli::read_menu_list(menu_file) {
+            Ok(rs) => {
+                output_ingredients_list(rs);
             }
             Err(e) => {
                 eprintln!("{:?}", e);

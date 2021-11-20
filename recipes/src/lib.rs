@@ -20,6 +20,7 @@ use chrono::NaiveDate;
 use uuid::{self, Uuid};
 
 use unit::*;
+use Measure::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Mealplan {
@@ -106,29 +107,44 @@ impl Recipe {
     /// Get entire ingredients list for each step of the recipe. With duplicate
     /// ingredients added together.
     pub fn get_ingredients(&self) -> BTreeMap<IngredientKey, Ingredient> {
-        use Measure::{Count, Volume, Weight};
-        self.steps
-            .iter()
-            .map(|s| s.ingredients.iter())
-            .flatten()
-            .fold(BTreeMap::new(), |mut acc, i| {
-                let key = i.key();
-                if !acc.contains_key(&key) {
-                    acc.insert(key, i.clone());
-                } else {
-                    let amt = match (acc[&key].amt, i.amt) {
-                        (Volume(rvm), Volume(lvm)) => Volume(lvm + rvm),
-                        (Count(lqty), Count(rqty)) => Count(lqty + rqty),
-                        (Weight(lqty), Weight(rqty)) => Weight(lqty + rqty),
-                        _ => unreachable!(),
-                    };
-                    acc.get_mut(&key).map(|i| i.amt = amt);
-                }
-                return acc;
-            })
+        let mut acc = IngredientAccumulator::new();
+        acc.accumulate_from(&self);
+        acc.ingredients()
     }
 }
 
+pub struct IngredientAccumulator {
+    inner: BTreeMap<IngredientKey, Ingredient>,
+}
+
+impl IngredientAccumulator {
+    pub fn new() -> Self {
+        Self {
+            inner: BTreeMap::new(),
+        }
+    }
+
+    pub fn accumulate_from(&mut self, r: &Recipe) {
+        for i in r.steps.iter().map(|s| s.ingredients.iter()).flatten() {
+            let key = i.key();
+            if !self.inner.contains_key(&key) {
+                self.inner.insert(key, i.clone());
+            } else {
+                let amt = match (self.inner[&key].amt, i.amt) {
+                    (Volume(rvm), Volume(lvm)) => Volume(lvm + rvm),
+                    (Count(lqty), Count(rqty)) => Count(lqty + rqty),
+                    (Weight(lqty), Weight(rqty)) => Weight(lqty + rqty),
+                    _ => unreachable!(),
+                };
+                self.inner.get_mut(&key).map(|i| i.amt = amt);
+            }
+        }
+    }
+
+    pub fn ingredients(self) -> BTreeMap<IngredientKey, Ingredient> {
+        self.inner
+    }
+}
 /// A Recipe step. It has the time for the step if there is one, instructions, and an ingredients
 /// list.
 #[derive(Debug, Clone, PartialEq)]
