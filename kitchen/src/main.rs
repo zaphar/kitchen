@@ -41,29 +41,6 @@ where
     .setting(clap::AppSettings::SubcommandRequiredElseHelp)
 }
 
-fn output_recipe_info(r: Recipe, print_ingredients: bool) {
-    println!("Title: {}", r.title);
-    println!("");
-    if print_ingredients {
-        println!("Ingredients:");
-        for (_, i) in r.get_ingredients() {
-            print!("\t* {}", i.amt);
-            println!(" {}", i.name);
-        }
-    }
-}
-
-fn output_ingredients_list(rs: Vec<Recipe>) {
-    let mut acc = IngredientAccumulator::new();
-    for r in rs {
-        acc.accumulate_from(&r);
-    }
-    for (_, i) in acc.ingredients() {
-        print!("{}", i.amt);
-        println!(" {}", i.name);
-    }
-}
-
 fn main() {
     let matches = create_app().get_matches();
     if let Some(matches) = matches.subcommand_matches("recipe") {
@@ -71,7 +48,7 @@ fn main() {
         let recipe_file = matches.value_of("INPUT").unwrap();
         match cli::parse_recipe(recipe_file) {
             Ok(r) => {
-                output_recipe_info(r, matches.is_present("ingredients"));
+                cli::output_recipe_info(r, matches.is_present("ingredients"));
             }
             Err(e) => {
                 eprintln!("{:?}", e);
@@ -82,7 +59,7 @@ fn main() {
         let menu_file = matches.value_of("INPUT").unwrap();
         match cli::read_menu_list(menu_file) {
             Ok(rs) => {
-                output_ingredients_list(rs);
+                cli::output_ingredients_list(rs);
             }
             Err(e) => {
                 eprintln!("{:?}", e);

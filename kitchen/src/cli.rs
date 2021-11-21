@@ -17,7 +17,7 @@ use std::io::Read;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
-use recipes::{parse, Recipe};
+use recipes::{parse, IngredientAccumulator, Recipe};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -25,6 +25,8 @@ pub enum ParseError {
     Syntax(String),
 }
 
+// TODO(jwall): We should think a little more closely about
+// the error modeling for this application.
 macro_rules! try_open {
     ($path:expr) => {
         match File::open(&$path) {
@@ -39,8 +41,6 @@ macro_rules! try_open {
 
 impl From<std::io::Error> for ParseError {
     fn from(err: std::io::Error) -> Self {
-        // TODO(jwall): This error should allow us to collect more information
-        // about the cause of the error.
         ParseError::IO(err)
     }
 }
@@ -83,4 +83,26 @@ where
         recipe_list.push(recipe);
     }
     Ok(recipe_list)
+}
+
+pub fn output_recipe_info(r: Recipe, print_ingredients: bool) {
+    println!("Title: {}", r.title);
+    println!("");
+    if print_ingredients {
+        println!("Ingredients:");
+        for (_, i) in r.get_ingredients() {
+            println!("\t* {} {}", i.amt, i.name);
+        }
+    }
+}
+
+pub fn output_ingredients_list(rs: Vec<Recipe>) {
+    let mut acc = IngredientAccumulator::new();
+    for r in rs {
+        acc.accumulate_from(&r);
+    }
+    for (_, i) in acc.ingredients() {
+        print!("{}", i.amt);
+        println!(" {}", i.name);
+    }
 }
