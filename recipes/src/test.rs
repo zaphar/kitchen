@@ -362,6 +362,34 @@ until thickens. Set aside to cool."
 }
 
 #[test]
+fn test_single_step_with_duration() {
+    let step = "step: 30 min
+
+1 tbsp flour
+2 tbsp butter
+1 cup apple (chopped)
+
+Saute apples in butter until golden brown. Add flour slowly
+until thickens. Set aside to cool.";
+
+    match parse::step(StrIter::new(step)) {
+        ParseResult::Complete(_, step) => {
+            assert_eq!(step.ingredients.len(), 3);
+            assert_eq!(
+                step.instructions,
+                "Saute apples in butter until golden brown. Add flour slowly
+until thickens. Set aside to cool."
+            );
+            assert_eq!(
+                step.prep_time.unwrap(),
+                std::time::Duration::new(30 * 60, 0)
+            )
+        }
+        err => assert!(false, "{:?}", err),
+    }
+}
+
+#[test]
 fn test_multiple_steps() {
     let steps = "step:
 

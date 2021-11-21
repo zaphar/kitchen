@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use std::str::FromStr;
+use std::time::Duration;
 
 use abortable_parser::{
     ascii_digit, consume_all, discard, do_each, either, eoi, make_fn, must, not, optional, peek,
@@ -78,24 +79,58 @@ make_fn!(
 );
 
 make_fn!(
-    pub step_prefix<StrIter, &str>,
+    pub step_time<StrIter, Duration>,
+    do_each!(
+        cnt => num,
+        _ => optional!(ws),
+        u => either!(
+            text_token!("ms"),
+            text_token!("sec"),
+            text_token!("s"),
+            text_token!("min"),
+            text_token!("m"),
+            text_token!("hrs"),
+            text_token!("hr"),
+            text_token!("h")
+        ),
+        (
+            Duration::from_secs(
+                match u {
+                    "ms" => (cnt / 1000),
+                    "s" | "sec" => cnt.into(),
+                    "m" | "min" => (dbg!(cnt) * 60),
+                    "h" | "hr" | "hrs" => (cnt * 60 * 60),
+                    _ => unreachable!(),
+                }.into()
+            )
+        )
+    )
+);
+
+make_fn!(
+    pub step_prefix<StrIter, Option<Duration>>,
     do_each!(
         _ => text_token!("step:"),
+        dur => optional!(do_each!(
+            _ => ws,
+            dur => step_time,
+            (dbg!(dur))
+        )),
         _ => optional!(ws),
         _ => para_separator,
-        ("")
+        (dur)
     )
 );
 
 make_fn!(
     pub step<StrIter, Step>,
     do_each!(
-        _ => step_prefix,
+        dur => step_prefix,
         ingredients => must!(ingredient_list),
         _ => para_separator,
         desc => description,
         _ => either!(discard!(para_separator), eoi),
-        (Step::new(None, desc).with_ingredients(ingredients))
+        (Step::new(dur, desc).with_ingredients(ingredients))
     )
 );
 
