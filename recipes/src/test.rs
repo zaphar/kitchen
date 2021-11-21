@@ -11,8 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use crate::VolumeMeasure::*;
 use crate::*;
-use crate::{VolumeMeasure::*, WeightMeasure::*};
 
 use std::convert::Into;
 
@@ -234,8 +234,6 @@ fn test_ingredient_display() {
         assert_eq!(format!("{}", i), expected);
     }
 }
-
-use Measure::*;
 
 #[test]
 fn test_ratio_parse() {

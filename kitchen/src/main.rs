@@ -15,8 +15,6 @@ mod cli;
 
 use std::env;
 
-use recipes::{IngredientAccumulator, Recipe};
-
 use clap;
 use clap::{clap_app, crate_authors, crate_version};
 
