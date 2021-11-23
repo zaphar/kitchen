@@ -33,6 +33,7 @@ where
         )
         (@subcommand groceries =>
             (about: "print out a grocery list for a set of recipes")
+            (@arg csv: --csv "output ingredeints as csv")
             (@arg INPUT: +required "Input menu file to parse. One recipe file per line.")
         )
     )
@@ -57,7 +58,11 @@ fn main() {
         let menu_file = matches.value_of("INPUT").unwrap();
         match cli::read_menu_list(menu_file) {
             Ok(rs) => {
-                cli::output_ingredients_list(rs);
+                if matches.is_present("csv") {
+                    cli::output_ingredients_csv(rs);
+                } else {
+                    cli::output_ingredients_list(rs);
+                }
             }
             Err(e) => {
                 eprintln!("{:?}", e);

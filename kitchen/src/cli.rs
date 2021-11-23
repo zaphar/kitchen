@@ -17,6 +17,8 @@ use std::io::Read;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
+use csv;
+
 use recipes::{parse, IngredientAccumulator, Recipe};
 
 #[derive(Debug)]
@@ -104,5 +106,19 @@ pub fn output_ingredients_list(rs: Vec<Recipe>) {
     for (_, i) in acc.ingredients() {
         print!("{}", i.amt);
         println!(" {}", i.name);
+    }
+}
+
+pub fn output_ingredients_csv(rs: Vec<Recipe>) {
+    let mut acc = IngredientAccumulator::new();
+    for r in rs {
+        acc.accumulate_from(&r);
+    }
+    let out = std::io::stdout();
+    let mut writer = csv::Writer::from_writer(out);
+    for (_, i) in acc.ingredients() {
+        writer
+            .write_record(&[format!("{}", i.amt), i.name])
+            .expect("Failed to write csv.");
     }
 }
