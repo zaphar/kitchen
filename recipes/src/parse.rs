@@ -183,26 +183,39 @@ make_fn!(
     )
 );
 
-make_fn!(unit<StrIter, &str>,
+make_fn!(unit<StrIter, String>,
     do_each!(
         u => either!(
+            text_token!("tsps"),
             text_token!("tsp"),
+            text_token!("tbsps"),
             text_token!("tbsp"),
             text_token!("floz"),
             text_token!("ml"),
             text_token!("ltr"),
+            text_token!("lbs"),
             text_token!("lb"),
             text_token!("oz"),
+            text_token!("cups"),
             text_token!("cup"),
+            text_token!("qrts"),
             text_token!("qrt"),
+            text_token!("quarts"),
+            text_token!("quart"),
+            text_token!("pints"),
             text_token!("pint"),
             text_token!("pnt"),
-            text_token!("gal"),
+            text_token!("gals"),
             text_token!("gal"),
             text_token!("cnt"),
-            text_token!("g"),
-            text_token!("gram")),
-        (u))
+            text_token!("kilograms"),
+            text_token!("kilogram"),
+            text_token!("kg"),
+            text_token!("grams"),
+            text_token!("gram"),
+            text_token!("g")),
+        _ => ws,
+        (u.to_lowercase().to_singular()))
 );
 
 make_fn!(
@@ -229,7 +242,7 @@ make_fn!(
 );
 
 make_fn!(
-    pub measure_parts<StrIter, (Quantity, Option<&str>)>,
+    pub measure_parts<StrIter, (Quantity, Option<String>)>,
     do_each!(
         qty => quantity,
         unit => optional!(do_each!(
@@ -245,31 +258,31 @@ make_fn!(
 pub fn measure(i: StrIter) -> abortable_parser::Result<StrIter, Measure> {
     match measure_parts(i) {
         Result::Complete(i, (qty, unit)) => {
+            let count = Count(qty.clone());
             return Result::Complete(
                 i.clone(),
-                match unit {
-                    Some("tsp") => Volume(Tsp(qty)),
-                    Some("tbsp") => Volume(Tbsp(qty)),
-                    Some("floz") => Volume(Floz(qty)),
-                    Some("ml") => Volume(ML(qty)),
-                    Some("ltr") | Some("liter") => Volume(Ltr(qty)),
-                    Some("cup") | Some("cp") => Volume(Cup(qty)),
-                    Some("qrt") | Some("quart") => Volume(Qrt(qty)),
-                    Some("pint") | Some("pnt") => Volume(Pint(qty)),
-                    Some("cnt") | Some("count") => Count(qty),
-                    Some("lb") => Weight(Pound(qty)),
-                    Some("oz") => Weight(Oz(qty)),
-                    Some("kg") => Weight(Kilogram(qty)),
-                    Some("g") | Some("gram") => Weight(Gram(qty)),
-                    Some(u) => {
-                        return Result::Abort(abortable_parser::Error::new(
-                            format!("Invalid Unit {}", u),
-                            Box::new(i),
-                        ))
+                unit.map(|s| match s.as_str() {
+                    "tbsp" => Volume(Tbsp(qty)),
+                    "tsp" => Volume(Tsp(qty)),
+                    "floz" => Volume(Floz(qty)),
+                    "ml" => Volume(ML(qty)),
+                    "ltr" | "liter" => Volume(Ltr(qty)),
+                    "cup" | "cp" => Volume(Cup(qty)),
+                    "qrt" | "quart" => Volume(Qrt(qty)),
+                    "pint" | "pnt" => Volume(Pint(qty)),
+                    "gal" => Volume(Gal(qty)),
+                    "cnt" | "count" => Count(qty),
+                    "lb" => Weight(Pound(qty)),
+                    "oz" => Weight(Oz(qty)),
+                    "kg" | "kilogram" => Weight(Kilogram(qty)),
+                    "g" | "gram" => Weight(Gram(qty)),
+                    _u => {
+                        eprintln!("Invalid unit: {}", _u);
+                        unreachable!()
                     }
-                    None => Count(qty),
-                },
-            )
+                })
+                .unwrap_or(count),
+            );
         }
         Result::Fail(e) => {
             return Result::Fail(e);
@@ -281,14 +294,16 @@ pub fn measure(i: StrIter) -> abortable_parser::Result<StrIter, Measure> {
     }
 }
 
+use inflector::Inflector;
+
 make_fn!(
-    pub ingredient_name<StrIter, &str>,
+    pub ingredient_name<StrIter, String>,
     do_each!(
         name => until!(either!(
             discard!(text_token!("\n")),
             eoi,
             discard!(text_token!("(")))),
-        (name.trim())
+        (name.trim().to_singular())
     )
 );
 
@@ -310,7 +325,7 @@ make_fn!(
         name => ingredient_name,
         modifier => optional!(ingredient_modifier),
         _ => optional!(ws),
-        (Ingredient::new(name, modifier.map(|s| s.to_owned()), measure, ""))
+        (Ingredient::new(name, modifier.map(|s| s.to_owned()), measure, String::new()))
     )
 );
 
