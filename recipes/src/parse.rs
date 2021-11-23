@@ -18,6 +18,7 @@ use abortable_parser::{
     ascii_digit, consume_all, discard, do_each, either, eoi, make_fn, must, not, optional, peek,
     repeat, separated, text_token, trap, until, Result, StrIter,
 };
+use inflector::Inflector;
 use num_rational::Ratio;
 
 use crate::{
@@ -148,11 +149,17 @@ make_fn!(
 );
 
 make_fn!(ws<StrIter, &str>,
-    consume_all!(either!(
-        text_token!(" "),
-        text_token!("\t"),
-        text_token!("\r")
-    ))
+    do_each!(
+        _initial => peek!(either!(
+            text_token!(" "),
+            text_token!("\t"),
+            text_token!("\r"))),
+        rest => consume_all!(either!(
+            text_token!(" "),
+            text_token!("\t"),
+            text_token!("\r"))),
+        (rest)
+    )
 );
 
 make_fn!(nonzero<StrIter, ()>,
@@ -188,6 +195,10 @@ make_fn!(unit<StrIter, String>,
         u => either!(
             text_token!("tsps"),
             text_token!("tsp"),
+            text_token!("teaspoons"),
+            text_token!("teaspoon"),
+            text_token!("tablespoons"),
+            text_token!("tablespoon"),
             text_token!("tbsps"),
             text_token!("tbsp"),
             text_token!("floz"),
@@ -215,7 +226,8 @@ make_fn!(unit<StrIter, String>,
             text_token!("gram"),
             text_token!("g")),
         _ => ws,
-        (u.to_lowercase().to_singular()))
+        (u.to_lowercase().to_singular())
+    )
 );
 
 make_fn!(
@@ -245,12 +257,7 @@ make_fn!(
     pub measure_parts<StrIter, (Quantity, Option<String>)>,
     do_each!(
         qty => quantity,
-        unit => optional!(do_each!(
-            _ => ws,
-            unit => unit,
-            (unit)
-        )),
-        _ => ws,
+        unit => optional!(unit),
         ((qty, unit))
     )
 );
@@ -262,8 +269,8 @@ pub fn measure(i: StrIter) -> abortable_parser::Result<StrIter, Measure> {
             return Result::Complete(
                 i.clone(),
                 unit.map(|s| match s.as_str() {
-                    "tbsp" => Volume(Tbsp(qty)),
-                    "tsp" => Volume(Tsp(qty)),
+                    "tbsp" | "tablespoon" => Volume(Tbsp(qty)),
+                    "tsp" | "teaspoon" => Volume(Tsp(qty)),
                     "floz" => Volume(Floz(qty)),
                     "ml" => Volume(ML(qty)),
                     "ltr" | "liter" => Volume(Ltr(qty)),
@@ -293,8 +300,6 @@ pub fn measure(i: StrIter) -> abortable_parser::Result<StrIter, Measure> {
         Result::Incomplete(i) => return Result::Incomplete(i),
     }
 }
-
-use inflector::Inflector;
 
 make_fn!(
     pub ingredient_name<StrIter, String>,
