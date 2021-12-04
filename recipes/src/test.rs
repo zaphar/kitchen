@@ -466,3 +466,33 @@ until thickened. Set aside to cool.
         err => assert!(false, "{:?}", err),
     }
 }
+
+#[test]
+fn test_recipe_missing_steps_parse_failure() {
+    let recipe = "title: gooey apple bake
+
+A simple gooey apple bake recipe.
+";
+    match parse::recipe(StrIter::new(recipe)) {
+        ParseResult::Abort(e) => {
+            assert_eq!(e.get_msg(), "Missing recipe steps");
+        }
+        other => assert!(false, "{:?}", other),
+    }
+}
+
+#[test]
+fn test_step_no_ingredients_parse_failure() {
+    let step = "step: 
+
+step: ";
+    match parse::step(StrIter::new(step)) {
+        ParseResult::Abort(e) => {
+            eprintln!("err: {:?}", e);
+            assert_eq!(e.get_msg(), "Missing ingredient list");
+        }
+        other => {
+            assert!(false, "{:?}", other);
+        }
+    }
+}

@@ -16,7 +16,7 @@ use std::time::Duration;
 
 use abortable_parser::{
     ascii_digit, consume_all, discard, do_each, either, eoi, make_fn, must, not, optional, peek,
-    repeat, separated, text_token, trap, until, Result, StrIter,
+    repeat, separated, text_token, trap, until, with_err, Result, StrIter,
 };
 use inflector::Inflector;
 use num_rational::Ratio;
@@ -37,7 +37,7 @@ pub fn as_recipe(i: &str) -> std::result::Result<Recipe, String> {
 make_fn!(
     pub recipe<StrIter, Recipe>,
     do_each!(
-        title => title,
+        title => must!(title),
         _ => optional!(para_separator),
         desc => optional!(do_each!(
             _ => peek!(not!(step_prefix)),
@@ -127,7 +127,7 @@ make_fn!(
     pub step<StrIter, Step>,
     do_each!(
         dur => step_prefix,
-        ingredients => must!(ingredient_list),
+        ingredients => with_err!(must!(ingredient_list), "Missing ingredient list"),
         _ => para_separator,
         desc => description,
         _ => either!(discard!(para_separator), eoi),
@@ -138,7 +138,7 @@ make_fn!(
 make_fn!(
     pub step_list<StrIter, Vec<Step>>,
     do_each!(
-        first_step => must!(step),
+        first_step => with_err!(must!(step), "Missing recipe steps"),
         rest => repeat!(step),
         ({
             let mut steps = vec![first_step];
@@ -303,6 +303,21 @@ pub fn measure(i: StrIter) -> abortable_parser::Result<StrIter, Measure> {
     }
 }
 
+pub fn normalize_name(name: &str) -> String {
+    let parts: Vec<&str> = name.split_whitespace().collect();
+    if parts.len() >= 2 {
+        let mut prefix = parts[0..parts.len() - 1].join(" ");
+        // NOTE(jwall): The below unwrap is safe because of the length
+        // check above.
+        let last = parts.last().unwrap();
+        let normalized = last.to_singular();
+        prefix.push(' ');
+        prefix.push_str(&normalized);
+        return prefix;
+    }
+    return name.trim().to_owned();
+}
+
 make_fn!(
     pub ingredient_name<StrIter, String>,
     do_each!(
@@ -310,7 +325,7 @@ make_fn!(
             discard!(text_token!("\n")),
             eoi,
             discard!(text_token!("(")))),
-        (name.trim().to_singular())
+        (normalize_name(name))
     )
 );
 
@@ -318,8 +333,8 @@ make_fn!(
     ingredient_modifier<StrIter, &str>,
     do_each!(
         _ => text_token!("("),
-        modifier => until!(text_token!(")")),
-        _ => text_token!(")"),
+        modifier => must!(until!(text_token!(")"))),
+        _ => must!(text_token!(")")),
         (modifier)
     )
 );
