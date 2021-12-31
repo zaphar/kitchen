@@ -12,14 +12,13 @@
     outputs = {self, nixpkgs, flake-utils, gitignore}:
         let
             kitchenGen = import ./kitchen.nix;
-            gitignoreSrc = pkgs.callPackage gitignore { };
         in
         flake-utils.lib.eachDefaultSystem (system:
             let pkgs = import nixpkgs { inherit system; }; in
             {
                 defaultPackage = (kitchenGen {
                     nixpkgs = pkgs;
-                    inherit gitignoreSrc;
+                    gitignoreSrc = pkgs.callPackage gitignore { };
                 });
             } 
         );
