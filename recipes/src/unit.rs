@@ -393,6 +393,14 @@ impl Measure {
             Weight(wm) => wm.plural(),
         }
     }
+
+    pub fn normalize(self) -> Self {
+        match self {
+            Volume(vm) => Volume(vm.normalize()),
+            Count(qty) => Count(qty),
+            Weight(wm) => Weight(wm.normalize()),
+        }
+    }
 }
 
 impl Display for Measure {
