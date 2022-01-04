@@ -1,9 +1,7 @@
 {
     description = "kitchen";
-    inputs.nixpkgs = {
-        type = "indirect";
-        id = "nixpkgs";
-    };
+    # Pin nixpkgs
+    inputs.nixpkgs = "github:NixOS/nixpkgs/adf7f03d3bfceaba64788e1e846191025283b60d";
     
     inputs.gitignore = { url = "github:hercules-ci/gitignore.nix"; flake = false; };
 
