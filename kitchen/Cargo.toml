@@ -11,5 +11,5 @@ recipes = {path = "../recipes" }
 csv = "1.1.1"
 
 [dependencies.clap]
-version = "2.33"
+version = "3.0.1"
 default-features = false
