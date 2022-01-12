@@ -17,26 +17,19 @@ pub mod unit;
 use std::collections::BTreeMap;
 
 use chrono::NaiveDate;
-use uuid::{self, Uuid};
 
 use unit::*;
 use Measure::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Mealplan {
-    pub id: uuid::Uuid,
     pub start_date: Option<NaiveDate>,
     pub recipes: Vec<Recipe>,
 }
 
 impl Mealplan {
     pub fn new() -> Self {
-        Self::new_id(uuid::Uuid::new_v4())
-    }
-
-    pub fn new_id(id: Uuid) -> Self {
         Self {
-            id: id,
             start_date: None,
             recipes: Vec::new(),
         }
@@ -58,7 +51,6 @@ impl Mealplan {
 /// A Recipe with a title, description, and a series of steps.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Recipe {
-    pub id: uuid::Uuid,
     pub title: String,
     pub desc: Option<String>,
     pub steps: Vec<Step>,
@@ -67,16 +59,6 @@ pub struct Recipe {
 impl Recipe {
     pub fn new<S: Into<String>>(title: S, desc: Option<S>) -> Self {
         Self {
-            id: uuid::Uuid::new_v4(),
-            title: title.into(),
-            desc: desc.map(|s| s.into()),
-            steps: Vec::new(),
-        }
-    }
-
-    pub fn new_with_id<S: Into<String>>(id: uuid::Uuid, title: S, desc: Option<S>) -> Self {
-        Self {
-            id: id,
             title: title.into(),
             desc: desc.map(|s| s.into()),
             steps: Vec::new(),

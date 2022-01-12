@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 mod cli;
+mod web;
 
 use std::env;
 
@@ -35,6 +36,9 @@ where
             (about: "print out a grocery list for a set of recipes")
             (@arg csv: --csv "output ingredeints as csv")
             (@arg INPUT: +required "Input menu file to parse. One recipe file per line.")
+        )
+        (@subcommand serve =>
+            (about: "Serve the interface via the web")
         )
     )
     .setting(clap::AppSettings::SubcommandRequiredElseHelp)
@@ -68,5 +72,8 @@ fn main() {
                 eprintln!("{:?}", e);
             }
         }
+    } else if matches.subcommand_matches("serve").is_some() {
+        println!("Launching web interface...");
+        async_std::task::block_on(async { web::ui_main().await });
     }
 }

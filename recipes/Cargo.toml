@@ -10,10 +10,6 @@ edition = "2018"
 abortable_parser = "~0.2.6"
 chrono = "~0.4"
 
-[dependencies.uuid]
-version = "~0.8.2"
-features = ["v4"]
-
 [dependencies.num-rational]
 version = "~0.4.0"
 
