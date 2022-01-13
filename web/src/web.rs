@@ -11,7 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use dioxus::prelude::*;
 
-pub async fn ui_main() {
-    panic!("Not implemented yet");
+pub fn ui(cx: Scope) -> Element {
+    cx.render(rsx! {
+        div { "hello chefs!" }
+    })
 }
