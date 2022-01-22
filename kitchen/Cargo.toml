@@ -9,7 +9,12 @@ edition = "2018"
 [dependencies]
 recipes = {path = "../recipes" }
 csv = "1.1.1"
-async-std = "1.10.0"
+warp = "0.3.2"
+static_dir = "0.2.0"
 
 [dependencies.clap]
 version = "2.33.4"
+
+[dependencies.async-std]
+version = "1.10.0"
+features = ["tokio1"]

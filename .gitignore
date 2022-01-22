@@ -2,3 +2,4 @@ target/
 .lsp/
 .clj-kondo/
 web/dist/
+webdist/
