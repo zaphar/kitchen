@@ -11,13 +11,15 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-mod cli;
-mod web;
-
 use std::env;
+use std::path::PathBuf;
 
 use clap;
 use clap::{clap_app, crate_authors, crate_version};
+
+pub mod api;
+mod cli;
+mod web;
 
 fn create_app<'a, 'b>() -> clap::App<'a, 'b>
 where
@@ -39,6 +41,7 @@ where
         )
         (@subcommand serve =>
             (about: "Serve the interface via the web")
+            (@arg recipe_dir: -d --dir +takes_value "Directory containing recipe files to use")
         )
     )
     .setting(clap::AppSettings::SubcommandRequiredElseHelp)
@@ -72,8 +75,13 @@ fn main() {
                 eprintln!("{:?}", e);
             }
         }
-    } else if matches.subcommand_matches("serve").is_some() {
+    } else if let Some(matches) = matches.subcommand_matches("serve") {
         println!("Launching web interface...");
-        async_std::task::block_on(async { web::ui_main().await });
+        let recipe_dir_path = if let Some(dir) = matches.value_of("recipe_dir") {
+            PathBuf::from(dir)
+        } else {
+            std::env::current_dir().expect("Unable to get current directory. Bailing out.")
+        };
+        async_std::task::block_on(async { web::ui_main(recipe_dir_path).await });
     }
 }

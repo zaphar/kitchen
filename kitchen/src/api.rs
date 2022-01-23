@@ -11,9 +11,21 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-mod typings;
-mod web;
 
-fn main() {
-    dioxus::web::launch(web::ui);
+#[derive(Debug)]
+pub enum ParseError {
+    IO(std::io::Error),
+    Syntax(String),
+}
+
+impl From<std::io::Error> for ParseError {
+    fn from(err: std::io::Error) -> Self {
+        ParseError::IO(err)
+    }
+}
+
+impl From<String> for ParseError {
+    fn from(s: String) -> Self {
+        ParseError::Syntax(s)
+    }
 }

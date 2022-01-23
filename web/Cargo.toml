@@ -7,6 +7,11 @@ edition = "2021"
 
 [dependencies]
 recipes = {path = "../recipes" }
+reqwasm = "0.4.0"
+
+[dependencies.wasm-bindgen]
+version = "0.2.79"
+#features = [ "console" ]
 
 [dependencies.dioxus]
 version = "0.1.7"

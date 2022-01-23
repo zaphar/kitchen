@@ -11,9 +11,22 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-mod typings;
-mod web;
+use wasm_bindgen::prelude::*;
 
-fn main() {
-    dioxus::web::launch(web::ui);
+#[wasm_bindgen]
+extern "C" {
+    // Use `js_namespace` here to bind `console.log(..)` instead of just
+    // `log(..)`
+    #[wasm_bindgen(js_namespace = console)]
+    pub fn log(s: &str);
+}
+
+#[macro_export]
+macro_rules! console_log {
+    // Note that this is using the `log` function imported above during
+    // `bare_bones`
+    ($($t:tt)*) => {{
+        use crate::typings::log;
+        (log(&format_args!($($t)*).to_string()))
+    }}
 }

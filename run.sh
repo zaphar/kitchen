@@ -14,4 +14,4 @@
 
 make clean kitchen
 cd kitchen
-cargo run -- serve
+cargo run -- serve --dir ../examples

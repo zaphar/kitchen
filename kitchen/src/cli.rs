@@ -19,13 +19,8 @@ use std::path::Path;
 
 use csv;
 
+use crate::api::ParseError;
 use recipes::{parse, IngredientAccumulator, Recipe};
-
-#[derive(Debug)]
-pub enum ParseError {
-    IO(std::io::Error),
-    Syntax(String),
-}
 
 // TODO(jwall): We should think a little more closely about
 // the error modeling for this application.
@@ -39,18 +34,6 @@ macro_rules! try_open {
             }
         }
     };
-}
-
-impl From<std::io::Error> for ParseError {
-    fn from(err: std::io::Error) -> Self {
-        ParseError::IO(err)
-    }
-}
-
-impl From<String> for ParseError {
-    fn from(s: String) -> Self {
-        ParseError::Syntax(s)
-    }
 }
 
 pub fn parse_recipe<P>(path: P) -> Result<Recipe, ParseError>
