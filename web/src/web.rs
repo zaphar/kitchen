@@ -20,60 +20,71 @@ use reqwasm::http;
 
 use recipes::{parse, Recipe};
 
-#[derive(Props, PartialEq)]
-struct RecipeListProps {
-    recipe_list: Vec<Recipe>,
+#[derive(Props, PartialEq, Clone)]
+struct AppService {
+    recipes: Vec<Recipe>,
+}
+
+impl AppService {
+    fn new() -> Self {
+        Self {
+            recipes: Vec::new(),
+        }
+    }
+
+    async fn fetch_recipes() -> Result<Vec<Recipe>, String> {
+        let resp = match http::Request::get("/api/v1/recipes").send().await {
+            Ok(resp) => resp,
+            Err(e) => return Err(format!("Error: {}", e)),
+        };
+        if resp.status() != 200 {
+            return Err(format!("Status: {}", resp.status()));
+        } else {
+            console_log!("We got a valid response back!");
+            let recipe_list = match resp.json::<Vec<String>>().await {
+                Ok(recipes) => recipes,
+                Err(e) => return Err(format!("Eror getting recipe list as json {}", e)),
+            };
+            let mut parsed_list = Vec::new();
+            for r in recipe_list {
+                let recipe = match parse::as_recipe(&r) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        console_log!("Error parsing recipe {}", e);
+                        break;
+                    }
+                };
+                console_log!("We parsed a recipe {}", recipe.title);
+                parsed_list.push(recipe);
+            }
+            // TODO(jwall): It would appear that their API doesn't support this
+            // model for async operations.
+            //self.recipes = parsed_list;
+            return Ok(parsed_list);
+        }
+    }
+
+    fn get_recipes(&self) -> &Vec<Recipe> {
+        &self.recipes
+    }
+
+    fn set_recipes(&mut self, recipes: Vec<Recipe>) {
+        self.recipes = recipes;
+    }
+}
+
+#[derive(Props)]
+struct RecipeListProps<'a> {
+    app_service: UseState<'a, AppService>,
 }
 
 /// Component to list available recipes.
-fn RecipeList(cx: Scope) -> Element {
-    let props = use_state(&cx, || RecipeListProps {
-        recipe_list: vec![],
-    });
+fn recipe_list<'a>(cx: Scope<'a, RecipeListProps<'a>>) -> Element {
+    let props = cx.props.app_service;
 
-    use_future(&cx, || {
-        let props = props.for_async();
-        async move {
-            let req = http::Request::get("/api/v1/recipes").send().await;
-            match req {
-                Ok(resp) => {
-                    if resp.status() != 200 {
-                        console_log!("Status: {}", resp.status());
-                    } else {
-                        console_log!("We got a valid response back!");
-                        let recipe_list = match resp.json::<Vec<String>>().await {
-                            Ok(recipes) => recipes,
-                            Err(e) => {
-                                console_log!("Eror getting recipe list as json {}", e);
-                                Vec::new()
-                            }
-                        };
-                        let mut parsed_list = Vec::new();
-                        for r in recipe_list {
-                            let recipe = match parse::as_recipe(&r) {
-                                Ok(r) => r,
-                                Err(e) => {
-                                    console_log!("Error parsing recipe {}", e);
-                                    break;
-                                }
-                            };
-                            console_log!("We parsed a recipe {}", recipe.title);
-                            parsed_list.push(recipe);
-                        }
-                        props.set(RecipeListProps {
-                            recipe_list: parsed_list,
-                        });
-                    }
-                }
-                Err(e) => {
-                    console_log!("Error: {}", e);
-                }
-            }
-        }
-    });
     cx.render(rsx! {
         ul {
-            (&props.recipe_list).into_iter().map(|i| {
+            props.get_recipes().into_iter().map(|i| {
                 let title = &i.title;
                 rsx!(li { "{title}" })
              })
@@ -82,8 +93,24 @@ fn RecipeList(cx: Scope) -> Element {
 }
 
 pub fn ui(cx: Scope) -> Element {
+    let app_state = use_state(&cx, AppService::new);
+
+    let fut = use_future(&cx, || async move { AppService::fetch_recipes().await });
     cx.render(rsx! {
         div { "hello chefs!" }
-        RecipeList { }
+        {match fut.value() {
+            Some(Ok(recipes)) => {
+                app_state.modify().set_recipes(recipes.clone());
+                rsx!{ recipe_list(app_service: app_state) }
+            }
+            Some(Err(e)) => {
+                console_log!("{}", e);
+                rsx!{ div { class: "error", "{e}" } }
+            }
+            None => {
+                //panic!("We seem to have failed to execute our future.")
+                rsx!{ div { "Loading recipe list..." }}
+            }
+        }}
     })
 }
