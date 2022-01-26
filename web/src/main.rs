@@ -13,7 +13,10 @@
 // limitations under the License.
 mod typings;
 mod web;
+use sycamore::prelude::*;
+
+use web::UI;
 
 fn main() {
-    dioxus::web::launch(web::ui);
+    sycamore::render(|| view! { UI() });
 }

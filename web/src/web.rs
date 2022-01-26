@@ -12,23 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #![allow(non_snake_case)]
-use std::iter::Iterator;
 
 use crate::console_log;
-use dioxus::prelude::*;
 use reqwasm::http;
+use sycamore::context::{use_context, ContextProvider, ContextProviderProps};
+use sycamore::futures::spawn_local_in_scope;
+use sycamore::prelude::*;
 
 use recipes::{parse, Recipe};
 
-#[derive(Props, PartialEq, Clone)]
+#[derive(Clone)]
 struct AppService {
-    recipes: Vec<Recipe>,
+    recipes: Signal<Vec<Recipe>>,
 }
 
 impl AppService {
     fn new() -> Self {
         Self {
-            recipes: Vec::new(),
+            recipes: Signal::new(Vec::new()),
         }
     }
 
@@ -64,53 +65,52 @@ impl AppService {
         }
     }
 
-    fn get_recipes(&self) -> &Vec<Recipe> {
-        &self.recipes
+    fn get_recipes(&self) -> Signal<Vec<Recipe>> {
+        self.recipes.clone()
     }
 
     fn set_recipes(&mut self, recipes: Vec<Recipe>) {
-        self.recipes = recipes;
+        self.recipes.set(recipes);
     }
 }
 
-#[derive(Props)]
-struct RecipeListProps<'a> {
-    app_service: UseState<'a, AppService>,
-}
-
 /// Component to list available recipes.
-fn recipe_list<'a>(cx: Scope<'a, RecipeListProps<'a>>) -> Element {
-    let props = cx.props.app_service;
+#[component(RecipeList<G>)]
+fn recipe_list() -> View<G> {
+    let props = use_context::<AppService>();
 
-    cx.render(rsx! {
+    view! {
         ul {
-            props.get_recipes().into_iter().map(|i| {
-                let title = &i.title;
-                rsx!(li { "{title}" })
-             })
+            Indexed(IndexedProps{
+                iterable: props.get_recipes().handle(),
+                template: |recipe| {
+                    view! { li { (recipe.title) } }
+                }
+            })
         }
-    })
+    }
 }
 
-pub fn ui(cx: Scope) -> Element {
-    let app_state = use_state(&cx, AppService::new);
+#[component(UI<G>)]
+pub fn ui() -> View<G> {
+    let app_state = AppService::new();
 
-    let fut = use_future(&cx, || async move { AppService::fetch_recipes().await });
-    cx.render(rsx! {
+    spawn_local_in_scope({
+        let mut app_state = app_state.clone();
+        async move {
+            match AppService::fetch_recipes().await {
+                Ok(recipes) => {
+                    app_state.set_recipes(recipes);
+                }
+                Err(msg) => console_log!("Failed to get recipes {}", msg),
+            }
+        }
+    });
+    view! {
         div { "hello chefs!" }
-        {match fut.value() {
-            Some(Ok(recipes)) => {
-                app_state.modify().set_recipes(recipes.clone());
-                rsx!{ recipe_list(app_service: app_state) }
-            }
-            Some(Err(e)) => {
-                console_log!("{}", e);
-                rsx!{ div { class: "error", "{e}" } }
-            }
-            None => {
-                //panic!("We seem to have failed to execute our future.")
-                rsx!{ div { "Loading recipe list..." }}
-            }
-        }}
-    })
+        ContextProvider(ContextProviderProps {
+                value: app_state,
+                children: || view! { RecipeList() }
+        })
+    }
 }

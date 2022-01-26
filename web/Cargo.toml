@@ -13,6 +13,6 @@ reqwasm = "0.4.0"
 version = "0.2.79"
 #features = [ "console" ]
 
-[dependencies.dioxus]
-version = "0.1.7"
-features = [ "web" ]
+[dependencies.sycamore]
+version = "0.7.1"
+features = ["futures", "serde", "default"]
