@@ -19,6 +19,12 @@ extern "C" {
     // `log(..)`
     #[wasm_bindgen(js_namespace = console)]
     pub fn log(s: &str);
+    #[wasm_bindgen(js_namespace = console)]
+    pub fn debug(s: &str);
+    #[wasm_bindgen(js_namespace = console)]
+    pub fn warn(s: &str);
+    #[wasm_bindgen(js_namespace = console)]
+    pub fn error(s: &str);
 }
 
 #[macro_export]
@@ -28,5 +34,35 @@ macro_rules! console_log {
     ($($t:tt)*) => {{
         use crate::typings::log;
         (log(&format_args!($($t)*).to_string()))
+    }}
+}
+
+#[macro_export]
+macro_rules! console_debug {
+    // Note that this is using the `log` function imported above during
+    // `bare_bones`
+    ($($t:tt)*) => {{
+        use crate::typings::debug;
+        (debug(&format_args!($($t)*).to_string()))
+    }}
+}
+
+#[macro_export]
+macro_rules! console_error {
+    // Note that this is using the `log` function imported above during
+    // `bare_bones`
+    ($($t:tt)*) => {{
+        use crate::typings::error;
+        (error(&format_args!($($t)*).to_string()))
+    }}
+}
+
+#[macro_export]
+macro_rules! console_warn {
+    // Note that this is using the `log` function imported above during
+    // `bare_bones`
+    ($($t:tt)*) => {{
+        use crate::typings::warn;
+        (warn(&format_args!($($t)*).to_string()))
     }}
 }

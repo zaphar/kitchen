@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::console_log;
+use crate::{console_debug, console_error, console_log};
 use reqwasm::http;
 use sycamore::context::{use_context, ContextProvider, ContextProviderProps};
 use sycamore::futures::spawn_local_in_scope;
@@ -39,7 +39,7 @@ impl AppService {
         if resp.status() != 200 {
             return Err(format!("Status: {}", resp.status()));
         } else {
-            console_log!("We got a valid response back!");
+            console_debug!("We got a valid response back!");
             let recipe_list = match resp.json::<Vec<String>>().await {
                 Ok(recipes) => recipes,
                 Err(e) => return Err(format!("Eror getting recipe list as json {}", e)),
@@ -49,16 +49,13 @@ impl AppService {
                 let recipe = match parse::as_recipe(&r) {
                     Ok(r) => r,
                     Err(e) => {
-                        console_log!("Error parsing recipe {}", e);
+                        console_error!("Error parsing recipe {}", e);
                         break;
                     }
                 };
-                console_log!("We parsed a recipe {}", recipe.title);
+                console_debug!("We parsed a recipe {}", recipe.title);
                 parsed_list.push(recipe);
             }
-            // TODO(jwall): It would appear that their API doesn't support this
-            // model for async operations.
-            //self.recipes = parsed_list;
             return Ok(parsed_list);
         }
     }
@@ -92,7 +89,7 @@ fn recipe_list() -> View<G> {
 #[component(UI<G>)]
 pub fn ui() -> View<G> {
     let app_state = AppService::new();
-
+    console_log!("Starting UI");
     spawn_local_in_scope({
         let mut app_state = app_state.clone();
         async move {
@@ -100,7 +97,7 @@ pub fn ui() -> View<G> {
                 Ok(recipes) => {
                     app_state.set_recipes(recipes);
                 }
-                Err(msg) => console_log!("Failed to get recipes {}", msg),
+                Err(msg) => console_error!("Failed to get recipes {}", msg),
             }
         }
     });
