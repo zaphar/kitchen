@@ -72,12 +72,12 @@ impl AppService {
 /// Component to list available recipes.
 #[component(RecipeList<G>)]
 fn recipe_list() -> View<G> {
-    let props = use_context::<AppService>();
+    let app_service = use_context::<AppService>();
 
     view! {
         ul {
             Indexed(IndexedProps{
-                iterable: props.get_recipes().handle(),
+                iterable: app_service.get_recipes().handle(),
                 template: |recipe| {
                     view! { li { (recipe.title) } }
                 }
@@ -88,14 +88,14 @@ fn recipe_list() -> View<G> {
 
 #[component(UI<G>)]
 pub fn ui() -> View<G> {
-    let app_state = AppService::new();
+    let app_service = AppService::new();
     console_log!("Starting UI");
     spawn_local_in_scope({
-        let mut app_state = app_state.clone();
+        let mut app_service = app_service.clone();
         async move {
             match AppService::fetch_recipes().await {
                 Ok(recipes) => {
-                    app_state.set_recipes(recipes);
+                    app_service.set_recipes(recipes);
                 }
                 Err(msg) => console_error!("Failed to get recipes {}", msg),
             }
@@ -104,7 +104,7 @@ pub fn ui() -> View<G> {
     view! {
         div { "hello chefs!" }
         ContextProvider(ContextProviderProps {
-                value: app_state,
+                value: app_service,
                 children: || view! { RecipeList() }
         })
     }
