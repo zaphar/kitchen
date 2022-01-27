@@ -16,6 +16,7 @@ use reqwasm::http;
 use sycamore::context::{use_context, ContextProvider, ContextProviderProps};
 use sycamore::futures::spawn_local_in_scope;
 use sycamore::prelude::*;
+use sycamore_router::{HistoryIntegration, Route, Router, RouterProps};
 
 use recipes::{parse, Recipe};
 
@@ -92,26 +93,66 @@ fn recipe_list() -> View<G> {
     }
 }
 
+#[derive(Route, Debug)]
+enum AppRoutes {
+    #[to("/ui")]
+    Root,
+    #[to("/ui/recipe/<index>")]
+    Recipe { index: usize },
+    #[to("/ui/menu")]
+    Menu,
+    #[not_found]
+    NotFound,
+}
+
 #[component(UI<G>)]
 pub fn ui() -> View<G> {
     let app_service = AppService::new();
     console_log!("Starting UI");
-    spawn_local_in_scope({
-        let mut app_service = app_service.clone();
-        async move {
-            match AppService::fetch_recipes().await {
-                Ok(recipes) => {
-                    app_service.set_recipes(recipes);
+    create_effect(cloned!((app_service) => move || {
+        spawn_local_in_scope({
+            let mut app_service = app_service.clone();
+            async move {
+                match AppService::fetch_recipes().await {
+                    Ok(recipes) => {
+                        app_service.set_recipes(recipes);
+                    }
+                    Err(msg) => console_error!("Failed to get recipes {}", msg),
                 }
-                Err(msg) => console_error!("Failed to get recipes {}", msg),
             }
-        }
-    });
+        });
+    }));
     view! {
-        div { "hello chefs!" }
-        ContextProvider(ContextProviderProps {
-                value: app_service,
-                children: || view! { RecipeList() }
-        })
+        Router(RouterProps::new(HistoryIntegration::new(), move |routes: ReadSignal<AppRoutes>| {
+            let t = create_memo(cloned!((app_service) => move || {
+                console_debug!("Determining route.");
+                let route = routes.get();
+                console_debug!("Route {:?}", route);
+                match route.as_ref() {
+                    AppRoutes::Root => view! {
+                        div { "hello chefs!" }
+                        ContextProvider(ContextProviderProps {
+                                value: app_service.clone(),
+                                children: || view! { RecipeList() }
+                        })
+                    },
+                    AppRoutes::Recipe{index:_idx} => view! {
+                        "TODO!!"
+                    },
+                    AppRoutes::Menu => view! {
+                        "TODO!!"
+                    },
+                    AppRoutes::NotFound => view! {
+                        "NotFound"
+                    }
+                }
+            }));
+            console_debug!("Created our route view memo.");
+            view! {
+                div(class="app") {
+                    (t.get().as_ref().clone())
+                }
+            }
+        }))
     }
 }

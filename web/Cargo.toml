@@ -10,6 +10,7 @@ recipes = {path = "../recipes" }
 reqwasm = "0.4.0"
 # This makes debugging panics more tractable.
 console_error_panic_hook = "0.1.7"
+sycamore-router = "0.7.1"
 
 [dependencies.wasm-bindgen]
 version = "0.2.79"
