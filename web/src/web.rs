@@ -21,7 +21,7 @@ use recipes::{parse, Recipe};
 
 #[derive(Clone)]
 struct AppService {
-    recipes: Signal<Vec<Recipe>>,
+    recipes: Signal<Vec<(usize, Recipe)>>,
 }
 
 impl AppService {
@@ -31,7 +31,7 @@ impl AppService {
         }
     }
 
-    async fn fetch_recipes() -> Result<Vec<Recipe>, String> {
+    async fn fetch_recipes() -> Result<Vec<(usize, Recipe)>, String> {
         let resp = match http::Request::get("/api/v1/recipes").send().await {
             Ok(resp) => resp,
             Err(e) => return Err(format!("Error: {}", e)),
@@ -56,15 +56,15 @@ impl AppService {
                 console_debug!("We parsed a recipe {}", recipe.title);
                 parsed_list.push(recipe);
             }
-            return Ok(parsed_list);
+            return Ok(parsed_list.drain(0..).enumerate().collect());
         }
     }
 
-    fn get_recipes(&self) -> Signal<Vec<Recipe>> {
+    fn get_recipes(&self) -> Signal<Vec<(usize, Recipe)>> {
         self.recipes.clone()
     }
 
-    fn set_recipes(&mut self, recipes: Vec<Recipe>) {
+    fn set_recipes(&mut self, recipes: Vec<(usize, Recipe)>) {
         self.recipes.set(recipes);
     }
 }
@@ -74,13 +74,19 @@ impl AppService {
 fn recipe_list() -> View<G> {
     let app_service = use_context::<AppService>();
 
+    let titles = create_memo(cloned!(app_service => move || {
+        app_service.get_recipes().get().iter().map(|(i, r)| (*i, r.title.clone())).collect::<Vec<(usize, String)>>()
+    }));
     view! {
         ul {
-            Indexed(IndexedProps{
-                iterable: app_service.get_recipes().handle(),
-                template: |recipe| {
-                    view! { li { (recipe.title) } }
-                }
+            Keyed(KeyedProps{
+                iterable: titles,
+                template: |(i, title)| {
+                    view! { li(on:click=move |_| {
+                        console_log!("clicked item with index: {}", i)
+                    }) { (title) } }
+                },
+                key: |(i, title)| (*i, title.clone()),
             })
         }
     }
