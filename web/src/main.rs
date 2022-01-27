@@ -18,5 +18,9 @@ use sycamore::prelude::*;
 use web::UI;
 
 fn main() {
+    #[cfg(debug_assertions)]
+    {
+        console_error_panic_hook::set_once();
+    }
     sycamore::render(|| view! { UI() });
 }
