@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 mod typings;
+mod service;
 mod web;
+mod root;
+//mod recipe;
+//mod menu;
 use sycamore::prelude::*;
 
 use web::UI;
