@@ -20,13 +20,14 @@ use sycamore::{context::use_context, prelude::*};
 fn steps(steps: ReadSignal<Vec<recipes::Step>>) -> View<G> {
     view! {
             h2 { "Steps: " }
-            ul(class="recipe_steps") {
+            div(class="recipe_steps") {
                 Indexed(IndexedProps{
                     iterable: steps,
                     template: |step: recipes::Step| { view! {
-                        li {
-                            //div() {}
-                            div(class="instructions") {}
+                        div {
+                            div(class="instructions") {
+                                (step.instructions)
+                            }
                             ul(class="ingredients") {
                                 Indexed(IndexedProps{
                                     iterable: Signal::new(step.ingredients).handle(),

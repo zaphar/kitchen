@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::console_log;
+use crate::components::*;
 use crate::service::AppService;
 
 use sycamore::{context::use_context, prelude::*};
@@ -21,6 +21,16 @@ pub fn start() -> View<G> {
     view! {
         div { "hello chefs!" }
         RecipeList()
+    }
+}
+
+#[component(RecipeView<G>)]
+pub fn recipe_view(idx: usize) -> View<G> {
+    let idx = Signal::new(idx);
+    view! {
+        div { "hello chefs!"}
+        RecipeList()
+        Recipe(idx.handle())
     }
 }
 
@@ -37,9 +47,7 @@ pub fn recipe_list() -> View<G> {
             Keyed(KeyedProps{
                 iterable: titles,
                 template: |(i, title)| {
-                    view! { li(on:click=move |_| {
-                        console_log!("clicked item with index: {}", i)
-                    }) { (title) } }
+                    view! { li { a(href=format!("/ui/recipe/{}", i)) { (title) } } }
                 },
                 key: |(i, title)| (*i, title.clone()),
             })

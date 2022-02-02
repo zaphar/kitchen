@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{components::root, service::AppService};
+use crate::{components::*, service::AppService};
 use crate::{console_debug, console_error, console_log};
 
 use sycamore::{
@@ -63,10 +63,10 @@ pub fn ui() -> View<G> {
                             console_debug!("Route {:?}", route);
                             match route.as_ref() {
                                 AppRoutes::Root => view! {
-                                    root::Start()
+                                    Start()
                                 },
-                                AppRoutes::Recipe{index:_idx} => view! {
-                                    "TODO!!"
+                                AppRoutes::Recipe{index:idx} => view! {
+                                        RecipeView(*idx)
                                 },
                                 AppRoutes::Menu => view! {
                                     "TODO!!"
