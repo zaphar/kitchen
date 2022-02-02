@@ -11,19 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-mod components;
-mod service;
-mod typings;
-mod web;
-
-use sycamore::prelude::*;
-
-use web::UI;
-
-fn main() {
-    #[cfg(debug_assertions)]
-    {
-        console_error_panic_hook::set_once();
-    }
-    sycamore::render(|| view! { UI() });
-}
+pub mod recipe;
+pub mod root;
+//mod recipe;
+//mod menu;

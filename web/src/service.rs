@@ -20,6 +20,7 @@ use recipes::{parse, Recipe};
 
 #[derive(Clone)]
 pub struct AppService {
+    // TODO(jwall): Should each Recipe also be a Signal?
     recipes: Signal<Vec<(usize, Recipe)>>,
 }
 
