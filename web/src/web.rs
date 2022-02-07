@@ -27,7 +27,7 @@ enum AppRoutes {
     Root,
     #[to("/ui/recipe/<index>")]
     Recipe { index: usize },
-    #[to("/ui/menu")]
+    #[to("/ui/shopping")]
     Menu,
     #[not_found]
     NotFound,
@@ -81,6 +81,7 @@ pub fn ui() -> View<G> {
                             // NOTE(jwall): The Router component *requires* there to be exactly one node as the root of this view.
                             // No fragments or missing nodes allowed or it will panic at runtime.
                             div(class="app") {
+                                Header()
                                 (t.get().as_ref().clone())
                             }
                         }

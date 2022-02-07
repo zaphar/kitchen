@@ -11,12 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-pub mod header;
-pub mod recipe;
-pub mod root;
-pub mod shopping;
 
-pub use header::*;
-pub use recipe::*;
-pub use root::*;
-pub use shopping::*;
+use sycamore::prelude::*;
+
+#[component(Header<G>)]
+pub fn header() -> View<G> {
+    view! {
+        div(class="menu") {
+            span { a(href="/ui/") { "home" }}
+            " | "
+            span { a(href="/ui/shopping/") { "shopping list" }}
+        }
+    }
+}
