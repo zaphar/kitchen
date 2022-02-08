@@ -13,5 +13,15 @@
 # limitations under the License.
 
 make clean kitchen
-cd kitchen
+pushd web
+trunk serve \
+    --public-url /ui \
+    --proxy-backend http://localhost:3030/api/v1 &
+trunkpid=$!
+popd
+trap "{ echo killing ${trunkpid}; kill -9 ${trunkpid}; }" EXIT
+pushd kitchen
+echo Starting api server
 cargo run -- serve --dir ../examples
+popd
+# This is ghetto but I'm doing it anyway
