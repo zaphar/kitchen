@@ -37,19 +37,8 @@ enum AppRoutes {
 pub fn ui() -> View<G> {
     let app_service = AppService::new();
     console_log!("Starting UI");
-    create_effect(cloned!((app_service) => move || {
-        spawn_local_in_scope({
-            let mut app_service = app_service.clone();
-            async move {
-                match AppService::fetch_recipes().await {
-                    Ok(recipes) => {
-                        app_service.set_recipes(recipes);
-                    }
-                    Err(msg) => console_error!("Failed to get recipes {}", msg),
-                }
-            }
-        });
-    }));
+    // TODO(jwall): We need to ensure that this happens before
+    // we render the UI below.
     view! {
         // NOTE(jwall): Set the app_service in our toplevel scope. Children will be able
         // to find the service as long as they are a child of this scope.
@@ -57,32 +46,45 @@ pub fn ui() -> View<G> {
                 value: app_service.clone(),
                 children: || view! {
                     Router(RouterProps::new(HistoryIntegration::new(), move |routes: ReadSignal<AppRoutes>| {
-                        let t = create_memo(move || {
-                            console_debug!("Determining route.");
-                            let route = routes.get();
-                            console_debug!("Route {:?}", route);
-                            match route.as_ref() {
-                                AppRoutes::Root => view! {
-                                    Start()
-                                },
-                                AppRoutes::Recipe{index:idx} => view! {
-                                        RecipeView(*idx)
-                                },
-                                AppRoutes::Menu => view! {
-                                    "TODO!!"
-                                },
-                                AppRoutes::NotFound => view! {
-                                    "NotFound"
+                        let view = Signal::new(View::empty());
+                        create_effect(cloned!((view) => move || {
+                            spawn_local_in_scope(cloned!((routes, view) => {
+                                let mut app_service = app_service.clone();
+                                async move {
+                                    match AppService::fetch_recipes().await {
+                                        Ok(recipes) => {
+                                            app_service.set_recipes(recipes);
+                                        }
+                                        Err(msg) => console_error!("Failed to get recipes {}", msg),
+                                    }
+                                    console_debug!("Determining route.");
+                                    let route = routes.get();
+                                    console_debug!("Route {:?}", route);
+                                    let t = match route.as_ref() {
+                                        AppRoutes::Root => view! {
+                                            Start()
+                                        },
+                                        AppRoutes::Recipe{index:idx} => view! {
+                                                RecipeView(*idx)
+                                        },
+                                        AppRoutes::Menu => view! {
+                                            "TODO!!"
+                                        },
+                                        AppRoutes::NotFound => view! {
+                                            "NotFound"
+                                        }
+                                    };
+                                    view.set(t);
+                                    console_debug!("Created our route view effect.");
                                 }
-                            }
-                        });
-                        console_debug!("Created our route view memo.");
+                            }));
+                        }));
                         view! {
                             // NOTE(jwall): The Router component *requires* there to be exactly one node as the root of this view.
                             // No fragments or missing nodes allowed or it will panic at runtime.
                             div(class="app") {
                                 Header()
-                                (t.get().as_ref().clone())
+                                (view.get().as_ref().clone())
                             }
                         }
                     }))
