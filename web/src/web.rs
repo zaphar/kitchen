@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 // Copyright 2022 Jeremy Wall
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,12 +35,29 @@ enum AppRoutes {
     NotFound,
 }
 
+fn route_switch<G: Html>(route: ReadSignal<AppRoutes>) -> View<G> {
+    view! {
+        (match route.get().as_ref() {
+            AppRoutes::Root => view! {
+                Start()
+            },
+            AppRoutes::Recipe { index: idx } => view! {
+                RecipeView(*idx)
+            },
+            AppRoutes::Menu => view! {
+                "TODO!!"
+            },
+            AppRoutes::NotFound => view! {
+                "NotFound"
+            },
+        })
+    }
+}
+
 #[component(UI<G>)]
 pub fn ui() -> View<G> {
     let app_service = AppService::new();
     console_log!("Starting UI");
-    // TODO(jwall): We need to ensure that this happens before
-    // we render the UI below.
     view! {
         // NOTE(jwall): Set the app_service in our toplevel scope. Children will be able
         // to find the service as long as they are a child of this scope.
@@ -58,23 +77,7 @@ pub fn ui() -> View<G> {
                                         Err(msg) => console_error!("Failed to get recipes {}", msg),
                                     }
                                     console_debug!("Determining route.");
-                                    let route = routes.get();
-                                    console_debug!("Route {:?}", route);
-                                    let t = match route.as_ref() {
-                                        AppRoutes::Root => view! {
-                                            Start()
-                                        },
-                                        AppRoutes::Recipe{index:idx} => view! {
-                                                RecipeView(*idx)
-                                        },
-                                        AppRoutes::Menu => view! {
-                                            "TODO!!"
-                                        },
-                                        AppRoutes::NotFound => view! {
-                                            "NotFound"
-                                        }
-                                    };
-                                    view.set(t);
+                                    view.set(route_switch(routes));
                                     console_debug!("Created our route view effect.");
                                 }
                             }));
