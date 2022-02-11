@@ -167,7 +167,7 @@ impl Step {
 
 /// Unique identifier for an Ingredient. Ingredients are identified by name, form,
 /// and measurement type. (Volume, Count, Weight)
-#[derive(PartialEq, PartialOrd, Eq, Ord)]
+#[derive(PartialEq, PartialOrd, Eq, Ord, Clone)]
 pub struct IngredientKey(String, Option<String>, String);
 
 /// Ingredient in a recipe. The `name` and `form` fields with the measurement type

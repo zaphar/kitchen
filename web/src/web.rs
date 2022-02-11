@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 // Copyright 2022 Jeremy Wall
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -45,7 +43,7 @@ fn route_switch<G: Html>(route: ReadSignal<AppRoutes>) -> View<G> {
                 RecipeView(*idx)
             },
             AppRoutes::Menu => view! {
-                "TODO!!"
+                ShoppingView()
             },
             AppRoutes::NotFound => view! {
                 "NotFound"
