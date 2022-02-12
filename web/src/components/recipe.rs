@@ -25,9 +25,7 @@ fn steps(steps: ReadSignal<Vec<recipes::Step>>) -> View<G> {
                     iterable: steps,
                     template: |step: recipes::Step| { view! {
                         div {
-                            div(class="instructions") {
-                                (step.instructions)
-                            }
+                            h3 { "Instructions" }
                             ul(class="ingredients") {
                                 Indexed(IndexedProps{
                                     iterable: Signal::new(step.ingredients).handle(),
@@ -37,6 +35,9 @@ fn steps(steps: ReadSignal<Vec<recipes::Step>>) -> View<G> {
                                         }
                                     }}
                                 })
+                            }
+                            div(class="instructions") {
+                                (step.instructions)
                             }
                         }}
                     }

@@ -93,15 +93,14 @@ impl AppService {
         self.recipes.clone()
     }
 
-    pub fn get_menu_list(&self) -> ReadSignal<Vec<(usize, usize)>> {
-        let menu_list = self.menu_list.clone();
-        create_memo(move || {
-            menu_list
-                .get()
-                .iter()
-                .map(|(idx, count)| (*idx, *count))
-                .collect::<Vec<(usize, usize)>>()
-        })
+    pub fn get_menu_list(&self) -> Vec<(usize, usize)> {
+        self.menu_list
+            .get()
+            .iter()
+            // We exclude recipes in the menu_list with count 0
+            .filter(|&(_, count)| *count != 0)
+            .map(|(idx, count)| (*idx, *count))
+            .collect()
     }
 
     pub fn set_recipes(&mut self, mut recipes: Vec<(usize, Recipe)>) {
