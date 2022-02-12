@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use crate::{console_debug, console_error};
@@ -18,20 +19,20 @@ use crate::{console_debug, console_error};
 use reqwasm::http;
 use sycamore::prelude::*;
 
-use recipes::{parse, Recipe};
+use recipes::{parse, Ingredient, IngredientAccumulator, IngredientKey, Recipe};
 
 #[derive(Clone)]
 pub struct AppService {
     // TODO(jwall): Should each Recipe also be a Signal?
     recipes: Signal<Vec<(usize, Recipe)>>,
-    menu_list: Signal<Vec<Recipe>>,
+    menu_list: Signal<BTreeMap<usize, usize>>,
 }
 
 impl AppService {
     pub fn new() -> Self {
         Self {
             recipes: Signal::new(Vec::new()),
-            menu_list: Signal::new(Vec::new()),
+            menu_list: Signal::new(BTreeMap::new()),
         }
     }
 
@@ -64,13 +65,24 @@ impl AppService {
         }
     }
 
-    pub fn get_menu_list(&self) -> Signal<Vec<Recipe>> {
-        self.menu_list.clone()
+    pub fn get_recipe_by_index(&self, idx: usize) -> Option<Recipe> {
+        self.recipes.get().get(idx).map(|(_, r)| r.clone())
     }
 
-    pub fn add_recipe_by_index(&mut self, i: usize) {
+    pub fn get_menu_list(&self) -> BTreeMap<IngredientKey, Ingredient> {
+        let mut acc = IngredientAccumulator::new();
+        let recipe_counts = self.menu_list.get();
+        for (idx, count) in recipe_counts.iter() {
+            for _ in 0..*count {
+                acc.accumulate_from(&self.get_recipe_by_index(*idx).unwrap());
+            }
+        }
+        acc.ingredients()
+    }
+
+    pub fn set_recipe_count_by_index(&mut self, i: usize, count: usize) {
         let mut v = (*self.menu_list.get()).clone();
-        v.push(self.recipes.get()[i].1.clone());
+        v.insert(i, count);
         self.menu_list.set(v);
     }
 

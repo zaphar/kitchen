@@ -32,11 +32,12 @@ fn recipe_check_box(props: RecipeCheckBoxProps) -> View<G> {
     let id_as_str = Rc::new(format!("{}", i));
     let id_cloned = id_as_str.clone();
     let id_cloned_2 = id_as_str.clone();
+    let count = Signal::new(String::from("0"));
     view! {
-        input(type="checkbox", name="recipe_id", value=id_as_str.clone(), on:click=move |_| {
+        input(type="number", min="0", bind:value=count.clone(), name="recipe_id", value=id_as_str.clone(), on:change=move |_| {
             let mut app_service = app_service.clone();
-            console_log!("clicked checkbox for id {}", id_cloned);
-            app_service.add_recipe_by_index(i);
+            console_log!("setting recipe id: {} to count: {}", i, *count.get());
+            app_service.set_recipe_count_by_index(i, count.get().parse().unwrap());
         })
         label(for=id_cloned_2) { (props.title) }
     }
@@ -67,11 +68,8 @@ pub fn recipe_selector() -> View<G> {
 fn shopping_list() -> View<G> {
     let app_service = use_context::<AppService>();
     let ingredients = create_memo(move || {
-        let mut acc = IngredientAccumulator::new();
-        for r in app_service.get_menu_list().get().iter() {
-            acc.accumulate_from(r);
-        }
-        acc.ingredients()
+        let ingredients = app_service.get_menu_list();
+        ingredients
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect::<Vec<(IngredientKey, Ingredient)>>()
