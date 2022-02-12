@@ -15,7 +15,7 @@ use crate::console_log;
 use crate::service::AppService;
 use std::rc::Rc;
 
-use recipes::{Ingredient, IngredientAccumulator, IngredientKey};
+use recipes::{Ingredient, IngredientKey};
 use sycamore::{context::use_context, prelude::*};
 
 struct RecipeCheckBoxProps {
