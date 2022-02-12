@@ -13,11 +13,17 @@
 # limitations under the License.
 
 kitchen: wasm kitchen/src/*.rs
-	cp -r web/dist kitchen/webdist
 	cd kitchen; cargo build
 
-wasm: web/index.html web/src/*.rs
+release: wasmrelease
+	cd kitchen; cargo build --release
+
+wasmrelease: web/index.html web/src/*.rs web/src/components/*.rs
+	cd web; trunk build --release --public-url /ui/ --dist ../kitchen/webdist
+
+wasm: web/index.html web/src/*.rs web/src/components/*.rs
 	cd web; trunk build --public-url /ui/
+	cp -r web/dist kitchen/webdist
 
 clean:
 	rm -rf web/dist/* kitchen/webdist

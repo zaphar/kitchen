@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+EXAMPLES=${EXAMPLES:-../examples}
 make clean kitchen
 pushd web
 trunk serve \
@@ -21,7 +21,7 @@ trunkpid=$!
 popd
 trap "{ echo killing ${trunkpid}; kill -9 ${trunkpid}; }" EXIT
 pushd kitchen
-echo Starting api server
-cargo run -- serve --dir ../examples
+echo Starting api server serving ${EXAMPLES}
+cargo run -- serve --dir ${EXAMPLES}
 popd
 # This is ghetto but I'm doing it anyway
