@@ -14,6 +14,7 @@
 use crate::components::*;
 use crate::service::AppService;
 
+use recipes;
 use sycamore::{context::use_context, prelude::*};
 
 #[component(Start<G>)]
@@ -40,16 +41,15 @@ pub fn recipe_list() -> View<G> {
     let app_service = use_context::<AppService>();
 
     let titles = create_memo(cloned!(app_service => move || {
-        app_service.get_recipes().get().iter().map(|(i, r)| (*i, r.title.clone())).collect::<Vec<(usize, String)>>()
+        app_service.get_recipes().get().iter().map(|(i, r)| (*i, r.clone())).collect::<Vec<(usize, Signal<recipes::Recipe>)>>()
     }));
     view! {
         ul(class="recipe_list") {
-            Keyed(KeyedProps{
+            Indexed(IndexedProps{
                 iterable: titles,
-                template: |(i, title)| {
-                    view! { li { a(href=format!("/ui/recipe/{}", i)) { (title) } } }
+                template: |(i, recipe)| {
+                    view! { li { a(href=format!("/ui/recipe/{}", i)) { (recipe.get().title) } } }
                 },
-                key: |(i, title)| (*i, title.clone()),
             })
         }
     }

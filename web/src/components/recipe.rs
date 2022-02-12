@@ -48,8 +48,7 @@ fn steps(steps: ReadSignal<Vec<recipes::Step>>) -> View<G> {
 #[component(Recipe<G>)]
 pub fn recipe(idx: ReadSignal<usize>) -> View<G> {
     let app_service = use_context::<AppService>();
-    // TODO(jwall): This does unnecessary copies. Can we eliminate that?
-    let recipe = create_memo(move || app_service.get_recipes().get()[*idx.get()].1.clone());
+    let recipe = app_service.get_recipes().get()[*idx.get()].1.clone();
     let title = create_memo(cloned!((recipe) => move || recipe.get().title.clone()));
     let desc = create_memo(
         cloned!((recipe) => move || recipe.clone().get().desc.clone().unwrap_or_else(|| String::new())),

@@ -18,9 +18,9 @@ use sycamore::prelude::*;
 pub fn header() -> View<G> {
     view! {
         div(class="menu") {
-            span { a(href="/ui/") { "home" }}
+            span { a(href="/ui/") { "Home" }}
             " | "
-            span { a(href="/ui/shopping/") { "shopping list" }}
+            span { a(href="/ui/plan/") { "Meal Plan" }}
         }
     }
 }

@@ -27,8 +27,8 @@ enum AppRoutes {
     Root,
     #[to("/ui/recipe/<index>")]
     Recipe { index: usize },
-    #[to("/ui/shopping")]
-    Menu,
+    #[to("/ui/plan")]
+    Plan,
     #[not_found]
     NotFound,
 }
@@ -42,8 +42,8 @@ fn route_switch<G: Html>(route: ReadSignal<AppRoutes>) -> View<G> {
             AppRoutes::Recipe { index: idx } => view! {
                 RecipeView(*idx)
             },
-            AppRoutes::Menu => view! {
-                ShoppingView()
+            AppRoutes::Plan => view! {
+                MealPlan()
             },
             AppRoutes::NotFound => view! {
                 "NotFound"

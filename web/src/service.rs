@@ -23,7 +23,7 @@ use recipes::{parse, Ingredient, IngredientAccumulator, IngredientKey, Recipe};
 #[derive(Clone)]
 pub struct AppService {
     // TODO(jwall): Should each Recipe also be a Signal?
-    recipes: Signal<Vec<(usize, Recipe)>>,
+    recipes: Signal<Vec<(usize, Signal<Recipe>)>>,
     menu_list: Signal<BTreeMap<usize, usize>>,
 }
 
@@ -64,16 +64,16 @@ impl AppService {
         }
     }
 
-    pub fn get_recipe_by_index(&self, idx: usize) -> Option<Recipe> {
+    pub fn get_recipe_by_index(&self, idx: usize) -> Option<Signal<Recipe>> {
         self.recipes.get().get(idx).map(|(_, r)| r.clone())
     }
 
-    pub fn get_menu_list(&self) -> BTreeMap<IngredientKey, Ingredient> {
+    pub fn get_shopping_list(&self) -> BTreeMap<IngredientKey, Ingredient> {
         let mut acc = IngredientAccumulator::new();
         let recipe_counts = self.menu_list.get();
         for (idx, count) in recipe_counts.iter() {
             for _ in 0..*count {
-                acc.accumulate_from(&self.get_recipe_by_index(*idx).unwrap());
+                acc.accumulate_from(self.get_recipe_by_index(*idx).unwrap().get().as_ref());
             }
         }
         acc.ingredients()
@@ -89,11 +89,27 @@ impl AppService {
         self.menu_list.get().get(&i).map(|i| *i).unwrap_or_default()
     }
 
-    pub fn get_recipes(&self) -> Signal<Vec<(usize, Recipe)>> {
+    pub fn get_recipes(&self) -> Signal<Vec<(usize, Signal<Recipe>)>> {
         self.recipes.clone()
     }
 
-    pub fn set_recipes(&mut self, recipes: Vec<(usize, Recipe)>) {
-        self.recipes.set(recipes);
+    pub fn get_menu_list(&self) -> ReadSignal<Vec<(usize, usize)>> {
+        let menu_list = self.menu_list.clone();
+        create_memo(move || {
+            menu_list
+                .get()
+                .iter()
+                .map(|(idx, count)| (*idx, *count))
+                .collect::<Vec<(usize, usize)>>()
+        })
+    }
+
+    pub fn set_recipes(&mut self, mut recipes: Vec<(usize, Recipe)>) {
+        self.recipes.set(
+            recipes
+                .drain(0..)
+                .map(|(i, r)| (i, Signal::new(r)))
+                .collect(),
+        );
     }
 }

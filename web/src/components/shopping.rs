@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use crate::components::Recipe;
 use crate::console_log;
 use crate::service::AppService;
 use std::rc::Rc;
@@ -20,7 +21,7 @@ use sycamore::{context::use_context, prelude::*};
 
 struct RecipeCheckBoxProps {
     i: usize,
-    title: String,
+    title: ReadSignal<String>,
 }
 
 #[component(RecipeSelection<G>)]
@@ -38,7 +39,7 @@ fn recipe_selection(props: RecipeCheckBoxProps) -> View<G> {
             console_log!("setting recipe id: {} to count: {}", i, *count.get());
             app_service.set_recipe_count_by_index(i, count.get().parse().unwrap());
         })
-        label(for=id_cloned_2) { (props.title) }
+        label(for=id_cloned_2) { (props.title.get()) }
     }
 }
 
@@ -46,18 +47,17 @@ fn recipe_selection(props: RecipeCheckBoxProps) -> View<G> {
 pub fn recipe_selector() -> View<G> {
     let app_service = use_context::<AppService>();
     let titles = create_memo(cloned!(app_service => move || {
-        app_service.get_recipes().get().iter().map(|(i, r)| (*i, r.title.clone())).collect::<Vec<(usize, String)>>()
+        app_service.get_recipes().get().iter().map(|(i, r)| (*i, r.clone())).collect::<Vec<(usize, Signal<recipes::Recipe>)>>()
     }));
     view! {
         fieldset(class="recipe_selector") {
-            Keyed(KeyedProps{
+            Indexed(IndexedProps{
                 iterable: titles,
-                template: |(i, title)| {
+                template: |(i, recipe)| {
                     view! {
-                        RecipeSelection(RecipeCheckBoxProps{i: i, title: title})
+                        RecipeSelection(RecipeCheckBoxProps{i: i, title: create_memo(move || recipe.get().title.clone())})
                     }
                 },
-                key: |(i, title)| (*i, title.clone()),
             })
         }
     }
@@ -67,7 +67,7 @@ pub fn recipe_selector() -> View<G> {
 fn shopping_list() -> View<G> {
     let app_service = use_context::<AppService>();
     let ingredients = create_memo(move || {
-        let ingredients = app_service.get_menu_list();
+        let ingredients = app_service.get_shopping_list();
         ingredients
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
@@ -76,6 +76,7 @@ fn shopping_list() -> View<G> {
 
     // TODO(jwall): Sort by categories and names.
     view! {
+        h1 { "Shopping List" }
         table(class="shopping_list") {
             tr {
                 th { "Quantity" }
@@ -97,13 +98,33 @@ fn shopping_list() -> View<G> {
     }
 }
 
-#[component(ShoppingView<G>)]
-pub fn shopping_view() -> View<G> {
+#[component(RecipeList<G>)]
+fn recipe_list() -> View<G> {
+    let app_service = use_context::<AppService>();
+    let menu_list = app_service.get_menu_list();
+    view! {
+        h1 { "Recipe List" }
+        Indexed(IndexedProps{
+            iterable: menu_list,
+            template: |(idx, _count)| {
+                let idx = Signal::new(idx);
+                view ! {
+                    Recipe(idx.handle())
+                    hr()
+                }
+            }
+        })
+    }
+}
+
+#[component(MealPlan<G>)]
+pub fn meal_plan() -> View<G> {
     view! {
         h1 {
             "Select your recipes"
         }
         RecipeSelector()
         ShoppingList()
+        RecipeList()
     }
 }
