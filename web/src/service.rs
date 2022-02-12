@@ -86,6 +86,10 @@ impl AppService {
         self.menu_list.set(v);
     }
 
+    pub fn get_recipe_count_by_index(&self, i: usize) -> usize {
+        self.menu_list.get().get(&i).map(|i| *i).unwrap_or_default()
+    }
+
     pub fn get_recipes(&self) -> Signal<Vec<(usize, Recipe)>> {
         self.recipes.clone()
     }

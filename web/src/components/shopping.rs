@@ -30,9 +30,8 @@ fn recipe_check_box(props: RecipeCheckBoxProps) -> View<G> {
     // the `view!` macro.
     let i = props.i;
     let id_as_str = Rc::new(format!("{}", i));
-    let id_cloned = id_as_str.clone();
     let id_cloned_2 = id_as_str.clone();
-    let count = Signal::new(String::from("0"));
+    let count = Signal::new(format!("{}", app_service.get_recipe_count_by_index(i)));
     view! {
         input(type="number", min="0", bind:value=count.clone(), name="recipe_id", value=id_as_str.clone(), on:change=move |_| {
             let mut app_service = app_service.clone();
