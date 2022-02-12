@@ -137,33 +137,33 @@ impl VolumeMeasure {
         Ltr(self.get_ml() / LTR)
     }
 
-    pub fn normalize(self) -> Self {
+    pub fn normalize(&self) -> Self {
         let ml = self.get_ml();
         if (ml / GAL) >= ONE {
-            return self.into_gal();
+            return self.clone().into_gal();
         }
         if (ml / LTR) >= ONE {
-            return self.into_ltr();
+            return self.clone().into_ltr();
         }
         if (ml / QRT) >= ONE {
-            return self.into_qrt();
+            return self.clone().into_qrt();
         }
         if (ml / PINT) >= ONE {
-            return self.into_pint();
+            return self.clone().into_pint();
         }
         if (ml / CUP) >= ONE {
-            return self.into_cup();
+            return self.clone().into_cup();
         }
         if (ml / FLOZ) >= ONE {
-            return self.into_floz();
+            return self.clone().into_floz();
         }
         if (ml / TBSP) >= ONE {
-            return self.into_tbsp();
+            return self.clone().into_tbsp();
         }
         if (ml / TSP) >= ONE {
-            return self.into_tsp();
+            return self.clone().into_tsp();
         }
-        return self.into_ml();
+        return self.clone().into_ml();
     }
 }
 
@@ -249,18 +249,18 @@ impl WeightMeasure {
         Self::Oz(self.get_grams() / OZ)
     }
 
-    pub fn normalize(self) -> Self {
+    pub fn normalize(&self) -> Self {
         let grams = self.get_grams();
         if (grams / KG) >= ONE {
-            return self.into_kilo();
+            return self.clone().into_kilo();
         }
         if (grams / LB) >= ONE {
-            return self.into_pound();
+            return self.clone().into_pound();
         }
         if (grams / OZ) >= ONE {
-            return self.into_oz();
+            return self.clone().into_oz();
         }
-        return self.into_gram();
+        return self.clone().into_gram();
     }
 }
 
@@ -391,6 +391,14 @@ impl Measure {
             Volume(vm) => vm.plural(),
             Count(qty) => qty.plural(),
             Weight(wm) => wm.plural(),
+        }
+    }
+
+    pub fn normalize(&self) -> Self {
+        match self {
+            Volume(vm) => Volume(vm.normalize()),
+            Count(qty) => Count(qty.clone()),
+            Weight(wm) => Weight(wm.normalize()),
         }
     }
 }

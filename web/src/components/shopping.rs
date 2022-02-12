@@ -23,8 +23,8 @@ struct RecipeCheckBoxProps {
     title: String,
 }
 
-#[component(RecipeCheckBox<G>)]
-fn recipe_check_box(props: RecipeCheckBoxProps) -> View<G> {
+#[component(RecipeSelection<G>)]
+fn recipe_selection(props: RecipeCheckBoxProps) -> View<G> {
     let app_service = use_context::<AppService>();
     // This is total hack but it works around the borrow issues with
     // the `view!` macro.
@@ -33,7 +33,7 @@ fn recipe_check_box(props: RecipeCheckBoxProps) -> View<G> {
     let id_cloned_2 = id_as_str.clone();
     let count = Signal::new(format!("{}", app_service.get_recipe_count_by_index(i)));
     view! {
-        input(type="number", min="0", bind:value=count.clone(), name="recipe_id", value=id_as_str.clone(), on:change=move |_| {
+        input(type="number", min="0", bind:value=count.clone(), name=format!("recipe_id:{}", i), value=id_as_str.clone(), on:change=move |_| {
             let mut app_service = app_service.clone();
             console_log!("setting recipe id: {} to count: {}", i, *count.get());
             app_service.set_recipe_count_by_index(i, count.get().parse().unwrap());
@@ -54,7 +54,7 @@ pub fn recipe_selector() -> View<G> {
                 iterable: titles,
                 template: |(i, title)| {
                     view! {
-                        RecipeCheckBox(RecipeCheckBoxProps{i: i, title: title})
+                        RecipeSelection(RecipeCheckBoxProps{i: i, title: title})
                     }
                 },
                 key: |(i, title)| (*i, title.clone()),
@@ -74,6 +74,7 @@ fn shopping_list() -> View<G> {
             .collect::<Vec<(IngredientKey, Ingredient)>>()
     });
 
+    // TODO(jwall): Sort by categories and names.
     view! {
         table(class="shopping_list") {
             tr {
@@ -83,9 +84,10 @@ fn shopping_list() -> View<G> {
             Indexed(IndexedProps{
                 iterable: ingredients,
                 template: |(_k, i)| {
+                    let amt = Signal::new(format!("{}", i.amt.normalize()));
                     view! {
                         tr {
-                            td { (i.amt) }
+                            td { input(bind:value=amt.clone(), type="text") }
                             td { (i.name) }
                         }
                     }

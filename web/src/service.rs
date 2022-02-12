@@ -54,7 +54,7 @@ impl AppService {
                     Ok(r) => r,
                     Err(e) => {
                         console_error!("Error parsing recipe {}", e);
-                        break;
+                        continue;
                     }
                 };
                 console_debug!("We parsed a recipe {}", recipe.title);
