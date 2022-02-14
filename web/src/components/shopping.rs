@@ -86,12 +86,14 @@ fn shopping_list() -> View<G> {
                 iterable: ingredients,
                 template: |(_k, i)| {
                     let amt = Signal::new(format!("{}", i.amt.normalize()));
+                    let name = i.name;
+                    let form = i.form.map(|form| format!("({})", form)).unwrap_or_default();
                     view! {
                         tr {
                             // TODO(jwall): What is the mechanism for deleting ingredients
                             // from the list?
                             td { input(bind:value=amt.clone(), type="text") }
-                            td { (i.name) }
+                            td { (name) " " (form) }
                         }
                     }
                 },
