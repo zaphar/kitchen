@@ -14,7 +14,7 @@
 use crate::components::Recipe;
 use crate::console_log;
 use crate::service::AppService;
-use std::rc::Rc;
+use std::{collections::HashSet, rc::Rc};
 
 use recipes::{Ingredient, IngredientKey};
 use sycamore::{context::use_context, prelude::*};
@@ -66,11 +66,14 @@ pub fn recipe_selector() -> View<G> {
 #[component(ShoppingList<G>)]
 fn shopping_list() -> View<G> {
     let app_service = use_context::<AppService>();
+    let filtered_keys = Signal::new(HashSet::new());
+    let filter_signal = filtered_keys.clone();
     let ingredients = create_memo(move || {
         let ingredients = app_service.get_shopping_list();
         ingredients
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
+            .filter(|(k, _v)| !filter_signal.get().contains(k))
             .collect::<Vec<(IngredientKey, Ingredient)>>()
     });
 
@@ -84,16 +87,19 @@ fn shopping_list() -> View<G> {
             }
             Indexed(IndexedProps{
                 iterable: ingredients,
-                template: |(_k, i)| {
+                template: move |(k, i)| {
                     let amt = Signal::new(format!("{}", i.amt.normalize()));
                     let name = i.name;
                     let form = i.form.map(|form| format!("({})", form)).unwrap_or_default();
+                    let filtered_keys = filtered_keys.clone();
                     view! {
                         tr {
-                            // TODO(jwall): What is the mechanism for deleting ingredients
-                            // from the list?
                             td { input(bind:value=amt.clone(), type="text") }
-                            td { (name) " " (form) }
+                            td {input(type="button", value="X", on:click=move |_| {
+                                let mut keyset = (*filtered_keys.get()).clone();
+                                keyset.insert(k.clone());
+                                filtered_keys.set(keyset);
+                            })  " " (name) " " (form) }
                         }
                     }
                 },
