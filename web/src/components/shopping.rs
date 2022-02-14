@@ -88,6 +88,8 @@ fn shopping_list() -> View<G> {
                     let amt = Signal::new(format!("{}", i.amt.normalize()));
                     view! {
                         tr {
+                            // TODO(jwall): What is the mechanism for deleting ingredients
+                            // from the list?
                             td { input(bind:value=amt.clone(), type="text") }
                             td { (i.name) }
                         }

@@ -31,7 +31,7 @@ fn steps(steps: ReadSignal<Vec<recipes::Step>>) -> View<G> {
                                     iterable: Signal::new(step.ingredients).handle(),
                                     template: |i| { view! {
                                         li {
-                                            (i.amt) (i.name) (i.form.as_ref().map(|f| format!("({})", f)).unwrap_or(String::new()))
+                                            (i.amt) " " (i.name) " " (i.form.as_ref().map(|f| format!("({})", f)).unwrap_or(String::new()))
                                         }
                                     }}
                                 })
