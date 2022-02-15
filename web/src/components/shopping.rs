@@ -14,7 +14,10 @@
 use crate::components::Recipe;
 use crate::console_log;
 use crate::service::AppService;
-use std::{collections::HashSet, rc::Rc};
+use std::{
+    collections::{BTreeMap, HashSet},
+    rc::Rc,
+};
 
 use recipes::{Ingredient, IngredientKey};
 use sycamore::{context::use_context, prelude::*};
@@ -50,7 +53,7 @@ pub fn recipe_selector() -> View<G> {
         app_service.get_recipes().get().iter().map(|(i, r)| (*i, r.clone())).collect::<Vec<(usize, Signal<recipes::Recipe>)>>()
     }));
     view! {
-        fieldset(class="recipe_selector") {
+        fieldset(class="recipe_selector", class="no-print") {
             Indexed(IndexedProps{
                 iterable: titles,
                 template: |(i, recipe)| {
@@ -67,42 +70,50 @@ pub fn recipe_selector() -> View<G> {
 fn shopping_list() -> View<G> {
     let app_service = use_context::<AppService>();
     let filtered_keys = Signal::new(HashSet::new());
-    let filter_signal = filtered_keys.clone();
-    let ingredients = create_memo(move || {
-        let ingredients = app_service.get_shopping_list();
-        ingredients
+    let ingredients_map = Signal::new(BTreeMap::new());
+    create_effect(cloned!((app_service, ingredients_map) => move || {
+        ingredients_map.set(app_service.get_shopping_list());
+    }));
+    let ingredients = create_memo(cloned!((ingredients_map, filtered_keys) => move || {
+        ingredients_map
+            .get()
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
-            .filter(|(k, _v)| !filter_signal.get().contains(k))
+            .filter(|(k, _v)| !filtered_keys.get().contains(k))
             .collect::<Vec<(IngredientKey, Ingredient)>>()
-    });
-
+    }));
     // TODO(jwall): Sort by categories and names.
     view! {
         h1 { "Shopping List" }
-        table(class="shopping_list") {
+        input(type="button", value="Reset List", class="no-print", on:click=cloned!((ingredients_map, filtered_keys, app_service) => move |_| {
+            // trigger the shopping list generation
+            ingredients_map.set(app_service.get_shopping_list());
+            // clear the filter_signal
+            filtered_keys.set(HashSet::new());
+        }))
+        table(class="shopping_list", style="page-break-after: always;") {
             tr {
                 th { "Quantity" }
                 th { "Ingredient" }
             }
             Indexed(IndexedProps{
                 iterable: ingredients,
-                template: move |(k, i)| {
+                template: cloned!((filtered_keys) => move |(k, i)| {
                     let amt = Signal::new(format!("{}", i.amt.normalize()));
+                    // TODO(jwall): Create effect to reset this amount if it diverges.
                     let name = i.name;
                     let form = i.form.map(|form| format!("({})", form)).unwrap_or_default();
-                    let filtered_keys = filtered_keys.clone();
                     view! {
                         tr {
                             td { input(bind:value=amt.clone(), type="text") }
-                            td {input(type="button", value="X", on:click=move |_| {
+                            td {input(type="button", class="no-print", value="X", on:click=cloned!((filtered_keys) => move |_| {
                                 let mut keyset = (*filtered_keys.get()).clone();
                                 keyset.insert(k.clone());
                                 filtered_keys.set(keyset);
-                            })  " " (name) " " (form) }
+                            }))  " " (name) " " (form) }
                         }
                     }
-                },
+                }),
             })
         }
     }
