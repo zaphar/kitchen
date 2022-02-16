@@ -85,6 +85,13 @@ impl VolumeMeasure {
         }
     }
 
+    pub fn metric(&self) -> bool {
+        match self {
+            ML(_) | Ltr(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn plural(&self) -> bool {
         match self {
             Tsp(qty) | Tbsp(qty) | Cup(qty) | Pint(qty) | Qrt(qty) | Gal(qty) | Floz(qty)
@@ -138,32 +145,38 @@ impl VolumeMeasure {
     }
 
     pub fn normalize(&self) -> Self {
+        // We try to maintain metric vs not metric in our normalization logic.
+        let metric = self.metric();
         let ml = self.get_ml();
-        if (ml / GAL) >= ONE {
+        if (ml / GAL) >= ONE && !metric {
             return self.clone().into_gal();
         }
-        if (ml / LTR) >= ONE {
+        if (ml / LTR) >= ONE && metric {
             return self.clone().into_ltr();
         }
-        if (ml / QRT) >= ONE {
+        if (ml / QRT) >= ONE && !metric {
             return self.clone().into_qrt();
         }
-        if (ml / PINT) >= ONE {
+        if (ml / PINT) >= ONE && !metric {
             return self.clone().into_pint();
         }
-        if (ml / CUP) >= ONE {
+        if (ml / CUP) >= ONE && !metric {
             return self.clone().into_cup();
         }
-        if (ml / FLOZ) >= ONE {
+        if (ml / FLOZ) >= ONE && !metric {
             return self.clone().into_floz();
         }
-        if (ml / TBSP) >= ONE {
+        if (ml / TBSP) >= ONE && !metric {
             return self.clone().into_tbsp();
         }
-        if (ml / TSP) >= ONE {
+        if (ml / TSP) >= ONE && !metric {
             return self.clone().into_tsp();
         }
-        return self.clone().into_ml();
+        return if metric {
+            self.clone().into_ml()
+        } else {
+            self.clone()
+        };
     }
 }
 
@@ -174,7 +187,12 @@ macro_rules! volume_op {
 
             fn $method(self, lhs: Self) -> Self::Output {
                 let (l, r) = (self.get_ml(), lhs.get_ml());
-                ML($trait::$method(l, r))
+                let result = ML($trait::$method(l, r));
+                if self.metric() {
+                    result.normalize()
+                } else {
+                    result.into_tsp().normalize()
+                }
             }
         }
     };
@@ -225,6 +243,13 @@ impl WeightMeasure {
         }
     }
 
+    pub fn metric(&self) -> bool {
+        match self {
+            Gram(_) | Kilogram(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn plural(&self) -> bool {
         match self {
             &Self::Gram(qty) | &Self::Kilogram(qty) | &Self::Pound(qty) | &Self::Oz(qty) => {
@@ -250,17 +275,22 @@ impl WeightMeasure {
     }
 
     pub fn normalize(&self) -> Self {
+        let metric = self.metric();
         let grams = self.get_grams();
-        if (grams / KG) >= ONE {
+        if (grams / KG) >= ONE && metric {
             return self.clone().into_kilo();
         }
-        if (grams / LB) >= ONE {
+        if (grams / LB) >= ONE && !metric {
             return self.clone().into_pound();
         }
-        if (grams / OZ) >= ONE {
+        if (grams / OZ) >= ONE && !metric {
             return self.clone().into_oz();
         }
-        return self.clone().into_gram();
+        return if metric {
+            self.clone().into_gram()
+        } else {
+            self.clone()
+        };
     }
 }
 
@@ -271,7 +301,12 @@ macro_rules! weight_op {
 
             fn $method(self, lhs: Self) -> Self::Output {
                 let (l, r) = (self.get_grams(), lhs.get_grams());
-                WeightMeasure::Gram($trait::$method(l, r))
+                let result = WeightMeasure::Gram($trait::$method(l, r));
+                if self.metric() {
+                    result.normalize()
+                } else {
+                    result.into_oz().normalize()
+                }
             }
         }
     };

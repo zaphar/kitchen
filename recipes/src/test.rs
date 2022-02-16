@@ -30,6 +30,16 @@ fn test_volume_measure_conversion() {
 }
 
 #[test]
+fn test_volume_measure_metric_affinity() {
+    let cup = Cup((4 * 4 * 4).into());
+    assert_eq!(cup.metric(), false);
+    assert_eq!(cup.normalize().metric(), false);
+    let ml = ML(1000.into());
+    assert_eq!(ml.metric(), true);
+    assert_eq!(ml.normalize().metric(), true);
+}
+
+#[test]
 fn test_quantity_math() {
     // All frac
     let half: Quantity = Ratio::new(1, 2).into();
@@ -71,8 +81,8 @@ fn test_volume_normalize() {
     assert_normalize!(Cup, into_floz, "not a cup after normalize call");
     assert_normalize!(Pint, into_cup, "not a pint after normalize call");
     assert_normalize!(Qrt, into_pint, "not a qrt after normalize call");
-    assert_normalize!(Ltr, into_qrt, "not a ltr after normalize call");
-    assert_normalize!(Gal, into_ltr, "not a gal after normalize call");
+    assert_normalize!(Ltr, into_ml, "not a ltr after normalize call");
+    assert_normalize!(Gal, into_qrt, "not a gal after normalize call");
     assert_normalize!(Gal, into_tsp, "not a gal after normalize call");
 }
 
