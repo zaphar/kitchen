@@ -23,12 +23,10 @@ use sycamore_router::{HistoryIntegration, Route, Router, RouterProps};
 
 #[derive(Route, Debug)]
 enum AppRoutes {
-    #[to("/ui")]
-    Root,
+    #[to("/ui/")]
+    Plan,
     #[to("/ui/recipe/<index>")]
     Recipe { index: usize },
-    #[to("/ui/plan")]
-    Plan,
     #[not_found]
     NotFound,
 }
@@ -36,14 +34,11 @@ enum AppRoutes {
 fn route_switch<G: Html>(route: ReadSignal<AppRoutes>) -> View<G> {
     view! {
         (match route.get().as_ref() {
-            AppRoutes::Root => view! {
-                Start()
+            AppRoutes::Plan => view! {
+                MealPlan()
             },
             AppRoutes::Recipe { index: idx } => view! {
                 RecipeView(*idx)
-            },
-            AppRoutes::Plan => view! {
-                MealPlan()
             },
             AppRoutes::NotFound => view! {
                 "NotFound"
