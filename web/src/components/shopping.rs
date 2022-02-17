@@ -37,12 +37,14 @@ fn recipe_selection(props: RecipeCheckBoxProps) -> View<G> {
     let id_cloned_2 = id_as_str.clone();
     let count = Signal::new(format!("{}", app_service.get_recipe_count_by_index(i)));
     view! {
-        input(type="number", min="0", bind:value=count.clone(), name=format!("recipe_id:{}", i), value=id_as_str.clone(), on:change=move |_| {
-            let mut app_service = app_service.clone();
-            console_log!("setting recipe id: {} to count: {}", i, *count.get());
-            app_service.set_recipe_count_by_index(i, count.get().parse().unwrap());
-        })
-        label(for=id_cloned_2) { (props.title.get()) }
+        div(class="form-group col-md-1") {
+            input(type="number", class="item-count-sel", min="0", bind:value=count.clone(), name=format!("recipe_id:{}", i), value=id_as_str.clone(), on:change=move |_| {
+                let mut app_service = app_service.clone();
+                console_log!("setting recipe id: {} to count: {}", i, *count.get());
+                app_service.set_recipe_count_by_index(i, count.get().parse().unwrap());
+            })
+            label(for=id_cloned_2) { (props.title.get()) }
+        }
     }
 }
 
@@ -50,18 +52,32 @@ fn recipe_selection(props: RecipeCheckBoxProps) -> View<G> {
 pub fn recipe_selector() -> View<G> {
     let app_service = use_context::<AppService>();
     let titles = create_memo(cloned!(app_service => move || {
-        app_service.get_recipes().get().iter().map(|(i, r)| (*i, r.clone())).collect::<Vec<(usize, Signal<recipes::Recipe>)>>()
+        let length = app_service.get_recipes().get().len();
+        let partition = length/2;
+        let col1 = app_service.get_recipes().get().iter().take(partition).map(|(i, r)| (*i, r.clone())).collect::<Vec<(usize, Signal<recipes::Recipe>)>>();
+        let col2 = app_service.get_recipes().get().iter().skip(partition).map(|(i, r)| (*i, r.clone())).collect::<Vec<(usize, Signal<recipes::Recipe>)>>();
+        (col1, col2)
     }));
+    let col1 = create_memo(cloned!((titles) => move || titles.get().0.clone()));
+    let col2 = create_memo(cloned!((titles) => move || titles.get().1.clone()));
     view! {
-        fieldset(class="recipe_selector", class="no-print") {
-            Indexed(IndexedProps{
-                iterable: titles,
+        fieldset(class="recipe_selector no-print container no-left-mgn") {
+            div(class="row") {Indexed(IndexedProps{
+                iterable: col1,
                 template: |(i, recipe)| {
                     view! {
                         RecipeSelection(RecipeCheckBoxProps{i: i, title: create_memo(move || recipe.get().title.clone())})
                     }
                 },
-            })
+            })}
+            div(class="row") {Indexed(IndexedProps{
+                iterable: col2,
+                template: |(i, recipe)| {
+                    view! {
+                        RecipeSelection(RecipeCheckBoxProps{i: i, title: create_memo(move || recipe.get().title.clone())})
+                    }
+                },
+            })}
         }
     }
 }
@@ -82,40 +98,53 @@ fn shopping_list() -> View<G> {
             .filter(|(k, _v)| !filtered_keys.get().contains(k))
             .collect::<Vec<(IngredientKey, Ingredient)>>()
     }));
+    let table_view = Signal::new(View::empty());
+    create_effect(
+        cloned!((table_view, ingredients, filtered_keys) => move || {
+            if ingredients.get().len() > 0 {
+                let t = view ! {
+                    table(class="shopping-list page-breaker table table-striped table-condensed table-responsive") {
+                        tr {
+                            th { " Quantity " }
+                            th { " Ingredient " }
+                        }
+                        tbody {Indexed(IndexedProps{
+                            iterable: ingredients.clone(),
+                            template: cloned!((filtered_keys) => move |(k, i)| {
+                                let amt = Signal::new(format!("{}", i.amt.normalize()));
+                                // TODO(jwall): Create effect to reset this amount if it diverges.
+                                let name = i.name;
+                                let form = i.form.map(|form| format!("({})", form)).unwrap_or_default();
+                                view! {
+                                    tr {
+                                        td { input(bind:value=amt.clone(), class="ingredient-count-sel", type="text") }
+                                        td {input(type="button", class="no-print", value="X", on:click=cloned!((filtered_keys) => move |_| {
+                                            let mut keyset = (*filtered_keys.get()).clone();
+                                            keyset.insert(k.clone());
+                                            filtered_keys.set(keyset);
+                                        }))  " " (name) " " (form) }
+                                    }
+                                }
+                            }),
+                        })}
+                    }
+                };
+                table_view.set(t);
+            } else {
+                table_view.set(View::empty());
+            }
+        }),
+    );
     // TODO(jwall): Sort by categories and names.
     view! {
-        h1 { "Shopping List" }
-        input(type="button", value="Reset List", class="no-print", on:click=cloned!((ingredients_map, filtered_keys, app_service) => move |_| {
+        h1 { "Shopping List " input(type="button", value="Reset", class="no-print", on:click=cloned!((ingredients_map, filtered_keys, app_service) => move |_| {
             // trigger the shopping list generation
             ingredients_map.set(app_service.get_shopping_list());
             // clear the filter_signal
             filtered_keys.set(HashSet::new());
-        }))
-        table(class="shopping_list", style="page-break-after: always;") {
-            tr {
-                th { "Quantity" }
-                th { "Ingredient" }
-            }
-            Indexed(IndexedProps{
-                iterable: ingredients,
-                template: cloned!((filtered_keys) => move |(k, i)| {
-                    let amt = Signal::new(format!("{}", i.amt.normalize()));
-                    // TODO(jwall): Create effect to reset this amount if it diverges.
-                    let name = i.name;
-                    let form = i.form.map(|form| format!("({})", form)).unwrap_or_default();
-                    view! {
-                        tr {
-                            td { input(bind:value=amt.clone(), type="text") }
-                            td {input(type="button", class="no-print", value="X", on:click=cloned!((filtered_keys) => move |_| {
-                                let mut keyset = (*filtered_keys.get()).clone();
-                                keyset.insert(k.clone());
-                                filtered_keys.set(keyset);
-                            }))  " " (name) " " (form) }
-                        }
-                    }
-                }),
-            })
-        }
+        }))}
+
+        (table_view.get().as_ref().clone())
     }
 }
 
