@@ -64,8 +64,11 @@ pub fn ui() -> View<G> {
                                 let mut app_service = app_service.clone();
                                 async move {
                                     match AppService::fetch_recipes().await {
-                                        Ok(recipes) => {
+                                        Ok(Some(recipes)) => {
                                             app_service.set_recipes(recipes);
+                                        }
+                                        Ok(None) => {
+                                            console_error!("No recipes to find");
                                         }
                                         Err(msg) => console_error!("Failed to get recipes {}", msg),
                                     }

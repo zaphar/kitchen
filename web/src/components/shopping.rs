@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crate::components::Recipe;
-use crate::console_log;
 use crate::service::AppService;
+use crate::{console_error, console_log};
 use std::{
     collections::{BTreeMap, HashSet},
     rc::Rc,
 };
 
 use recipes::{Ingredient, IngredientKey};
-use sycamore::{context::use_context, prelude::*};
+use sycamore::{context::use_context, futures::spawn_local_in_scope, prelude::*};
 
 struct RecipeCheckBoxProps {
     i: usize,
@@ -170,10 +170,27 @@ fn recipe_list() -> View<G> {
 
 #[component(MealPlan<G>)]
 pub fn meal_plan() -> View<G> {
+    let app_service = use_context::<AppService>();
+    let clicked = Signal::new(false);
+    create_effect(cloned!((clicked, app_service) => move || {
+        clicked.get();
+        spawn_local_in_scope(cloned!((app_service) => {
+            let mut app_service = app_service.clone();
+            async move {
+                if let Err(e) = app_service.refresh_recipes().await {
+                    console_error!("{}", e);
+                };
+            }
+        }));
+    }));
     view! {
         h1 {
             "Select your recipes"
         }
+        input(type="button", value="Refresh Recipes", on:click=move |_| {
+            let toggle = !*clicked.get();
+            clicked.set(toggle);
+        })
         RecipeSelector()
         ShoppingList()
         RecipeList()

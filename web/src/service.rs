@@ -13,10 +13,11 @@
 // limitations under the License.
 use std::collections::BTreeMap;
 
-use crate::{console_debug, console_error};
+use crate::{console_debug, console_error, console_log};
 
-use reqwasm::http;
+use reqwasm::http::{self};
 use sycamore::prelude::*;
+use web_sys::{window, Storage};
 
 use recipes::{parse, Ingredient, IngredientAccumulator, IngredientKey, Recipe};
 
@@ -35,7 +36,14 @@ impl AppService {
         }
     }
 
-    pub async fn fetch_recipes() -> Result<Vec<(usize, Recipe)>, String> {
+    fn get_storage() -> Result<Option<Storage>, String> {
+        window()
+            .unwrap()
+            .local_storage()
+            .map_err(|e| format!("{:?}", e))
+    }
+
+    async fn fetch_recipes_http() -> Result<String, String> {
         let resp = match http::Request::get("/api/v1/recipes").send().await {
             Ok(resp) => resp,
             Err(e) => return Err(format!("Error: {}", e)),
@@ -44,24 +52,64 @@ impl AppService {
             return Err(format!("Status: {}", resp.status()));
         } else {
             console_debug!("We got a valid response back!");
-            let recipe_list = match resp.json::<Vec<String>>().await {
-                Ok(recipes) => recipes,
-                Err(e) => return Err(format!("Eror getting recipe list as json {}", e)),
-            };
-            let mut parsed_list = Vec::new();
-            for r in recipe_list {
-                let recipe = match parse::as_recipe(&r) {
-                    Ok(r) => r,
-                    Err(e) => {
-                        console_error!("Error parsing recipe {}", e);
-                        continue;
-                    }
-                };
-                console_debug!("We parsed a recipe {}", recipe.title);
-                parsed_list.push(recipe);
-            }
-            return Ok(parsed_list.drain(0..).enumerate().collect());
+            return Ok(resp.text().await.map_err(|e| format!("{}", e))?);
         }
+    }
+
+    pub async fn synchronize_recipes() -> Result<(), String> {
+        console_log!("Synchronizing Recipes");
+        let storage = Self::get_storage()?.unwrap();
+        let recipes = Self::fetch_recipes_http().await?;
+        storage
+            .set_item("recipes", &recipes)
+            .map_err(|e| format!("{:?}", e))?;
+        Ok(())
+    }
+
+    pub fn fetch_recipes_from_storage() -> Result<Option<Vec<(usize, Recipe)>>, String> {
+        let storage = Self::get_storage()?.unwrap();
+        match storage
+            .get_item("recipes")
+            .map_err(|e| format!("{:?}", e))?
+        {
+            Some(s) => {
+                let parsed =
+                    serde_json::from_str::<Vec<String>>(&s).map_err(|e| format!("{}", e))?;
+                let mut parsed_list = Vec::new();
+                for r in parsed {
+                    let recipe = match parse::as_recipe(&r) {
+                        Ok(r) => r,
+                        Err(e) => {
+                            console_error!("Error parsing recipe {}", e);
+                            continue;
+                        }
+                    };
+                    console_debug!("We parsed a recipe {}", recipe.title);
+                    parsed_list.push(recipe);
+                }
+                Ok(Some(parsed_list.drain(0..).enumerate().collect()))
+            }
+            None => Ok(None),
+        }
+    }
+
+    pub async fn fetch_recipes() -> Result<Option<Vec<(usize, Recipe)>>, String> {
+        if let Some(recipes) = Self::fetch_recipes_from_storage()? {
+            return Ok(Some(recipes));
+        } else {
+            console_debug!("No recipes in cache synchronizing from api");
+            // Try to synchronize first
+            Self::synchronize_recipes().await?;
+            Ok(Self::fetch_recipes_from_storage()?)
+        }
+    }
+
+    pub async fn refresh_recipes(&mut self) -> Result<(), String> {
+        Self::synchronize_recipes().await?;
+        if let Some(r) = Self::fetch_recipes().await? {
+            self.set_recipes(r);
+        }
+        Ok(())
     }
 
     pub fn get_recipe_by_index(&self, idx: usize) -> Option<Signal<Recipe>> {
