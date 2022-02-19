@@ -23,7 +23,6 @@ use recipes::{parse, Ingredient, IngredientAccumulator, IngredientKey, Recipe};
 
 #[derive(Clone)]
 pub struct AppService {
-    // TODO(jwall): Should each Recipe also be a Signal?
     recipes: Signal<Vec<(usize, Signal<Recipe>)>>,
     menu_list: Signal<BTreeMap<usize, usize>>,
 }

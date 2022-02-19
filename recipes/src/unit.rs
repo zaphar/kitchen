@@ -351,8 +351,6 @@ pub enum Measure {
 
 use Measure::{Count, Volume, Weight};
 
-// TODO(jwall): We should have an affinity for certain types of volume measurements
-// based on the original measurement type.
 impl Measure {
     pub fn tsp(qty: Quantity) -> Self {
         Volume(Tsp(qty))

@@ -37,7 +37,6 @@ pub async fn get_recipes(recipe_dir_path: PathBuf) -> Result<Vec<String>, ParseE
 pub async fn ui_main(recipe_dir_path: PathBuf) {
     let root = warp::path::end().map(|| warp::redirect::found(Uri::from_static("/ui")));
     let ui = warp::path("ui").and(static_dir!("webdist/"));
-    // TODO(jwall): Figure out how to make and_then work to simplify the below.
     let api = warp::path("api")
         .and(warp::path("v1"))
         .and(warp::path("recipes"))
