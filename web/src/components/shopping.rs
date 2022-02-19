@@ -118,7 +118,7 @@ fn shopping_list() -> View<G> {
         cloned!((table_view, ingredients, filtered_keys, modified_amts) => move || {
             if ingredients.get().len() > 0 {
                 let t = view ! {
-                    table(class="shopping-list page-breaker table table-striped table-condensed table-responsive") {
+                    table(class="pad-top shopping-list page-breaker table table-striped table-condensed table-responsive") {
                         tr {
                             th { " Quantity " }
                             th { " Ingredient " }
@@ -153,13 +153,13 @@ fn shopping_list() -> View<G> {
     );
     // TODO(jwall): Sort by categories and names.
     view! {
-        h1 { "Shopping List " input(type="button", value="Reset", class="no-print", on:click=cloned!((ingredients_map, filtered_keys, app_service, modified_amts) => move |_| {
+        h1 { "Shopping List " }
+        input(type="button", value="Reset", class="no-print", on:click=cloned!((ingredients_map, filtered_keys, app_service, modified_amts) => move |_| {
             ingredients_map.set(app_service.get_shopping_list());
             // clear the filter_signal
             filtered_keys.set(HashSet::new());
             modified_amts.set(HashMap::new());
-        }))}
-
+        }))
         (table_view.get().as_ref().clone())
     }
 }
