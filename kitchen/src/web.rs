@@ -36,7 +36,7 @@ pub async fn get_recipes(recipe_dir_path: PathBuf) -> Result<Vec<String>, ParseE
 
 pub async fn ui_main(recipe_dir_path: PathBuf) {
     let root = warp::path::end().map(|| warp::redirect::found(Uri::from_static("/ui")));
-    let ui = warp::path("ui").and(static_dir!("webdist/"));
+    let ui = warp::path("ui").and(static_dir!("../web/dist"));
     let api = warp::path("api")
         .and(warp::path("v1"))
         .and(warp::path("recipes"))

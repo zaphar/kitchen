@@ -19,11 +19,10 @@ release: wasmrelease
 	cd kitchen; cargo build --release
 
 wasmrelease: web/index.html web/src/*.rs web/src/components/*.rs
-	cd web; trunk build --release --public-url /ui/ --dist ../kitchen/webdist
+	cd web; trunk build --release --public-url /ui/
 
 wasm: web/index.html web/src/*.rs web/src/components/*.rs
 	cd web; trunk build --public-url /ui/
-	cp -r web/dist kitchen/webdist
 
 clean:
-	rm -rf web/dist/* kitchen/webdist
+	rm -rf web/dist/*
