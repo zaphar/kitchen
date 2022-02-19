@@ -14,6 +14,7 @@
 use crate::components::Recipe;
 use crate::service::AppService;
 use crate::{console_error, console_log};
+use std::collections::HashMap;
 use std::{
     collections::{BTreeMap, HashSet},
     rc::Rc,
@@ -100,6 +101,7 @@ fn shopping_list() -> View<G> {
     let app_service = use_context::<AppService>();
     let filtered_keys = Signal::new(HashSet::new());
     let ingredients_map = Signal::new(BTreeMap::new());
+    let modified_amts = Signal::new(HashMap::new());
     create_effect(cloned!((app_service, ingredients_map) => move || {
         ingredients_map.set(app_service.get_shopping_list());
     }));
@@ -113,7 +115,7 @@ fn shopping_list() -> View<G> {
     }));
     let table_view = Signal::new(View::empty());
     create_effect(
-        cloned!((table_view, ingredients, filtered_keys) => move || {
+        cloned!((table_view, ingredients, filtered_keys, modified_amts) => move || {
             if ingredients.get().len() > 0 {
                 let t = view ! {
                     table(class="shopping-list page-breaker table table-striped table-condensed table-responsive") {
@@ -123,9 +125,10 @@ fn shopping_list() -> View<G> {
                         }
                         tbody {Indexed(IndexedProps{
                             iterable: ingredients.clone(),
-                            template: cloned!((filtered_keys) => move |(k, i)| {
-                                let amt = Signal::new(format!("{}", i.amt.normalize()));
-                                // TODO(jwall): Create effect to reset this amount if it diverges.
+                            template: cloned!((filtered_keys, modified_amts) => move |(k, i)| {
+                                let mut modified_amt_set = (*modified_amts.get()).clone();
+                                let amt = modified_amt_set.entry(k.clone()).or_insert(Signal::new(format!("{}", i.amt.normalize()))).clone();
+                                modified_amts.set(modified_amt_set);
                                 let name = i.name;
                                 let form = i.form.map(|form| format!("({})", form)).unwrap_or_default();
                                 view! {
@@ -150,11 +153,11 @@ fn shopping_list() -> View<G> {
     );
     // TODO(jwall): Sort by categories and names.
     view! {
-        h1 { "Shopping List " input(type="button", value="Reset", class="no-print", on:click=cloned!((ingredients_map, filtered_keys, app_service) => move |_| {
-            // trigger the shopping list generation
+        h1 { "Shopping List " input(type="button", value="Reset", class="no-print", on:click=cloned!((ingredients_map, filtered_keys, app_service, modified_amts) => move |_| {
             ingredients_map.set(app_service.get_shopping_list());
             // clear the filter_signal
             filtered_keys.set(HashSet::new());
+            modified_amts.set(HashMap::new());
         }))}
 
         (table_view.get().as_ref().clone())
