@@ -36,6 +36,10 @@
     margin-left: 0px;
 }
 
+.pad-top {
+    margin-top: 1em;
+}
+
 .shopping-list {
     width:max-content;
 }

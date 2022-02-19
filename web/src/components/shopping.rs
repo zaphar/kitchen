@@ -51,34 +51,47 @@ fn recipe_selection(props: RecipeCheckBoxProps) -> View<G> {
 #[component(RecipeSelector<G>)]
 pub fn recipe_selector() -> View<G> {
     let app_service = use_context::<AppService>();
-    let titles = create_memo(cloned!(app_service => move || {
-        let length = app_service.get_recipes().get().len();
-        let partition = length/2;
-        let col1 = app_service.get_recipes().get().iter().take(partition).map(|(i, r)| (*i, r.clone())).collect::<Vec<(usize, Signal<recipes::Recipe>)>>();
-        let col2 = app_service.get_recipes().get().iter().skip(partition).map(|(i, r)| (*i, r.clone())).collect::<Vec<(usize, Signal<recipes::Recipe>)>>();
-        (col1, col2)
-    }));
-    let col1 = create_memo(cloned!((titles) => move || titles.get().0.clone()));
-    let col2 = create_memo(cloned!((titles) => move || titles.get().1.clone()));
-    view! {
-        fieldset(class="recipe_selector no-print container no-left-mgn") {
-            div(class="row") {Indexed(IndexedProps{
-                iterable: col1,
-                template: |(i, recipe)| {
-                    view! {
-                        RecipeSelection(RecipeCheckBoxProps{i: i, title: create_memo(move || recipe.get().title.clone())})
-                    }
-                },
-            })}
-            div(class="row") {Indexed(IndexedProps{
-                iterable: col2,
-                template: |(i, recipe)| {
-                    view! {
-                        RecipeSelection(RecipeCheckBoxProps{i: i, title: create_memo(move || recipe.get().title.clone())})
-                    }
-                },
-            })}
+    let rows = create_memo(cloned!(app_service => move || {
+        let mut rows = Vec::new();
+        for row in app_service.get_recipes().get().as_slice().chunks(4) {
+            rows.push(Signal::new(Vec::from(row)));
         }
+        rows
+    }));
+    let clicked = Signal::new(false);
+    create_effect(cloned!((clicked, app_service) => move || {
+        clicked.get();
+        spawn_local_in_scope(cloned!((app_service) => {
+            let mut app_service = app_service.clone();
+            async move {
+                if let Err(e) = app_service.refresh_recipes().await {
+                    console_error!("{}", e);
+                };
+            }
+        }));
+    }));
+    view! {
+        fieldset(class="recipe_selector no-print container no-left-mgn pad-top") {
+            (View::new_fragment(
+                rows.get().iter().cloned().map(|r| {
+                    view ! {
+                        div(class="row") {Indexed(IndexedProps{
+                            iterable: r.handle(),
+                            template: |(i, recipe)| {
+                                view! {
+                                    RecipeSelection(RecipeCheckBoxProps{i: i, title: create_memo(move || recipe.get().title.clone())})
+                                }
+                            },
+                        })}
+                    }
+                }).collect()
+            ))
+        }
+        input(type="button", value="Refresh Recipes", on:click=move |_| {
+            // Poor man's click event signaling.
+            let toggle = !*clicked.get();
+            clicked.set(toggle);
+        })
     }
 }
 
@@ -170,27 +183,10 @@ fn recipe_list() -> View<G> {
 
 #[component(MealPlan<G>)]
 pub fn meal_plan() -> View<G> {
-    let app_service = use_context::<AppService>();
-    let clicked = Signal::new(false);
-    create_effect(cloned!((clicked, app_service) => move || {
-        clicked.get();
-        spawn_local_in_scope(cloned!((app_service) => {
-            let mut app_service = app_service.clone();
-            async move {
-                if let Err(e) = app_service.refresh_recipes().await {
-                    console_error!("{}", e);
-                };
-            }
-        }));
-    }));
     view! {
         h1 {
             "Select your recipes"
         }
-        input(type="button", value="Refresh Recipes", on:click=move |_| {
-            let toggle = !*clicked.get();
-            clicked.set(toggle);
-        })
         RecipeSelector()
         ShoppingList()
         RecipeList()
