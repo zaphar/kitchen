@@ -720,7 +720,7 @@ dependencies = [
 
 [[package]]
 name = "kitchen"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-std",
  "clap",
@@ -728,6 +728,20 @@ dependencies = [
  "recipes",
  "static_dir",
  "warp",
+]
+
+[[package]]
+name = "kitchen-wasm"
+version = "0.2.0"
+dependencies = [
+ "console_error_panic_hook",
+ "recipes",
+ "reqwasm",
+ "serde_json",
+ "sycamore",
+ "sycamore-router",
+ "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
@@ -1133,7 +1147,7 @@ dependencies = [
 
 [[package]]
 name = "recipes"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "Inflector",
  "abortable_parser",
@@ -1798,20 +1812,6 @@ name = "wasm-bindgen-shared"
 version = "0.2.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d958d035c4438e28c70e4321a2911302f10135ce78a9c7834c0cab4123d06a2"
-
-[[package]]
-name = "web"
-version = "0.1.0"
-dependencies = [
- "console_error_panic_hook",
- "recipes",
- "reqwasm",
- "serde_json",
- "sycamore",
- "sycamore-router",
- "wasm-bindgen",
- "web-sys",
-]
 
 [[package]]
 name = "web-sys"
