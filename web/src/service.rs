@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 
 use crate::{console_debug, console_error, console_log};
 
-use reqwasm::http::{self};
+use reqwasm::http;
 use sycamore::prelude::*;
 use web_sys::{window, Storage};
 

@@ -31,10 +31,14 @@ extern "C" {
 macro_rules! console_log {
     // Note that this is using the `log` function imported above during
     // `bare_bones`
-    ($($t:tt)*) => {{
-        use crate::typings::log;
-        (log(&format_args!($($t)*).to_string()))
-    }}
+    ($($t:tt)*) => {
+        if cfg!(feature="web") {
+            use crate::typings::log;
+            log(&format_args!($($t)*).to_string());
+        } else if cfg!(feature="ssr") {
+            println!($($t)*);
+        }
+    }
 }
 
 #[macro_export]
@@ -42,27 +46,43 @@ macro_rules! console_debug {
     // Note that this is using the `log` function imported above during
     // `bare_bones`
     ($($t:tt)*) => {{
-        use crate::typings::debug;
-        (debug(&format_args!($($t)*).to_string()))
+        if cfg!(feature="web") {
+            use crate::typings::debug;
+            debug(&format_args!($($t)*).to_string());
+        } else if cfg!(feature="ssr") {
+            print!("DEBUG: ");
+            println!($($t)*);
+        }
     }}
 }
 
 #[macro_export]
 macro_rules! console_error {
-    // Note that this is using the `log` function imported above during
+    // Note that this is using the `error` function imported above during
     // `bare_bones`
     ($($t:tt)*) => {{
-        use crate::typings::error;
-        (error(&format_args!($($t)*).to_string()))
+        if cfg!(feature="web")
+        {
+            use crate::typings::error;
+            error(&format_args!($($t)*).to_string());
+        }else if cfg!(feature="ssr") {
+            print!("ERROR: ");
+            println!($($t)*);
+        };
     }}
 }
 
 #[macro_export]
 macro_rules! console_warn {
-    // Note that this is using the `log` function imported above during
+    // Note that this is using the `warn` function imported above during
     // `bare_bones`
     ($($t:tt)*) => {{
-        use crate::typings::warn;
-        (warn(&format_args!($($t)*).to_string()))
+        if cfg!("web") {
+            use crate::typings::warn;
+            (warn(&format_args!($($t)*).to_string()))
+        } else if cfg!(feature="ssr") {
+            print!("WARN: ");
+            (println!($($t)*))
+        }
     }}
 }
