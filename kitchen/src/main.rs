@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use std::env;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use clap;
@@ -42,6 +43,7 @@ where
         (@subcommand serve =>
             (about: "Serve the interface via the web")
             (@arg recipe_dir: -d --dir +takes_value "Directory containing recipe files to use")
+            (@arg listen: --listen +takes_value "address and port to listen on 0.0.0.0:3030")
         )
     )
     .setting(clap::AppSettings::SubcommandRequiredElseHelp)
@@ -76,12 +78,21 @@ fn main() {
             }
         }
     } else if let Some(matches) = matches.subcommand_matches("serve") {
-        println!("Launching web interface...");
         let recipe_dir_path = if let Some(dir) = matches.value_of("recipe_dir") {
             PathBuf::from(dir)
         } else {
             std::env::current_dir().expect("Unable to get current directory. Bailing out.")
         };
-        async_std::task::block_on(async { web::ui_main(recipe_dir_path).await });
+        let listen_socket: SocketAddr = if let Some(listen_socket) = matches.value_of("listen") {
+            listen_socket.parse().expect(&format!(
+                "--listen must be of the form <addr>:<port> but got {}",
+                listen_socket
+            ))
+        } else {
+            "127.0.0.1:3030".parse().unwrap()
+        };
+        println!("Launching web interface...");
+        println!("listening on {}", listen_socket);
+        async_std::task::block_on(async { web::ui_main(recipe_dir_path, listen_socket).await });
     }
 }

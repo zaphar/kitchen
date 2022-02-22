@@ -1,3 +1,4 @@
+use std::net::SocketAddr;
 // Copyright 2022 Jeremy Wall
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,7 +35,7 @@ pub async fn get_recipes(recipe_dir_path: PathBuf) -> Result<Vec<String>, ParseE
     Ok(entry_vec)
 }
 
-pub async fn ui_main(recipe_dir_path: PathBuf) {
+pub async fn ui_main(recipe_dir_path: PathBuf, listen_socket: SocketAddr) {
     let root = warp::path::end().map(|| warp::redirect::found(Uri::from_static("/ui")));
     let ui = warp::path("ui").and(static_dir!("../web/dist"));
     let api = warp::path("api")
@@ -58,6 +59,5 @@ pub async fn ui_main(recipe_dir_path: PathBuf) {
 
     let routes = root.or(ui).or(api).with(warp::log("access log"));
 
-    // TODO(jwall): Take listen address as an argument to this function instead.
-    warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
+    warp::serve(routes).run(listen_socket).await;
 }
