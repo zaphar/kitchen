@@ -3,3 +3,4 @@ target/
 .clj-kondo/
 web/dist/
 webdist/
+nix/*/result
