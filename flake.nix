@@ -14,6 +14,7 @@
             trunkGen = (import ./nix/trunk/default.nix);
             kitchenWasmGen = (import ./nix/kitchenWasm/default.nix);
             cargoVendorGen = (import ./nix/cargoVendorDeps/default.nix);
+            moduleGen = (import ./nix/kitchen/module.nix);
             version = "0.2.1";
         in
         flake-utils.lib.eachDefaultSystem (system:
@@ -33,6 +34,7 @@
                     # Because it's a workspace we need the other crates available as source
                     root = (pkgs.callPackage gitignore { }).gitignoreSource ./.;
                 });
+                module = moduleGen {inherit kitchen;};
             in
             {
                 packages = {
@@ -43,7 +45,7 @@
                             ;
                 };
                 defaultPackage = kitchen;
-                nixosModules.kitchen = import ./nix/kitchen/module.nix;
+                nixosModules.kitchen = module;
             } 
         );
 }

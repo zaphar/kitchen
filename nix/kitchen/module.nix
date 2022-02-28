@@ -1,3 +1,4 @@
+{kitchen}:
 {config, lib, pkgs, ...}:
 with lib;
 {
@@ -14,7 +15,6 @@ with lib;
     config = mkIf config.services.kitchen.enable {
         nixpkgs.overlays = [
             (final: prev: {
-                kitchen = (import ../packages/kitchen/package.nix) { inherit pkgs; };
                 recipes = (import ../packages/recipes/package.nix) { inherit pkgs; };
             })
         ];
@@ -25,7 +25,7 @@ with lib;
             serviceConfig = {
                 restart = "on-failure";
                 restartSec = "10s";
-                ExecStart = "${self.packages."${system}".kitchen}/bin/kitchen serve --listen ${config.services.kitchen.listenSocket} --dir ${pkgs.recipes}";
+                ExecStart = "${kitchen}/bin/kitchen serve --listen ${config.services.kitchen.listenSocket} --dir ${pkgs.recipes}";
             };
         };
     };
