@@ -4,3 +4,4 @@ target/
 web/dist/
 webdist/
 nix/*/result
+result/

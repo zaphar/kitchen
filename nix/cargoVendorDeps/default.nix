@@ -3,7 +3,7 @@
  version ? "0.2.1"}:
  let
     cargoDeps = (pkgs.rustPlatform.importCargoLock { inherit lockFile; });
-    recipes = ./../../recipes;
+    #recipes = ./../../recipes;
 in
 with pkgs;
 stdenv.mkDerivation {
@@ -14,8 +14,8 @@ stdenv.mkDerivation {
         mkdir -p $out
         cp -r ${cargoDeps}/* $out/
         cp -r ${cargoDeps}/.cargo $out/
-        cp -r ${recipes} $out/recipes-${version}
         ls -al $out/
     '';
+        #cp -r ${recipes} $out/recipes-${version}
 }
  

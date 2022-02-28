@@ -6,7 +6,7 @@
 with pkgs;
 let
     pname = "kitchen-wasm";
-    src = ./../../web;
+    src = ./../..;
 in
 stdenv.mkDerivation {
     inherit src pname;
@@ -18,11 +18,9 @@ stdenv.mkDerivation {
         cp -r ./cargo-vendor-dir/.cargo ./
         cp -r $src/* ./
     '';
-    # NOTE(jwall): For some reason trunk is trying to do something with staging that
-    # nix doesn't like. We suppress the message for now but I'd like to
-    # know why trunk can't create those directories.
+    # TODO(jwall): Build this from the root rather than the src.
     buildPhase = ''
-        trunk build --release --public-url /ui/ --dist ./dist || echo ignoring staging errors for now;
+        trunk build --release --public-url /ui/ --dist ./dist web/index.html || echo ignoring staging errors for now;
         pwd
         ls -al .
     '';
