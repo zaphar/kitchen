@@ -43,6 +43,7 @@
                             ;
                 };
                 defaultPackage = kitchen;
+                nixosModules.kitchen = import ./nix/kitchen/module.nix;
             } 
         );
 }
