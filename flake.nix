@@ -6,9 +6,9 @@
         gitignore = { url = "github:hercules-ci/gitignore.nix"; flake = false; };
         flake-utils.url = "github:numtide/flake-utils";
         naersk.url = "github:nix-community/naersk";
+        flake-compat = { url = github:edolstra/flake-compat; flake = false; };
     };
-
-    outputs = {self, nixpkgs, flake-utils, naersk, gitignore}:
+    outputs = {self, nixpkgs, flake-utils, naersk, gitignore, flake-compat}:
         let
             kitchenGen = (import ./nix/kitchen/default.nix);
             trunkGen = (import ./nix/trunk/default.nix);
