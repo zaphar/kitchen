@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{components::*, service::AppService};
+use crate::{app_state::*, components::*, service::AppService};
 use crate::{console_debug, console_error, console_log};
 
 use sycamore::{
@@ -19,23 +19,21 @@ use sycamore::{
     futures::spawn_local_in_scope,
     prelude::*,
 };
-use sycamore_router::{HistoryIntegration, Route, Router, RouterProps};
 
-#[derive(Route, Debug)]
-enum AppRoutes {
-    #[to("/ui/")]
-    Plan,
-    #[to("/ui/recipe/<index>")]
-    Recipe { index: usize },
-    #[not_found]
-    NotFound,
-}
+use crate::pages::*;
 
-fn route_switch<G: Html>(route: ReadSignal<AppRoutes>) -> View<G> {
-    view! {
+fn route_switch<G: Html>(page_state: PageState) -> View<G> {
+    let route = page_state.route.clone();
+    cloned!((page_state, route) => view! {
         (match route.get().as_ref() {
             AppRoutes::Plan => view! {
-                MealPlan()
+                PlanPage(PlanPageProps { page_state: page_state.clone() })
+            },
+            AppRoutes::Inventory => view! {
+                InventoryPage(InventoryPageProps { page_state: page_state.clone() })
+            },
+            AppRoutes::Cook => view! {
+                CookPage(CookPageProps { page_state: page_state.clone() })
             },
             AppRoutes::Recipe { index: idx } => view! {
                 RecipeView(*idx)
@@ -44,7 +42,7 @@ fn route_switch<G: Html>(route: ReadSignal<AppRoutes>) -> View<G> {
                 "NotFound"
             },
         })
-    }
+    })
 }
 
 #[component(UI<G>)]
@@ -55,39 +53,39 @@ pub fn ui() -> View<G> {
         // NOTE(jwall): Set the app_service in our toplevel scope. Children will be able
         // to find the service as long as they are a child of this scope.
         ContextProvider(ContextProviderProps {
-                value: app_service.clone(),
-                children: || view! {
-                    Router(RouterProps::new(HistoryIntegration::new(), move |routes: ReadSignal<AppRoutes>| {
-                        let view = Signal::new(View::empty());
-                        create_effect(cloned!((view) => move || {
-                            spawn_local_in_scope(cloned!((routes, view) => {
-                                let mut app_service = app_service.clone();
-                                async move {
-                                    match AppService::fetch_recipes().await {
-                                        Ok(Some(recipes)) => {
-                                            app_service.set_recipes(recipes);
-                                        }
-                                        Ok(None) => {
-                                            console_error!("No recipes to find");
-                                        }
-                                        Err(msg) => console_error!("Failed to get recipes {}", msg),
-                                    }
-                                    console_debug!("Determining route.");
-                                    view.set(route_switch(routes));
-                                    console_debug!("Created our route view effect.");
+            value: app_service.clone(),
+            children: || {
+                let view = Signal::new(View::empty());
+                let route = Signal::new(AppRoutes::Plan);
+                let page_state = PageState { route: route.clone() };
+                create_effect(cloned!((page_state, view) => move || {
+                    spawn_local_in_scope(cloned!((page_state, view) => {
+                        let mut app_service = app_service.clone();
+                        async move {
+                            match AppService::fetch_recipes().await {
+                                Ok(Some(recipes)) => {
+                                    app_service.set_recipes(recipes);
                                 }
-                            }));
-                        }));
-                        view! {
-                            // NOTE(jwall): The Router component *requires* there to be exactly one node as the root of this view.
-                            // No fragments or missing nodes allowed or it will panic at runtime.
-                            div(class="app") {
-                                Header()
-                                (view.get().as_ref().clone())
+                                Ok(None) => {
+                                    console_error!("No recipes to find");
+                                }
+                                Err(msg) => console_error!("Failed to get recipes {}", msg),
                             }
+                            console_debug!("Determining route.");
+                            view.set(route_switch(page_state.clone()));
+                            console_debug!("Created our route view effect.");
                         }
-                    }))
+                    }));
+                }));
+                view! {
+                    // NOTE(jwall): The Router component *requires* there to be exactly one node as the root of this view.
+                    // No fragments or missing nodes allowed or it will panic at runtime.
+                    div(class="app") {
+                        Header()
+                        (view.get().as_ref().clone())
+                    }
                 }
+            }
         })
     }
 }

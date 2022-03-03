@@ -11,21 +11,18 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-mod components;
-mod pages;
-mod service;
-mod typings;
-mod web;
-mod app_state;
+use crate::components::shopping::ShoppingList;
+use crate::pages::PageState;
 
 use sycamore::prelude::*;
 
-use web::UI;
+pub struct InventoryPageProps {
+    pub page_state: PageState,
+}
 
-fn main() {
-    #[cfg(debug_assertions)]
-    {
-        console_error_panic_hook::set_once();
+#[component(InventoryPage<G>)]
+pub fn inventory_page(props: InventoryPageProps) -> View<G> {
+    view! {
+        ShoppingList(props.page_state)
     }
-    sycamore::render(|| view! { UI() });
 }
