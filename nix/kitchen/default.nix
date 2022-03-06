@@ -4,13 +4,8 @@
  kitchenWasm,
  version,
  naersk-lib,
- #cargoVendorDeps ? (import ./../cargoVendorDeps/default.nix {inherit pkgs version; }),
 }:
 with pkgs;
-#let
-#  vendorDir = "cargo-vendor-dir";
-#  #cargoVendorDrv = cargoVendorDeps;
-#in
 (naersk-lib.buildPackage rec {
     pname = "kitchen";
     inherit version;
@@ -18,11 +13,8 @@ with pkgs;
     src = root;
     cargoBuildOptions = opts: opts ++ ["-p" "${pname}" ];
     postPatch = ''
-      echo ln -s ${kitchenWasm} web/dist
-      ln -s ${kitchenWasm} web/dist
+      mkdir -p web/dist
+      cp -r ${kitchenWasm}/* web/dist/
+      ls web/dist/
     '';
-    #  echo cp -r ${cargoVendorDrv}/* ${vendorDir}/
-    #  cp -r ${cargoVendorDrv}/* ${vendorDir}/
-    #  mkdir -p .cargo
-    #  cp -r ${cargoVendorDrv}/.cargo/* .cargo/
 })

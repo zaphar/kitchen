@@ -5,10 +5,14 @@
         nixpkgs.url = "github:NixOS/nixpkgs/adf7f03d3bfceaba64788e1e846191025283b60d";
         gitignore = { url = "github:hercules-ci/gitignore.nix"; flake = false; };
         flake-utils.url = "github:numtide/flake-utils";
+        rust-overlay = {
+          url = "github:oxalica/rust-overlay";
+          inputs.nixpkgs.follows = "nixpkgs";
+        };
         naersk.url = "github:nix-community/naersk";
         flake-compat = { url = github:edolstra/flake-compat; flake = false; };
     };
-    outputs = {self, nixpkgs, flake-utils, naersk, gitignore, flake-compat}:
+    outputs = {self, nixpkgs, flake-utils, rust-overlay, naersk, gitignore, flake-compat}:
         let
             kitchenGen = (import ./nix/kitchen/default.nix);
             trunkGen = (import ./nix/trunk/default.nix);
@@ -19,7 +23,13 @@
         in
         flake-utils.lib.eachDefaultSystem (system:
             let
-                pkgs = import nixpkgs { inherit system; };
+                overlays = [ rust-overlay.overlay ];
+                pkgs = import nixpkgs { inherit system overlays; };
+                # TODO(jwall): Could this get by with minimal instead?
+                rust-wasm = pkgs.rust-bin.stable.latest.default.override {
+                  extensions = [ "rust-src" ];
+                  targets = [ "wasm32-unknown-unknown" ];
+                };
                 naersk-lib = naersk.lib."${system}";
                 trunk = trunkGen { inherit pkgs naersk-lib; };
                 cargoVendorDeps = cargoVendorGen {
@@ -27,7 +37,7 @@
                     lockFile = ./Cargo.lock;
                 }; 
                 kitchenWasm = kitchenWasmGen {
-                    inherit pkgs cargoVendorDeps trunk version;
+                    inherit pkgs cargoVendorDeps rust-wasm trunk version;
                 };
                 kitchen = (kitchenGen {
                     inherit pkgs version naersk-lib kitchenWasm;# cargoVendorDeps;
@@ -46,6 +56,10 @@
                 };
                 defaultPackage = kitchen;
                 nixosModules.kitchen = module;
+                defaultApp = {
+                    type = "app";
+                    program = "${kitchen}/bin/kitchen";
+                };
             } 
         );
 }

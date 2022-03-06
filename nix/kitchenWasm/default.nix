@@ -1,6 +1,7 @@
 {pkgs? (import <nixpkgs>) {},
  version ? "0.2.1",
  cargoVendorDeps ? (import ./../cargoVendorDeps/default.nix {inherit pkgs version; }),
+ rust-wasm,
  trunk ? (import ./../trunk/default.nix {inherit pkgs;}),
 }:
 with pkgs;
@@ -11,8 +12,9 @@ in
 stdenv.mkDerivation {
     inherit src pname;
     version = version;
-    buildInputs = [ trunk ];
-    phases = [ "postUnpackPhase" "buildPhase" "installPhase" ];
+    # we need wasmb-bindgen v0.2.78 ideally
+    buildInputs = [ trunk rust-wasm wasm-bindgen-cli ];
+    phases = [ "postUnpackPhase" "buildPhase"];
     postUnpackPhase = ''
         ln -s ${cargoVendorDeps} ./cargo-vendor-dir
         cp -r ./cargo-vendor-dir/.cargo ./
@@ -20,15 +22,9 @@ stdenv.mkDerivation {
     '';
     # TODO(jwall): Build this from the root rather than the src.
     buildPhase = ''
-        trunk build --release --public-url /ui/ --dist ./dist web/index.html || echo ignoring staging errors for now;
-        pwd
-        ls -al .
-    '';
-    installPhase = ''
-        pwd
-        ls -al .
+        echo building with trunk
         mkdir -p $out
-        echo cp -r ./dist $out/
-        cp -r ./dist $out/
+        cd web
+        trunk build --release --public-url /ui/ --dist $out;
     '';
 }
