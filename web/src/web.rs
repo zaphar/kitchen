@@ -38,9 +38,6 @@ fn route_switch<G: Html>(page_state: PageState) -> View<G> {
             AppRoutes::Recipe { index: idx } => view! {
                 RecipeView(*idx)
             },
-            AppRoutes::NotFound => view! {
-                "NotFound"
-            },
         })
     })
 }
