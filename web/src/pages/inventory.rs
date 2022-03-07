@@ -11,11 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::components::shopping::ShoppingList;
+use crate::components::{shopping::ShoppingList, tabs::*};
 use crate::pages::PageState;
 
 use sycamore::prelude::*;
 
+#[derive(Clone)]
 pub struct InventoryPageProps {
     pub page_state: PageState,
 }
@@ -23,6 +24,11 @@ pub struct InventoryPageProps {
 #[component(InventoryPage<G>)]
 pub fn inventory_page(props: InventoryPageProps) -> View<G> {
     view! {
-        ShoppingList(props.page_state)
+        TabbedView(TabState {
+            route: props.page_state.route.clone(),
+            inner: view! {
+                ShoppingList()
+            },
+        })
     }
 }

@@ -15,8 +15,10 @@ pub mod header;
 pub mod recipe;
 pub mod root;
 pub mod shopping;
+pub mod tabs;
 
 pub use header::*;
 pub use recipe::*;
 pub use root::*;
 pub use shopping::*;
+pub use tabs::*;

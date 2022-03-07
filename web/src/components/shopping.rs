@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{app_state::*, components::Recipe, service::AppService};
+use crate::{components::Recipe, service::AppService};
 use crate::{console_error, console_log};
 use std::collections::HashMap;
 use std::{
@@ -49,7 +49,7 @@ fn recipe_selection(props: RecipeCheckBoxProps) -> View<G> {
 }
 
 #[component(RecipeSelector<G>)]
-pub fn recipe_selector(page_state: crate::pages::PageState) -> View<G> {
+pub fn recipe_selector() -> View<G> {
     let app_service = use_context::<AppService>();
     let rows = create_memo(cloned!(app_service => move || {
         let mut rows = Vec::new();
@@ -92,17 +92,11 @@ pub fn recipe_selector(page_state: crate::pages::PageState) -> View<G> {
                 }).collect()
             ))
         }
-        input(type="button", value="Inventory", on:click=cloned!((page_state) => move |_| {
-            page_state.route.set(AppRoutes::Inventory);
-        }))
-        input(type="button", value="Cook", class="no-print", on:click=cloned!((page_state) => move |_| {
-            page_state.route.set(AppRoutes::Cook);
-        }))
     }
 }
 
 #[component(ShoppingList<G>)]
-pub fn shopping_list(page_state: crate::pages::PageState) -> View<G> {
+pub fn shopping_list() -> View<G> {
     let app_service = use_context::<AppService>();
     let filtered_keys = Signal::new(HashSet::new());
     let ingredients_map = Signal::new(BTreeMap::new());
@@ -166,17 +160,11 @@ pub fn shopping_list(page_state: crate::pages::PageState) -> View<G> {
             modified_amts.set(HashMap::new());
         }))
         (table_view.get().as_ref().clone())
-        input(type="button", value="Plan", class="no-print", on:click=cloned!((page_state) => move |_| {
-            page_state.route.set(AppRoutes::Plan);
-        }))
-        input(type="button", value="Cook", class="no-print", on:click=cloned!((page_state) => move |_| {
-            page_state.route.set(AppRoutes::Cook);
-        }))
     }
 }
 
 #[component(RecipeList<G>)]
-pub fn recipe_list(page_state: crate::pages::PageState) -> View<G> {
+pub fn recipe_list() -> View<G> {
     let app_service = use_context::<AppService>();
     let menu_list = create_memo(move || app_service.get_menu_list());
     view! {
@@ -192,23 +180,5 @@ pub fn recipe_list(page_state: crate::pages::PageState) -> View<G> {
                 }
             }
         })
-        input(type="button", value="Inventory", class="no-print", on:click=cloned!((page_state) => move |_| {
-            page_state.route.set(AppRoutes::Inventory);
-        }))
-        input(type="button", value="Cook", class="no-print", on:click=cloned!((page_state) => move |_| {
-            page_state.route.set(AppRoutes::Cook);
-        }))
-    }
-}
-
-#[component(MealPlan<G>)]
-pub fn meal_plan() -> View<G> {
-    view! {
-        h1 {
-            "Select your recipes"
-        }
-        //RecipeSelector()
-        //ShoppingList()
-        //RecipeList()
     }
 }

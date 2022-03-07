@@ -11,11 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::components::shopping::RecipeList;
+use crate::components::{shopping::RecipeList, tabs::*};
 use crate::pages::PageState;
 
 use sycamore::prelude::*;
 
+#[derive(Clone)]
 pub struct CookPageProps {
     pub page_state: PageState,
 }
@@ -23,6 +24,11 @@ pub struct CookPageProps {
 #[component(CookPage<G>)]
 pub fn cook_page(props: CookPageProps) -> View<G> {
     view! {
-        RecipeList(props.page_state)
+        TabbedView(TabState {
+            route: props.page_state.route.clone(),
+            inner: view! {
+                RecipeList()
+            },
+        })
     }
 }

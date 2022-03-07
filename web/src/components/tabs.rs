@@ -15,15 +15,24 @@ use sycamore::prelude::*;
 
 use crate::app_state::AppRoutes;
 
-mod cook;
-mod inventory;
-mod plan;
-
-pub use cook::*;
-pub use inventory::*;
-pub use plan::*;
-
 #[derive(Clone)]
-pub struct PageState {
+pub struct TabState<G: GenericNode> {
     pub route: Signal<AppRoutes>,
+    pub inner: View<G>,
+}
+
+#[component(TabbedView<G>)]
+pub fn tabbed_view(state: TabState<G>) -> View<G> {
+    cloned!((state) => view! {
+        input(type="button", value="Plan", class="no-print", on:click=cloned!((state) => move |_| {
+            state.route.set(AppRoutes::Plan);
+        }))
+        input(type="button", value="Inventory", class="no-print", on:click=cloned!((state) => move |_| {
+            state.route.set(AppRoutes::Inventory);
+        }))
+        input(type="button", value="Cook", class="no-print", on:click=cloned!((state) => move |_| {
+            state.route.set(AppRoutes::Cook);
+        }))
+        (state.inner)
+    })
 }
