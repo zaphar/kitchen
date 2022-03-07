@@ -15,7 +15,6 @@
 #[derive(Debug)]
 pub enum AppRoutes {
     Plan,
-    Recipe { index: usize },
     Inventory,
     Cook,
 }

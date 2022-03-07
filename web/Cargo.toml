@@ -1,8 +1,6 @@
-cargo-features = ["edition2021"]
-
 [package]
 name = "kitchen-wasm"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 
 [features]
