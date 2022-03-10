@@ -24,6 +24,7 @@ use recipes::{parse, Ingredient, IngredientAccumulator, IngredientKey, Recipe};
 #[derive(Clone)]
 pub struct AppService {
     recipes: Signal<Vec<(usize, Signal<Recipe>)>>,
+    staples: Signal<Option<Recipe>>,
     menu_list: Signal<BTreeMap<usize, usize>>,
 }
 
@@ -31,6 +32,7 @@ impl AppService {
     pub fn new() -> Self {
         Self {
             recipes: Signal::new(Vec::new()),
+            staples: Signal::new(None),
             menu_list: Signal::new(BTreeMap::new()),
         }
     }
@@ -65,8 +67,10 @@ impl AppService {
         Ok(())
     }
 
-    pub fn fetch_recipes_from_storage() -> Result<Option<Vec<(usize, Recipe)>>, String> {
+    pub fn fetch_recipes_from_storage(
+    ) -> Result<(Option<Recipe>, Option<Vec<(usize, Recipe)>>), String> {
         let storage = Self::get_storage()?.unwrap();
+        let mut staples = None;
         match storage
             .get_item("recipes")
             .map_err(|e| format!("{:?}", e))?
@@ -84,17 +88,21 @@ impl AppService {
                         }
                     };
                     console_debug!("We parsed a recipe {}", recipe.title);
-                    parsed_list.push(recipe);
+                    if recipe.title == "Staples" {
+                        staples = Some(recipe);
+                    } else {
+                        parsed_list.push(recipe);
+                    }
                 }
-                Ok(Some(parsed_list.drain(0..).enumerate().collect()))
+                Ok((staples, Some(parsed_list.drain(0..).enumerate().collect())))
             }
-            None => Ok(None),
+            None => Ok((None, None)),
         }
     }
 
-    pub async fn fetch_recipes() -> Result<Option<Vec<(usize, Recipe)>>, String> {
-        if let Some(recipes) = Self::fetch_recipes_from_storage()? {
-            return Ok(Some(recipes));
+    pub async fn fetch_recipes() -> Result<(Option<Recipe>, Option<Vec<(usize, Recipe)>>), String> {
+        if let (staples, Some(recipes)) = Self::fetch_recipes_from_storage()? {
+            return Ok((staples, Some(recipes)));
         } else {
             console_debug!("No recipes in cache synchronizing from api");
             // Try to synchronize first
@@ -105,8 +113,9 @@ impl AppService {
 
     pub async fn refresh_recipes(&mut self) -> Result<(), String> {
         Self::synchronize_recipes().await?;
-        if let Some(r) = Self::fetch_recipes().await? {
+        if let (staples, Some(r)) = Self::fetch_recipes().await? {
             self.set_recipes(r);
+            self.staples.set(staples);
         }
         Ok(())
     }
@@ -122,6 +131,9 @@ impl AppService {
             for _ in 0..*count {
                 acc.accumulate_from(self.get_recipe_by_index(*idx).unwrap().get().as_ref());
             }
+        }
+        if let Some(staples) = self.staples.get().as_ref() {
+            acc.accumulate_from(staples);
         }
         acc.ingredients()
     }
