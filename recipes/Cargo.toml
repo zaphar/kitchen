@@ -2,7 +2,7 @@ cargo-features = ["edition2021"]
 
 [package]
 name = "recipes"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["Jeremy Wall <jeremy@marzhillstudios.com>"]
 edition = "2021"
 
