@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use crate::app_state::AppRoutes;
 use crate::components::{shopping_list::*, tabs::*};
 use crate::pages::PageState;
 
@@ -23,11 +24,17 @@ pub struct InventoryPageProps {
 
 #[component(InventoryPage<G>)]
 pub fn inventory_page(props: InventoryPageProps) -> View<G> {
+    let route_signal = props.page_state.route.clone();
     view! {
         TabbedView(TabState {
             route: props.page_state.route.clone(),
             inner: view! {
                 ShoppingList()
+                div {
+                    a(href="#", on:click=move |_| {
+                     route_signal.set(AppRoutes::Cook);
+                    }) { "Next" }
+                }
             },
         })
     }

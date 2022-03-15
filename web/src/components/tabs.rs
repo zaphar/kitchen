@@ -25,15 +25,15 @@ pub struct TabState<G: GenericNode> {
 pub fn tabbed_view(state: TabState<G>) -> View<G> {
     cloned!((state) => view! {
         div(class="nav-header no-print") {
-            a(class="no-print", on:click=cloned!((state) => move |_| {
+            a(href="#", class="no-print", on:click=cloned!((state) => move |_| {
                 state.route.set(AppRoutes::Plan);
             })) { "Plan" }
             " | "
-            a(class="no-print", on:click=cloned!((state) => move |_| {
+            a(href="#", class="no-print", on:click=cloned!((state) => move |_| {
                 state.route.set(AppRoutes::Inventory);
             })) { "Inventory" }
             " | "
-            a(on:click=cloned!((state) => move |_| {
+            a(href="#", class="no-print", on:click=cloned!((state) => move |_| {
                 state.route.set(AppRoutes::Cook);
             })) { "Cook" }
         }
