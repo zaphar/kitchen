@@ -39,11 +39,6 @@ pub fn recipe_selector() -> View<G> {
         }));
     }));
     view! {
-        input(type="button", value="Refresh Recipes", on:click=move |_| {
-            // Poor man's click event signaling.
-            let toggle = !*clicked.get();
-            clicked.set(toggle);
-        })
         fieldset(class="recipe_selector no-print container no-left-mgn pad-top") {
             (View::new_fragment(
                 rows.get().iter().cloned().map(|r| {
@@ -60,5 +55,10 @@ pub fn recipe_selector() -> View<G> {
                 }).collect()
             ))
         }
+        input(type="button", value="Refresh Recipes", on:click=move |_| {
+            // Poor man's click event signaling.
+            let toggle = !*clicked.get();
+            clicked.set(toggle);
+        })
     }
 }
