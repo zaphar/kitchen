@@ -16,7 +16,6 @@ pub mod recipe;
 pub mod recipe_list;
 pub mod recipe_selection;
 pub mod recipe_selector;
-pub mod root;
 pub mod shopping_list;
 pub mod tabs;
 
@@ -25,6 +24,5 @@ pub use recipe::*;
 pub use recipe_list::*;
 pub use recipe_selection::*;
 pub use recipe_selector::*;
-pub use root::*;
 pub use shopping_list::*;
 pub use tabs::*;
