@@ -40,5 +40,8 @@ pub fn tabbed_view(state: TabState<G>) -> View<G> {
         div {
             (state.inner)
         }
+        div(class="footer") {
+            a(href="https://github.com/zaphar/kitchen") { "Github" }
+        }
     })
 }
