@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{console_debug, console_error, console_log};
 
@@ -124,7 +124,7 @@ impl AppService {
         self.recipes.get().get(idx).map(|(_, r)| r.clone())
     }
 
-    pub fn get_shopping_list(&self) -> BTreeMap<IngredientKey, Ingredient> {
+    pub fn get_shopping_list(&self) -> BTreeMap<IngredientKey, (Ingredient, BTreeSet<String>)> {
         let mut acc = IngredientAccumulator::new();
         let recipe_counts = self.menu_list.get();
         for (idx, count) in recipe_counts.iter() {

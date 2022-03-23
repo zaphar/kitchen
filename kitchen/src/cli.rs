@@ -86,7 +86,7 @@ pub fn output_ingredients_list(rs: Vec<Recipe>) {
     for r in rs {
         acc.accumulate_from(&r);
     }
-    for (_, i) in acc.ingredients() {
+    for (_, (i, _)) in acc.ingredients() {
         print!("{}", i.amt.normalize());
         println!(" {}", i.name);
     }
@@ -99,7 +99,7 @@ pub fn output_ingredients_csv(rs: Vec<Recipe>) {
     }
     let out = std::io::stdout();
     let mut writer = csv::Writer::from_writer(out);
-    for (_, i) in acc.ingredients() {
+    for (_, (i, _)) in acc.ingredients() {
         writer
             .write_record(&[format!("{}", i.amt.normalize()), i.name])
             .expect("Failed to write csv.");

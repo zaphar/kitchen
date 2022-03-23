@@ -14,7 +14,7 @@
 pub mod parse;
 pub mod unit;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::NaiveDate;
 
@@ -49,7 +49,7 @@ impl Mealplan {
 }
 
 /// A Recipe with a title, description, and a series of steps.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq)]
 pub struct Recipe {
     pub title: String,
     pub desc: Option<String>,
@@ -92,11 +92,14 @@ impl Recipe {
         let mut acc = IngredientAccumulator::new();
         acc.accumulate_from(&self);
         acc.ingredients()
+            .into_iter()
+            .map(|(k, v)| (k, v.0))
+            .collect()
     }
 }
 
 pub struct IngredientAccumulator {
-    inner: BTreeMap<IngredientKey, Ingredient>,
+    inner: BTreeMap<IngredientKey, (Ingredient, BTreeSet<String>)>,
 }
 
 impl IngredientAccumulator {
@@ -110,26 +113,31 @@ impl IngredientAccumulator {
         for i in r.steps.iter().map(|s| s.ingredients.iter()).flatten() {
             let key = i.key();
             if !self.inner.contains_key(&key) {
-                self.inner.insert(key, i.clone());
+                let mut set = BTreeSet::new();
+                set.insert(r.title.clone());
+                self.inner.insert(key, (i.clone(), set));
             } else {
-                let amt = match (self.inner[&key].amt, i.amt) {
+                let amt = match (self.inner[&key].0.amt, i.amt) {
                     (Volume(rvm), Volume(lvm)) => Volume(lvm + rvm),
                     (Count(lqty), Count(rqty)) => Count(lqty + rqty),
                     (Weight(lqty), Weight(rqty)) => Weight(lqty + rqty),
                     _ => unreachable!(),
                 };
-                self.inner.get_mut(&key).map(|i| i.amt = amt);
+                self.inner.get_mut(&key).map(|(i, set)| {
+                    i.amt = amt;
+                    set.insert(r.title.clone());
+                });
             }
         }
     }
 
-    pub fn ingredients(self) -> BTreeMap<IngredientKey, Ingredient> {
+    pub fn ingredients(self) -> BTreeMap<IngredientKey, (Ingredient, BTreeSet<String>)> {
         self.inner
     }
 }
 /// A Recipe step. It has the time for the step if there is one, instructions, and an ingredients
 /// list.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq)]
 pub struct Step {
     pub prep_time: Option<std::time::Duration>,
     pub instructions: String,
@@ -172,7 +180,7 @@ pub struct IngredientKey(String, Option<String>, String);
 
 /// Ingredient in a recipe. The `name` and `form` fields with the measurement type
 /// uniquely identify an ingredient.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord)]
 pub struct Ingredient {
     pub id: Option<i64>, // TODO(jwall): use uuid instead?
     pub name: String,

@@ -13,7 +13,7 @@
 // limitations under the License.
 use crate::service::AppService;
 use std::collections::HashMap;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use recipes::{Ingredient, IngredientKey};
 use sycamore::{context::use_context, prelude::*};
@@ -33,7 +33,7 @@ pub fn shopping_list() -> View<G> {
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .filter(|(k, _v)| !filtered_keys.get().contains(k))
-            .collect::<Vec<(IngredientKey, Ingredient)>>()
+            .collect::<Vec<(IngredientKey, (Ingredient, BTreeSet<String>))>>()
     }));
     let table_view = Signal::new(View::empty());
     create_effect(
@@ -44,15 +44,17 @@ pub fn shopping_list() -> View<G> {
                         tr {
                             th { " Quantity " }
                             th { " Ingredient " }
+                            th { " Recipes " }
                         }
                         tbody {Indexed(IndexedProps{
                             iterable: ingredients.clone(),
-                            template: cloned!((filtered_keys, modified_amts) => move |(k, i)| {
+                            template: cloned!((filtered_keys, modified_amts) => move |(k, (i, rs))| {
                                 let mut modified_amt_set = (*modified_amts.get()).clone();
                                 let amt = modified_amt_set.entry(k.clone()).or_insert(Signal::new(format!("{}", i.amt.normalize()))).clone();
                                 modified_amts.set(modified_amt_set);
                                 let name = i.name;
                                 let form = i.form.map(|form| format!("({})", form)).unwrap_or_default();
+                                let names = rs.iter().fold(String::new(), |acc, s| format!("{}{},", acc, s)).trim_end_matches(",").to_owned();
                                 view! {
                                     tr {
                                         td { input(bind:value=amt.clone(), class="ingredient-count-sel", type="text") }
@@ -60,7 +62,8 @@ pub fn shopping_list() -> View<G> {
                                             let mut keyset = (*filtered_keys.get()).clone();
                                             keyset.insert(k.clone());
                                             filtered_keys.set(keyset);
-                                        }))  " " (name) " " (form) }
+                                        }))  " " (name) " " (form) "" }
+                                        td { (names) }
                                     }
                                 }
                             }),

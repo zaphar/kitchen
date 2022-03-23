@@ -26,7 +26,7 @@ use std::{
 
 use num_rational::Ratio;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialOrd, Eq, Ord)]
 /// Volume Measurements for ingredients in a recipe.
 pub enum VolumeMeasure {
     // Imperial volume measurements. US.
@@ -225,7 +225,7 @@ impl Display for VolumeMeasure {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialOrd, Eq, Ord)]
 pub enum WeightMeasure {
     Gram(Quantity),
     Kilogram(Quantity),
@@ -338,7 +338,7 @@ impl Display for WeightMeasure {
 
 use WeightMeasure::{Gram, Kilogram, Oz, Pound};
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Ord)]
 /// Measurements in a Recipe with associated units for them.
 pub enum Measure {
     /// Volume measurements as meter cubed base unit
@@ -447,7 +447,7 @@ impl Display for Measure {
 }
 
 /// Represents a Quantity for an ingredient of a recipe.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, Ord)]
 pub enum Quantity {
     /// Whole or non fractional quantities of an ingredient in a recipe.
     Whole(u32),
