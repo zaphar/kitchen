@@ -24,24 +24,29 @@ pub struct TabState<G: GenericNode> {
 #[component(TabbedView<G>)]
 pub fn tabbed_view(state: TabState<G>) -> View<G> {
     cloned!((state) => view! {
-        div(class="nav-header no-print") {
-            a(href="#", class="no-print", on:click=cloned!((state) => move |_| {
-                state.route.set(AppRoutes::Plan);
-            })) { "Plan" }
-            " | "
-            a(href="#", class="no-print", on:click=cloned!((state) => move |_| {
-                state.route.set(AppRoutes::Inventory);
-            })) { "Inventory" }
-            " | "
-            a(href="#", class="no-print", on:click=cloned!((state) => move |_| {
-                state.route.set(AppRoutes::Cook);
-            })) { "Cook" }
+        header(class="no-print margin-medium") {
+            nav {
+                ul {
+                    li { a(href="#", class="no-print", on:click=cloned!((state) => move |_| {
+                            state.route.set(AppRoutes::Plan);
+                        })) { "Plan" } " > "
+                    }
+                    li { a(href="#", class="no-print", on:click=cloned!((state) => move |_| {
+                            state.route.set(AppRoutes::Inventory);
+                        })) { "Inventory" } " > "
+                    }
+                    li { a(href="#", class="no-print", on:click=cloned!((state) => move |_| {
+                            state.route.set(AppRoutes::Cook);
+                        })) { "Cook" }
+                    }
+                }
+                ul {
+                    li { a(href="https://github.com/zaphar/kitchen") { "Github" } }
+                }
+            }
         }
-        div {
+        main(class=".conatiner-fluid") {
             (state.inner)
-        }
-        div(class="footer") {
-            a(href="https://github.com/zaphar/kitchen") { "Github" }
         }
     })
 }

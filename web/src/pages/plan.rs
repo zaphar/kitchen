@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::app_state::AppRoutes;
 use crate::components::{recipe_selector::*, tabs::*};
 use crate::pages::PageState;
 
@@ -24,17 +23,11 @@ pub struct PlanPageProps {
 
 #[component(PlanPage<G>)]
 pub fn plan_page(props: PlanPageProps) -> View<G> {
-    let route_signal = props.page_state.route.clone();
     view! {
         TabbedView(TabState {
             route: props.page_state.route.clone(),
             inner: view! {
                 RecipeSelector()
-                div {
-                    a(href="#", on:click=move |_| {
-                        route_signal.set(AppRoutes::Inventory);
-                    }) { "Next" }
-                }
             },
         })
     }

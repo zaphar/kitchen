@@ -32,13 +32,13 @@ pub fn recipe_selection(props: RecipeCheckBoxProps) -> View<G> {
     let id_cloned_2 = id_as_str.clone();
     let count = Signal::new(format!("{}", app_service.get_recipe_count_by_index(i)));
     view! {
-        div(class="form-group col-md-1") {
+        div() {
+            label(for=id_cloned_2) { (props.title.get()) }
             input(type="number", class="item-count-sel", min="0", bind:value=count.clone(), name=format!("recipe_id:{}", i), value=id_as_str.clone(), on:change=move |_| {
                 let mut app_service = app_service.clone();
                 console_log!("setting recipe id: {} to count: {}", i, *count.get());
                 app_service.set_recipe_count_by_index(i, count.get().parse().unwrap());
             })
-            label(for=id_cloned_2) { (props.title.get()) }
         }
     }
 }

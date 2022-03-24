@@ -40,7 +40,7 @@ pub fn shopping_list() -> View<G> {
         cloned!((table_view, ingredients, filtered_keys, modified_amts) => move || {
             if ingredients.get().len() > 0 {
                 let t = view ! {
-                    table(class="pad-top shopping-list page-breaker table table-striped table-condensed table-responsive") {
+                    table(class="pad-top shopping-list page-breaker container-fluid", role="grid") {
                         tr {
                             th { " Quantity " }
                             th { " Ingredient " }
@@ -57,12 +57,15 @@ pub fn shopping_list() -> View<G> {
                                 let names = rs.iter().fold(String::new(), |acc, s| format!("{}{},", acc, s)).trim_end_matches(",").to_owned();
                                 view! {
                                     tr {
-                                        td { input(bind:value=amt.clone(), class="ingredient-count-sel", type="text") }
-                                        td {input(type="button", class="no-print", value="X", on:click=cloned!((filtered_keys) => move |_| {
-                                            let mut keyset = (*filtered_keys.get()).clone();
-                                            keyset.insert(k.clone());
-                                            filtered_keys.set(keyset);
-                                        }))  " " (name) " " (form) "" }
+                                        td {
+                                            input(bind:value=amt.clone(), type="text")
+                                            input(type="button", class="no-print destructive", value="X", on:click=cloned!((filtered_keys) => move |_| {
+                                                let mut keyset = (*filtered_keys.get()).clone();
+                                                keyset.insert(k.clone());
+                                                filtered_keys.set(keyset);
+                                            }))
+                                        }
+                                        td {  (name) " " (form) }
                                         td { (names) }
                                     }
                                 }
@@ -79,12 +82,12 @@ pub fn shopping_list() -> View<G> {
     // TODO(jwall): Sort by categories and names.
     view! {
         h1 { "Shopping List " }
+        (table_view.get().as_ref().clone())
         input(type="button", value="Reset", class="no-print", on:click=cloned!((ingredients_map, filtered_keys, app_service, modified_amts) => move |_| {
             ingredients_map.set(app_service.get_shopping_list());
             // clear the filter_signal
             filtered_keys.set(HashSet::new());
             modified_amts.set(HashMap::new());
         }))
-        (table_view.get().as_ref().clone())
     }
 }

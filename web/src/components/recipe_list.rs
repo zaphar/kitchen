@@ -22,16 +22,18 @@ pub fn recipe_list() -> View<G> {
     let menu_list = create_memo(move || app_service.get_menu_list());
     view! {
         h1 { "Recipe List" }
-        Indexed(IndexedProps{
-            iterable: menu_list,
-            template: |(idx, _count)| {
-                console_log!("Rendering recipe index: {}", idx);
-                let idx = Signal::new(idx);
-                view ! {
-                    Recipe(idx.handle())
-                    hr()
+        div() {
+            Indexed(IndexedProps{
+                iterable: menu_list,
+                template: |(idx, _count)| {
+                    console_log!("Rendering recipe index: {}", idx);
+                    let idx = Signal::new(idx);
+                    view ! {
+                        Recipe(idx.handle())
+                        hr()
+                    }
                 }
-            }
-        })
+            })
+        }
     }
 }

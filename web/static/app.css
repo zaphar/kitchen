@@ -29,7 +29,11 @@
 }
 
 .ingredient-count-sel {
-    width: 6em;
+    width: 15em !important;
+}
+
+.destructive {
+    background-color: firebrick !important;
 }
 
 .no-left-mgn {

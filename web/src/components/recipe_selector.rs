@@ -39,11 +39,11 @@ pub fn recipe_selector() -> View<G> {
         }));
     }));
     view! {
-        fieldset(class="recipe_selector no-print container no-left-mgn pad-top") {
+        fieldset(class="recipe_selector no-print") {
             (View::new_fragment(
                 rows.get().iter().cloned().map(|r| {
                     view ! {
-                        div(class="row") {Indexed(IndexedProps{
+                        div(class="grid") {Indexed(IndexedProps{
                             iterable: r.handle(),
                             template: |(i, recipe)| {
                                 view! {
