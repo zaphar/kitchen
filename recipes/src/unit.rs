@@ -163,9 +163,6 @@ impl VolumeMeasure {
         if (ml / CUP) >= ONE && !metric {
             return self.clone().into_cup();
         }
-        if (ml / FLOZ) >= ONE && !metric {
-            return self.clone().into_floz();
-        }
         if (ml / TBSP) >= ONE && !metric {
             return self.clone().into_tbsp();
         }
