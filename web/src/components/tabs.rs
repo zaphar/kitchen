@@ -24,7 +24,7 @@ pub struct TabState<G: GenericNode> {
 #[component(TabbedView<G>)]
 pub fn tabbed_view(state: TabState<G>) -> View<G> {
     cloned!((state) => view! {
-        header(class="no-print margin-medium") {
+        header(class="no-print") {
             nav {
                 ul {
                     li { a(href="#", class="no-print", on:click=cloned!((state) => move |_| {

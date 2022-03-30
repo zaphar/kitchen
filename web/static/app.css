@@ -24,34 +24,6 @@
     }
 }
 
-.item-count-sel {
-    width: 4em;
-}
-
-.ingredient-count-sel {
-    width: 15em !important;
-}
-
 .destructive {
     background-color: firebrick !important;
-}
-
-.no-left-mgn {
-    margin-left: 0px;
-}
-
-.pad-top {
-    margin-top: 1em;
-}
-
-.shopping-list {
-    width:max-content;
-}
-
-h1 {
-    padding-bottom: 1ch;
-}
-
-body{
-    padding-left: 1ch;
 }

@@ -43,6 +43,7 @@ pub fn shopping_list() -> View<G> {
                     table(class="pad-top shopping-list page-breaker container-fluid", role="grid") {
                         tr {
                             th { " Quantity " }
+                            th { " Delete " }
                             th { " Ingredient " }
                             th { " Recipes " }
                         }
@@ -59,6 +60,8 @@ pub fn shopping_list() -> View<G> {
                                     tr {
                                         td {
                                             input(bind:value=amt.clone(), type="text")
+                                        }
+                                        td {
                                             input(type="button", class="no-print destructive", value="X", on:click=cloned!((filtered_keys) => move |_| {
                                                 let mut keyset = (*filtered_keys.get()).clone();
                                                 keyset.insert(k.clone());
