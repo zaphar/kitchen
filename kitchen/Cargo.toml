@@ -1,5 +1,3 @@
-cargo-features = ["edition2021"]
-
 [package]
 name = "kitchen"
 version = "0.2.5"
