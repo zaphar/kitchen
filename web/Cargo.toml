@@ -28,3 +28,7 @@ features = [ "Storage", "Window" ]
 [dependencies.sycamore]
 version = "0.7.1"
 features = ["futures", "serde", "default"]
+
+[profile.release]
+lto = true
+opt-level = "s"
