@@ -24,6 +24,18 @@
     }
 }
 
+/*
+:not(thead):not(tfoot) > * > td {
+  --font-size: 1.5rem;
+}
+*/
+
+@media (min-width: 768px) {
+    :root {
+        --font-size: 35px;
+    }
+}
+
 .destructive {
     background-color: firebrick !important;
 }
