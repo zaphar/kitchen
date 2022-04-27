@@ -25,6 +25,7 @@ use recipes::{parse, Ingredient, IngredientAccumulator, IngredientKey, Recipe};
 pub struct AppService {
     recipes: Signal<Vec<(usize, Signal<Recipe>)>>,
     staples: Signal<Option<Recipe>>,
+    category_map: Signal<Option<BTreeMap<String, String>>>,
     menu_list: Signal<BTreeMap<usize, usize>>,
 }
 
@@ -33,6 +34,7 @@ impl AppService {
         Self {
             recipes: Signal::new(Vec::new()),
             staples: Signal::new(None),
+            category_map: Signal::new(None),
             menu_list: Signal::new(BTreeMap::new()),
         }
     }
@@ -57,14 +59,61 @@ impl AppService {
         }
     }
 
-    pub async fn synchronize_recipes() -> Result<(), String> {
+    async fn fetch_categories_http() -> Result<Option<String>, String> {
+        let resp = match http::Request::get("/api/v1/categories").send().await {
+            Ok(resp) => resp,
+            Err(e) => return Err(format!("Error: {}", e)),
+        };
+        if resp.status() == 404 {
+            console_debug!("Categories returned 404");
+            return Ok(None);
+        } else if resp.status() != 200 {
+            return Err(format!("Status: {}", resp.status()));
+        } else {
+            console_debug!("We got a valid response back!");
+            return Ok(Some(resp.text().await.map_err(|e| format!("{}", e))?));
+        }
+    }
+
+    async fn synchronize() -> Result<(), String> {
         console_log!("Synchronizing Recipes");
         let storage = Self::get_storage()?.unwrap();
         let recipes = Self::fetch_recipes_http().await?;
         storage
             .set_item("recipes", &recipes)
             .map_err(|e| format!("{:?}", e))?;
+        console_log!("Synchronizing categories");
+        match Self::fetch_categories_http().await {
+            Ok(Some(categories_content)) => {
+                storage
+                    .set_item("categories", &categories_content)
+                    .map_err(|e| format!("{:?}", e))?;
+            }
+            Ok(None) => {
+                console_error!("There is no category file");
+            }
+            Err(e) => {
+                console_error!("{}", e);
+            }
+        }
         Ok(())
+    }
+
+    pub fn fetch_categories_from_storage() -> Result<Option<BTreeMap<String, String>>, String> {
+        let storage = Self::get_storage()?.unwrap();
+        match storage
+            .get_item("categories")
+            .map_err(|e| format!("{:?}", e))?
+        {
+            Some(s) => match parse::as_categories(&s) {
+                Ok(categories) => Ok(Some(categories)),
+                Err(e) => {
+                    console_debug!("Error parsing categories {}", e);
+                    Err(format!("Error parsing categories {}", e))
+                }
+            },
+            None => Ok(None),
+        }
     }
 
     pub fn fetch_recipes_from_storage(
@@ -100,22 +149,24 @@ impl AppService {
         }
     }
 
-    pub async fn fetch_recipes() -> Result<(Option<Recipe>, Option<Vec<(usize, Recipe)>>), String> {
-        if let (staples, Some(recipes)) = Self::fetch_recipes_from_storage()? {
-            return Ok((staples, Some(recipes)));
-        } else {
-            console_debug!("No recipes in cache synchronizing from api");
-            // Try to synchronize first
-            Self::synchronize_recipes().await?;
-            Ok(Self::fetch_recipes_from_storage()?)
-        }
+    async fn fetch_recipes() -> Result<(Option<Recipe>, Option<Vec<(usize, Recipe)>>), String> {
+        Ok(Self::fetch_recipes_from_storage()?)
     }
 
-    pub async fn refresh_recipes(&mut self) -> Result<(), String> {
-        Self::synchronize_recipes().await?;
+    async fn fetch_categories() -> Result<Option<BTreeMap<String, String>>, String> {
+        Ok(Self::fetch_categories_from_storage()?)
+    }
+
+    pub async fn refresh(&mut self) -> Result<(), String> {
+        Self::synchronize().await?;
+        console_debug!("refreshing recipes");
         if let (staples, Some(r)) = Self::fetch_recipes().await? {
             self.set_recipes(r);
             self.staples.set(staples);
+        }
+        console_debug!("refreshing categories");
+        if let Some(categories) = Self::fetch_categories().await? {
+            self.set_categories(categories);
         }
         Ok(())
     }
@@ -169,5 +220,9 @@ impl AppService {
                 .map(|(i, r)| (i, Signal::new(r)))
                 .collect(),
         );
+    }
+
+    pub fn set_categories(&mut self, categories: BTreeMap<String, String>) {
+        self.category_map.set(Some(categories));
     }
 }

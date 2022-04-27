@@ -65,7 +65,7 @@ macro_rules! console_error {
         {
             use crate::typings::error;
             error(&format_args!($($t)*).to_string());
-        }else if cfg!(feature="ssr") {
+        } else if cfg!(feature="ssr") {
             print!("ERROR: ");
             println!($($t)*);
         };

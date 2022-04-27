@@ -77,7 +77,6 @@ macro_rules! assert_normalize {
 #[test]
 fn test_volume_normalize() {
     assert_normalize!(Tbsp, into_tsp, "not a tablespoon after normalize call");
-    assert_normalize!(Floz, into_tbsp, "not a floz after normalize call");
     assert_normalize!(Cup, into_floz, "not a cup after normalize call");
     assert_normalize!(Pint, into_cup, "not a pint after normalize call");
     assert_normalize!(Qrt, into_pint, "not a qrt after normalize call");
@@ -503,6 +502,53 @@ step: ";
         }
         other => {
             assert!(false, "{:?}", other);
+        }
+    }
+}
+
+#[test]
+fn test_category_line_happy_path() {
+    let line = "Produce: onion|green pepper|bell pepper|corn|potato|green onion|scallions|lettuce";
+    match parse::as_categories(line) {
+        Ok(map) => {
+            assert_eq!(map.len(), 8);
+
+            assert!(
+                map.contains_key("onion"),
+                "map does not contain onion {:?}",
+                map
+            );
+        }
+        Err(e) => {
+            assert!(false, "{:?}", e);
+        }
+    }
+}
+
+#[test]
+fn test_category_single_ingredient_happy_paths() {
+    let ingredients = vec!["foo", "foo\n", "foo|"];
+    for ingredient in ingredients {
+        match parse::cat_ingredient(StrIter::new(ingredient)) {
+            ParseResult::Complete(_itr, _i) => {
+                // yay we pass
+            }
+            res => {
+                assert!(false, "{:?}", res);
+            }
+        }
+    }
+}
+
+#[test]
+fn test_ingredients_list_happy_path() {
+    let line = "onion|green pepper|bell pepper|corn|potato|green onion|scallions|lettuce|";
+    match parse::cat_ingredients_list(StrIter::new(line)) {
+        ParseResult::Complete(_itr, i) => {
+            assert_eq!(i.len(), 8);
+        }
+        res => {
+            assert!(false, "{:?}", res);
         }
     }
 }

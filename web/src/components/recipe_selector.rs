@@ -32,7 +32,7 @@ pub fn recipe_selector() -> View<G> {
         spawn_local_in_scope(cloned!((app_service) => {
             let mut app_service = app_service.clone();
             async move {
-                if let Err(e) = app_service.refresh_recipes().await {
+                if let Err(e) = app_service.refresh().await {
                     console_error!("{}", e);
                 };
             }

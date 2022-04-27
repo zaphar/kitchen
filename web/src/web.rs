@@ -56,7 +56,7 @@ pub fn ui() -> View<G> {
                     spawn_local_in_scope(cloned!((page_state, view) => {
                         let mut app_service = app_service.clone();
                         async move {
-                            match AppService::fetch_recipes().await {
+                            match AppService::fetch_recipes_from_storage() {
                                 Ok((_, Some(recipes))) => {
                                     app_service.set_recipes(recipes);
                                 }

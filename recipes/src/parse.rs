@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use std::collections::BTreeMap;
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -33,6 +34,89 @@ pub fn as_recipe(i: &str) -> std::result::Result<Recipe, String> {
         Result::Complete(_, r) => Ok(r),
     }
 }
+
+pub fn as_categories(i: &str) -> std::result::Result<BTreeMap<String, String>, String> {
+    match categories(StrIter::new(i)) {
+        Result::Abort(e) | Result::Fail(e) => Err(format!("Parse Failure: {:?}", e)),
+        Result::Incomplete(_) => Err(format!("Incomplete categories list can not parse")),
+        Result::Complete(_, c) => Ok(c),
+    }
+}
+
+make_fn!(
+    pub categories<StrIter, BTreeMap<String, String>>,
+    do_each!(
+        first_category => category_line,
+        rest => repeat!(category_line),
+        ({
+            let mut out = BTreeMap::new();
+            let mut op = |(cat, mut ingredients): (String, Vec<String>)| {
+                for i in ingredients.drain(0..) {
+                    out.insert(i, cat.clone());
+                }
+            };
+            op(first_category);
+            for line in rest.iter() {
+                op(line.clone());
+            }
+            out
+        })
+    )
+);
+
+make_fn!(
+    category_line<StrIter, (String, Vec<String>)>,
+    do_each!(
+        cat => until!(text_token!(":")),
+        _ => text_token!(":"),
+        ingredients => cat_ingredients_list,
+        _ => either!(
+            discard!(eoi),
+            discard!(text_token!("\n"))
+        ),
+        ((cat.trim().to_owned(), ingredients))
+    )
+);
+
+make_fn!(
+    pub cat_ingredients_list<StrIter, Vec<String>>,
+    do_each!(
+        first_ingredient => must!(cat_ingredient),
+        rest => repeat!(cat_ingredient),
+        ({
+            let mut ingredients = vec![first_ingredient];
+            ingredients.extend(rest);
+            ingredients
+        })
+    )
+);
+
+make_fn!(
+    pub cat_ingredient<StrIter, String>,
+    do_each!(
+        _ => peek!(not!(
+            either!(
+                discard!(text_token!("|")),
+                discard!(eoi),
+                discard!(text_token!("\n"))
+            )
+        )),
+        ingredient => until!(
+            either!(
+                discard!(text_token!("|")),
+                discard!(eoi),
+                discard!(text_token!("\n"))
+            )
+        ),
+        _ => either!(
+            discard!(text_token!("|")),
+            discard!(eoi),
+            discard!(text_token!("\n"))
+        ),
+        (ingredient.trim().to_owned())
+    )
+
+);
 
 make_fn!(
     pub recipe<StrIter, Recipe>,
