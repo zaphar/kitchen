@@ -113,7 +113,7 @@ make_fn!(
             discard!(eoi),
             discard!(peek!(text_token!("\n")))
         ),
-        (ingredient.trim().to_owned())
+        (normalize_name(ingredient))
     )
 
 );
@@ -399,7 +399,7 @@ pub fn normalize_name(name: &str) -> String {
         prefix.push_str(&normalized);
         return prefix;
     }
-    return name.trim().to_owned();
+    return name.trim().to_lowercase().to_owned();
 }
 
 make_fn!(
