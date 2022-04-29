@@ -135,6 +135,7 @@ impl IngredientAccumulator {
         self.inner
     }
 }
+
 /// A Recipe step. It has the time for the step if there is one, instructions, and an ingredients
 /// list.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq)]

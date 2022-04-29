@@ -111,7 +111,7 @@ make_fn!(
         _ => either!(
             discard!(text_token!("|")),
             discard!(eoi),
-            discard!(text_token!("\n"))
+            discard!(peek!(text_token!("\n")))
         ),
         (ingredient.trim().to_owned())
     )

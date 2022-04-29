@@ -85,6 +85,7 @@ impl AppService {
         console_log!("Synchronizing categories");
         match Self::fetch_categories_http().await {
             Ok(Some(categories_content)) => {
+                console_debug!("categories: {}", categories_content);
                 storage
                     .set_item("categories", &categories_content)
                     .map_err(|e| format!("{:?}", e))?;
@@ -105,13 +106,16 @@ impl AppService {
             .get_item("categories")
             .map_err(|e| format!("{:?}", e))?
         {
-            Some(s) => match parse::as_categories(&s) {
-                Ok(categories) => Ok(Some(categories)),
-                Err(e) => {
-                    console_debug!("Error parsing categories {}", e);
-                    Err(format!("Error parsing categories {}", e))
+            Some(s) => {
+                let parsed = serde_json::from_str::<String>(&s).map_err(|e| format!("{}", e))?;
+                match parse::as_categories(&parsed) {
+                    Ok(categories) => Ok(Some(categories)),
+                    Err(e) => {
+                        console_debug!("Error parsing categories {}", e);
+                        Err(format!("Error parsing categories {}", e))
+                    }
                 }
-            },
+            }
             None => Ok(None),
         }
     }
@@ -136,7 +140,7 @@ impl AppService {
                             continue;
                         }
                     };
-                    console_debug!("We parsed a recipe {}", recipe.title);
+                    //console_debug!("We parsed a recipe {}", recipe.title);
                     if recipe.title == "Staples" {
                         staples = Some(recipe);
                     } else {
@@ -186,7 +190,17 @@ impl AppService {
         if let Some(staples) = self.staples.get().as_ref() {
             acc.accumulate_from(staples);
         }
-        acc.ingredients()
+        let mut ingredients = acc.ingredients();
+        self.category_map.get().as_ref().as_ref().map(|cm| {
+            for (_, (i, _)) in ingredients.iter_mut() {
+                if let Some(cat) = cm.get(&i.name) {
+                    i.category = cat.clone();
+                }
+            }
+        });
+        console_debug!("{:?}", self.category_map);
+        // TODO(jwall): Sort by categories and names.
+        ingredients
     }
 
     pub fn set_recipe_count_by_index(&mut self, i: usize, count: usize) {

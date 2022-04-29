@@ -16,6 +16,8 @@ make clean kitchen
 pushd web
 trunk serve \
     --public-url /ui \
+    --watch . \
+    --watch ../recipes \
     --proxy-backend http://localhost:3030/api/v1 &
 trunkpid=$!
 popd

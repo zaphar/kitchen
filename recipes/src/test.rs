@@ -507,7 +507,7 @@ step: ";
 }
 
 #[test]
-fn test_category_line_happy_path() {
+fn test_category_single_line_happy_path() {
     let line = "Produce: onion|green pepper|bell pepper|corn|potato|green onion|scallions|lettuce";
     match parse::as_categories(line) {
         Ok(map) => {
@@ -526,12 +526,57 @@ fn test_category_line_happy_path() {
 }
 
 #[test]
+fn test_category_double_line_happy_path() {
+    let line = "Produce: onion|green pepper|bell pepper|corn|potato|green onion|scallions|lettuce\nDairy: milk|butter";
+    match parse::as_categories(line) {
+        Ok(map) => {
+            assert_eq!(map.len(), 10);
+
+            assert!(
+                map.contains_key("onion"),
+                "map does not contain onion {:?}",
+                map
+            );
+            assert!(
+                map.contains_key("milk"),
+                "map does not contain milk {:?}",
+                map
+            );
+            assert_eq!(map["milk"], "Dairy");
+            println!("{:?}", map);
+        }
+        Err(e) => {
+            assert!(false, "{:?}", e);
+        }
+    }
+}
+
+#[test]
+fn test_triple_line() {
+    let line = "Produce: onion|green pepper|bell pepper|corn|potato|green onion|scallions|lettuce
+Meat: ground beef|beef|pork|chicken|sausage|hot dogs|bacon|lamb
+Dairy: milk|butter|heavy cream|cheddar cheese|mozarella|cheddar|white american|american|swiss";
+    match parse::as_categories(line) {
+        Ok(map) => {
+            let mut categories = BTreeSet::new();
+            categories.extend(map.values());
+            println!("map: {:?}", map);
+            assert_eq!(categories.len(), 3);
+        }
+        Err(e) => {
+            assert!(false, "{:?}", e);
+        }
+    }
+}
+
+#[test]
 fn test_category_single_ingredient_happy_paths() {
-    let ingredients = vec!["foo", "foo\n", "foo|"];
+    let ingredients = vec!["foo", "foo\n", "foo|", "foo\nCategory: "];
     for ingredient in ingredients {
         match parse::cat_ingredient(StrIter::new(ingredient)) {
             ParseResult::Complete(_itr, _i) => {
                 // yay we pass
+                assert_eq!(_i, "foo");
             }
             res => {
                 assert!(false, "{:?}", res);

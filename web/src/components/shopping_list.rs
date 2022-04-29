@@ -54,8 +54,9 @@ pub fn shopping_list() -> View<G> {
                                 let amt = modified_amt_set.entry(k.clone()).or_insert(Signal::new(format!("{}", i.amt.normalize()))).clone();
                                 modified_amts.set(modified_amt_set);
                                 let name = i.name;
+                                let category = if i.category == "" { "other".to_owned() } else { i.category };
                                 let form = i.form.map(|form| format!("({})", form)).unwrap_or_default();
-                                let names = rs.iter().fold(String::new(), |acc, s| format!("{}{},", acc, s)).trim_end_matches(",").to_owned();
+                                let recipes = rs.iter().fold(String::new(), |acc, s| format!("{}{},", acc, s)).trim_end_matches(",").to_owned();
                                 view! {
                                     tr {
                                         td {
@@ -68,8 +69,8 @@ pub fn shopping_list() -> View<G> {
                                                 filtered_keys.set(keyset);
                                             }))
                                         }
-                                        td {  (name) " " (form) }
-                                        td { (names) }
+                                        td {  (name) " " (form) "" br {} "" (category) "" }
+                                        td { (recipes) }
                                     }
                                 }
                             }),
@@ -82,7 +83,6 @@ pub fn shopping_list() -> View<G> {
             }
         }),
     );
-    // TODO(jwall): Sort by categories and names.
     view! {
         h1 { "Shopping List " }
         (table_view.get().as_ref().clone())
