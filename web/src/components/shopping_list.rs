@@ -13,9 +13,8 @@
 // limitations under the License.
 use crate::service::AppService;
 use std::collections::HashMap;
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, HashSet};
 
-use recipes::{Ingredient, IngredientKey};
 use sycamore::{context::use_context, prelude::*};
 
 #[component(ShoppingList<G>)]
@@ -28,12 +27,16 @@ pub fn shopping_list() -> View<G> {
         ingredients_map.set(app_service.get_shopping_list());
     }));
     let ingredients = create_memo(cloned!((ingredients_map, filtered_keys) => move || {
-        ingredients_map
-            .get()
-            .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .filter(|(k, _v)| !filtered_keys.get().contains(k))
-            .collect::<Vec<(IngredientKey, (Ingredient, BTreeSet<String>))>>()
+        let mut ingredients = Vec::new();
+        // This has the effect of sorting the ingredients by category
+        for (_, ingredients_list) in ingredients_map.get().iter() {
+            for (i, recipes) in ingredients_list.iter() {
+                if !filtered_keys.get().contains(&i.key()) {
+                    ingredients.push((i.key(), (i.clone(), recipes.clone())));
+                }
+            }
+        }
+        ingredients
     }));
     let table_view = Signal::new(View::empty());
     create_effect(

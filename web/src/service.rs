@@ -19,7 +19,7 @@ use reqwasm::http;
 use sycamore::prelude::*;
 use web_sys::{window, Storage};
 
-use recipes::{parse, Ingredient, IngredientAccumulator, IngredientKey, Recipe};
+use recipes::{parse, Ingredient, IngredientAccumulator, Recipe};
 
 #[derive(Clone)]
 pub struct AppService {
@@ -179,7 +179,7 @@ impl AppService {
         self.recipes.get().get(idx).map(|(_, r)| r.clone())
     }
 
-    pub fn get_shopping_list(&self) -> BTreeMap<IngredientKey, (Ingredient, BTreeSet<String>)> {
+    pub fn get_shopping_list(&self) -> BTreeMap<String, Vec<(Ingredient, BTreeSet<String>)>> {
         let mut acc = IngredientAccumulator::new();
         let recipe_counts = self.menu_list.get();
         for (idx, count) in recipe_counts.iter() {
@@ -191,16 +191,24 @@ impl AppService {
             acc.accumulate_from(staples);
         }
         let mut ingredients = acc.ingredients();
+        let mut groups = BTreeMap::new();
         self.category_map.get().as_ref().as_ref().map(|cm| {
-            for (_, (i, _)) in ingredients.iter_mut() {
-                if let Some(cat) = cm.get(&i.name) {
-                    i.category = cat.clone();
-                }
+            for (_, (i, recipes)) in ingredients.iter_mut() {
+                let category = if let Some(cat) = cm.get(&i.name) {
+                    cat.clone()
+                } else {
+                    "other".to_owned()
+                };
+                i.category = category.clone();
+                groups
+                    .entry(category)
+                    .or_insert(vec![])
+                    .push((i.clone(), recipes.clone()));
             }
         });
         console_debug!("{:?}", self.category_map);
-        // TODO(jwall): Sort by categories and names.
-        ingredients
+        // FIXM(jwall): Sort by categories and names.
+        groups
     }
 
     pub fn set_recipe_count_by_index(&mut self, i: usize, count: usize) {
