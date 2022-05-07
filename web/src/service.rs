@@ -31,6 +31,7 @@ pub struct AppService {
 
 impl AppService {
     pub fn new() -> Self {
+        let mut category_map = BTreeMap::new();
         Self {
             recipes: Signal::new(Vec::new()),
             staples: Signal::new(None),
@@ -206,7 +207,7 @@ impl AppService {
                     .push((i.clone(), recipes.clone()));
             }
         });
-        console_debug!("{:?}", self.category_map);
+        console_debug!("Category map {:?}", self.category_map);
         // FIXM(jwall): Sort by categories and names.
         groups
     }
