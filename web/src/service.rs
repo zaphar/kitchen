@@ -25,17 +25,16 @@ use recipes::{parse, Ingredient, IngredientAccumulator, Recipe};
 pub struct AppService {
     recipes: Signal<Vec<(usize, Signal<Recipe>)>>,
     staples: Signal<Option<Recipe>>,
-    category_map: Signal<Option<BTreeMap<String, String>>>,
+    category_map: Signal<BTreeMap<String, String>>,
     menu_list: Signal<BTreeMap<usize, usize>>,
 }
 
 impl AppService {
     pub fn new() -> Self {
-        let mut category_map = BTreeMap::new();
         Self {
             recipes: Signal::new(Vec::new()),
             staples: Signal::new(None),
-            category_map: Signal::new(None),
+            category_map: Signal::new(BTreeMap::new()),
             menu_list: Signal::new(BTreeMap::new()),
         }
     }
@@ -193,20 +192,19 @@ impl AppService {
         }
         let mut ingredients = acc.ingredients();
         let mut groups = BTreeMap::new();
-        self.category_map.get().as_ref().as_ref().map(|cm| {
-            for (_, (i, recipes)) in ingredients.iter_mut() {
-                let category = if let Some(cat) = cm.get(&i.name) {
-                    cat.clone()
-                } else {
-                    "other".to_owned()
-                };
-                i.category = category.clone();
-                groups
-                    .entry(category)
-                    .or_insert(vec![])
-                    .push((i.clone(), recipes.clone()));
-            }
-        });
+        let cat_map = self.category_map.get().clone();
+        for (_, (i, recipes)) in ingredients.iter_mut() {
+            let category = if let Some(cat) = cat_map.get(&i.name) {
+                cat.clone()
+            } else {
+                "other".to_owned()
+            };
+            i.category = category.clone();
+            groups
+                .entry(category)
+                .or_insert(vec![])
+                .push((i.clone(), recipes.clone()));
+        }
         console_debug!("Category map {:?}", self.category_map);
         // FIXM(jwall): Sort by categories and names.
         groups
@@ -246,6 +244,6 @@ impl AppService {
     }
 
     pub fn set_categories(&mut self, categories: BTreeMap<String, String>) {
-        self.category_map.set(Some(categories));
+        self.category_map.set(categories);
     }
 }
