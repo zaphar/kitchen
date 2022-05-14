@@ -60,6 +60,9 @@
                     type = "app";
                     program = "${kitchen}/bin/kitchen";
                 };
+                devShell = pkgs.mkShell {
+                    buildInputs = [ trunk rust-wasm ];
+                };
             } 
         );
 }
