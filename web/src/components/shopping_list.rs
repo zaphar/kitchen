@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crate::service::AppService;
-use std::collections::HashMap;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::console_debug;
 use sycamore::{context::use_context, prelude::*};
@@ -21,10 +20,10 @@ use sycamore::{context::use_context, prelude::*};
 #[component(ShoppingList<G>)]
 pub fn shopping_list() -> View<G> {
     let app_service = use_context::<AppService>();
-    let filtered_keys = Signal::new(HashSet::new());
+    let filtered_keys = Signal::new(BTreeSet::new());
     let ingredients_map = Signal::new(BTreeMap::new());
     let extras = Signal::new(Vec::<(usize, (Signal<String>, Signal<String>))>::new());
-    let modified_amts = Signal::new(HashMap::new());
+    let modified_amts = Signal::new(BTreeMap::new());
     create_effect(cloned!((app_service, ingredients_map) => move || {
         ingredients_map.set(app_service.get_shopping_list());
     }));
@@ -129,8 +128,8 @@ pub fn shopping_list() -> View<G> {
             // TODO(jwall): We should actually pop up a modal here or use a different set of items.
             ingredients_map.set(app_service.get_shopping_list());
             // clear the filter_signal
-            filtered_keys.set(HashSet::new());
-            modified_amts.set(HashMap::new());
+            filtered_keys.set(BTreeSet::new());
+            modified_amts.set(BTreeMap::new());
             extras.set(Vec::new());
         }))
     }
