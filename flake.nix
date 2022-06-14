@@ -58,7 +58,7 @@
                     program = "${kitchen}/bin/kitchen";
                 };
                 devShell = pkgs.mkShell {
-                    buildInputs = [ rust-wasm ] ++ (with pkgs; [wasm-bindgen-cli wasm-pack]);
+                    buildInputs = [ rust-wasm ] ++ (with pkgs; [wasm-bindgen-cli wasm-pack httplz]);
                 };
             } 
         );

@@ -26,7 +26,7 @@ stdenv.mkDerivation {
         mkdir -p $out
         cd web
         cp -r static $out
-        wasm-pack build --target web --out-dir $out;
+        wasm-pack build --release --target web --out-dir $out;
         cp -r index.html $out
     '';
 }

@@ -18,11 +18,17 @@ kitchen: wasm kitchen/src/*.rs
 release: wasmrelease
 	cd kitchen; cargo build --release
 
-wasmrelease: web/index.html web/src/*.rs web/src/components/*.rs
-	cd web; trunk build --release --public-url /ui/
+static-prep: web/index.html web/static/*.css
+	mkdir -p web/dist
+	cp -r web/index.html web/dist/
+	cp -r web/static web/dist/
 
-wasm: web/index.html web/src/*.rs web/src/components/*.rs
-	cd web; trunk build --public-url /ui/
+wasmrelease: static-prep web/src/*.rs web/src/components/*.rs
+	cd web; wasm-pack build --release --target web --out-dir dist/
+
+wasm: static-prep web/src/*.rs web/src/components/*.rs
+	cd web; wasm-pack build --target web --out-dir dist/
 
 clean:
 	rm -rf web/dist/*
+	cargo clean
