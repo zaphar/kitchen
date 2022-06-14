@@ -15,7 +15,6 @@
     outputs = {self, nixpkgs, flake-utils, rust-overlay, naersk, gitignore, flake-compat}:
         let
             kitchenGen = (import ./nix/kitchen/default.nix);
-            trunkGen = (import ./nix/trunk/default.nix);
             kitchenWasmGen = (import ./nix/kitchenWasm/default.nix);
             cargoVendorGen = (import ./nix/cargoVendorDeps/default.nix);
             moduleGen = (import ./nix/kitchen/module.nix);
@@ -31,13 +30,12 @@
                   targets = [ "wasm32-unknown-unknown" ];
                 };
                 naersk-lib = naersk.lib."${system}";
-                trunk = trunkGen { inherit pkgs naersk-lib; };
                 cargoVendorDeps = cargoVendorGen {
                     inherit pkgs version;
                     lockFile = ./Cargo.lock;
                 }; 
                 kitchenWasm = kitchenWasmGen {
-                    inherit pkgs cargoVendorDeps rust-wasm trunk version;
+                    inherit pkgs cargoVendorDeps rust-wasm version;
                 };
                 kitchen = (kitchenGen {
                     inherit pkgs version naersk-lib kitchenWasm;# cargoVendorDeps;
@@ -48,8 +46,7 @@
             in
             {
                 packages = {
-                    inherit trunk
-                            cargoVendorDeps
+                    inherit cargoVendorDeps
                             kitchenWasm
                             kitchen
                             ;
@@ -61,7 +58,7 @@
                     program = "${kitchen}/bin/kitchen";
                 };
                 devShell = pkgs.mkShell {
-                    buildInputs = [ trunk rust-wasm ];
+                    buildInputs = [ rust-wasm ] ++ (with pkgs; [wasm-bindgen-cli wasm-pack]);
                 };
             } 
         );

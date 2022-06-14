@@ -12,8 +12,8 @@ in
 stdenv.mkDerivation {
     inherit src pname;
     version = version;
-    # we need wasmb-bindgen v0.2.78 ideally
-    buildInputs = [ trunk rust-wasm wasm-bindgen-cli ];
+    # we need wasmb-bindgen v0.2.78 exactly
+    buildInputs = [ rust-wasm wasm-bindgen-cli wasm-pack binaryen];
     phases = [ "postUnpackPhase" "buildPhase"];
     postUnpackPhase = ''
         ln -s ${cargoVendorDeps} ./cargo-vendor-dir
@@ -22,9 +22,11 @@ stdenv.mkDerivation {
     '';
     # TODO(jwall): Build this from the root rather than the src.
     buildPhase = ''
-        echo building with trunk
+        echo building with wasm-pack
         mkdir -p $out
         cd web
-        trunk build --release --public-url /ui/ --dist $out;
+        cp -r static $out
+        wasm-pack build --target web --out-dir $out;
+        cp -r index.html $out
     '';
 }
