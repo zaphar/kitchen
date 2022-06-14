@@ -5,3 +5,4 @@ web/dist/
 webdist/
 nix/*/result
 result
+.vscode/ 
