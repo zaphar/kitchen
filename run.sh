@@ -12,16 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 EXAMPLES=${EXAMPLES:-../examples}
-make clean kitchen
-pushd web
-trunk serve \
-    --public-url /ui \
-    --watch . \
-    --watch ../recipes \
-    --proxy-backend http://localhost:3030/api/v1 &
-trunkpid=$!
-popd
-trap "{ echo killing ${trunkpid}; kill -9 ${trunkpid}; }" EXIT
+make clean wasm kitchen
 pushd kitchen
 echo Starting api server serving ${EXAMPLES}
 cargo run -- serve --dir ${EXAMPLES}

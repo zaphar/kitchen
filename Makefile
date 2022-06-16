@@ -23,10 +23,14 @@ static-prep: web/index.html web/static/*.css
 	cp -r web/index.html web/dist/
 	cp -r web/static web/dist/
 
-wasmrelease: static-prep web/src/*.rs web/src/components/*.rs
+wasmrelease: wasmrelease-dist static-prep
+
+wasmrelease-dist: web/src/*.rs web/src/components/*.rs
 	cd web; wasm-pack build --release --target web --out-dir dist/
 
-wasm: static-prep web/src/*.rs web/src/components/*.rs
+wasm: wasm-dist static-prep
+
+wasm-dist: web/src/*.rs web/src/components/*.rs
 	cd web; wasm-pack build --target web --out-dir dist/
 
 clean:
