@@ -35,6 +35,9 @@ fn route_switch<G: Html>(page_state: PageState) -> View<G> {
             AppRoutes::Cook => view! {
                 CookPage(CookPageProps { page_state: page_state.clone() })
             },
+            AppRoutes::Recipe(idx) => view! {
+                RecipePage(RecipePageProps { page_state: page_state.clone(), recipe: Signal::new(*idx) })
+            }
         })
     })
 }

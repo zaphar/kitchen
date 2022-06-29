@@ -18,10 +18,12 @@ use crate::app_state::AppRoutes;
 mod cook;
 mod inventory;
 mod plan;
+mod recipe;
 
 pub use cook::*;
 pub use inventory::*;
 pub use plan::*;
+pub use recipe::*;
 
 #[derive(Clone)]
 pub struct PageState {

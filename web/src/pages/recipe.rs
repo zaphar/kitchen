@@ -1,4 +1,4 @@
-// Copyright 2022 Jeremy Wall
+// Copyright 2022 Jeremy Wall (jeremy@marzhillstudios.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,11 +11,24 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use crate::components::{recipe::Recipe, tabs::*};
+use crate::pages::PageState;
 
-#[derive(Debug)]
-pub enum AppRoutes {
-    Plan,
-    Inventory,
-    Cook,
-    Recipe(usize),
+use sycamore::prelude::*;
+
+pub struct RecipePageProps {
+    pub page_state: PageState,
+    pub recipe: Signal<usize>,
+}
+
+#[component(RecipePage<G>)]
+pub fn recipe_page(props: RecipePageProps) -> View<G> {
+    view! {
+        TabbedView(TabState {
+            route: props.page_state.route.clone(),
+            inner: view! {
+                Recipe(props.recipe.handle())
+            }
+        })
+    }
 }
