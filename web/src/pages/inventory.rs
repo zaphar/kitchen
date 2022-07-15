@@ -12,20 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crate::components::{shopping_list::*, tabs::*};
-use crate::pages::PageState;
 
 use sycamore::prelude::*;
 
-#[derive(Clone)]
-pub struct InventoryPageProps {
-    pub page_state: PageState,
-}
-
 #[component(InventoryPage<G>)]
-pub fn inventory_page(props: InventoryPageProps) -> View<G> {
+pub fn inventory_page() -> View<G> {
     view! {
         TabbedView(TabState {
-            route: props.page_state.route.clone(),
             inner: view! {
                 ShoppingList()
             },

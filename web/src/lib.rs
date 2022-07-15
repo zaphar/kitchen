@@ -14,6 +14,7 @@
 mod app_state;
 mod components;
 mod pages;
+mod router_integration;
 mod service;
 mod typings;
 mod web;

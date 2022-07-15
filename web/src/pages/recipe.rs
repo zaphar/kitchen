@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crate::components::{recipe::Recipe, tabs::*};
-use crate::pages::PageState;
 
 use sycamore::prelude::*;
 
 pub struct RecipePageProps {
-    pub page_state: PageState,
     pub recipe: Signal<usize>,
 }
 
@@ -25,7 +23,6 @@ pub struct RecipePageProps {
 pub fn recipe_page(props: RecipePageProps) -> View<G> {
     view! {
         TabbedView(TabState {
-            route: props.page_state.route.clone(),
             inner: view! {
                 Recipe(props.recipe.handle())
             }

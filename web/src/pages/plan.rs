@@ -12,20 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crate::components::{recipe_selector::*, tabs::*};
-use crate::pages::PageState;
 
 use sycamore::prelude::*;
 
-#[derive(Clone)]
-pub struct PlanPageProps {
-    pub page_state: PageState,
-}
-
 #[component(PlanPage<G>)]
-pub fn plan_page(props: PlanPageProps) -> View<G> {
+pub fn plan_page() -> View<G> {
     view! {
         TabbedView(TabState {
-            route: props.page_state.route.clone(),
             inner: view! {
                 RecipeSelector()
             },

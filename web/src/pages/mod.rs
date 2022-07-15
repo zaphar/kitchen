@@ -11,10 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use sycamore::prelude::*;
-
-use crate::app_state::AppRoutes;
-
 mod cook;
 mod inventory;
 mod plan;
@@ -24,8 +20,3 @@ pub use cook::*;
 pub use inventory::*;
 pub use plan::*;
 pub use recipe::*;
-
-#[derive(Clone)]
-pub struct PageState {
-    pub route: Signal<AppRoutes>,
-}

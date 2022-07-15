@@ -12,20 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crate::components::{recipe_list::*, tabs::*};
-use crate::pages::PageState;
 
 use sycamore::prelude::*;
 
-#[derive(Clone)]
-pub struct CookPageProps {
-    pub page_state: PageState,
-}
-
 #[component(CookPage<G>)]
-pub fn cook_page(props: CookPageProps) -> View<G> {
+pub fn cook_page() -> View<G> {
     view! {
         TabbedView(TabState {
-            route: props.page_state.route.clone(),
             inner: view! {
                 RecipeList()
             },

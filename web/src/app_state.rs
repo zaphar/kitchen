@@ -12,10 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AppRoutes {
     Plan,
     Inventory,
     Cook,
     Recipe(usize),
+    Error(String),
+    NotFound,
+}
+
+impl Default for AppRoutes {
+    fn default() -> Self {
+        Self::Plan
+    }
 }

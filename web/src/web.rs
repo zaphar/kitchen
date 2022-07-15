@@ -11,8 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{app_state::*, components::*, service::AppService};
-use crate::{console_debug, console_error, console_log};
+use crate::pages::*;
+use crate::{app_state::*, components::*, router_integration::*, service::AppService};
+use crate::{console_error, console_log};
 
 use sycamore::{
     context::{ContextProvider, ContextProviderProps},
@@ -20,25 +21,33 @@ use sycamore::{
     prelude::*,
 };
 
-use crate::pages::*;
-
-fn route_switch<G: Html>(page_state: PageState) -> View<G> {
-    let route = page_state.route.clone();
-    cloned!((page_state, route) => view! {
-        (match route.get().as_ref() {
-            AppRoutes::Plan => view! {
-                PlanPage(PlanPageProps { page_state: page_state.clone() })
-            },
-            AppRoutes::Inventory => view! {
-                InventoryPage(InventoryPageProps { page_state: page_state.clone() })
-            },
-            AppRoutes::Cook => view! {
-                CookPage(CookPageProps { page_state: page_state.clone() })
-            },
-            AppRoutes::Recipe(idx) => view! {
-                RecipePage(RecipePageProps { page_state: page_state.clone(), recipe: Signal::new(*idx) })
+fn route_switch<G: Html>(route: ReadSignal<AppRoutes>) -> View<G> {
+    // NOTE(jwall): This needs to not be a dynamic node. The rules around
+    // this are somewhat unclear and underdocumented for Sycamore. But basically
+    // avoid conditionals in the `view!` macro calls here.
+    cloned!((route) => match route.get().as_ref() {
+        AppRoutes::Plan => view! {
+            PlanPage()
+        },
+        AppRoutes::Inventory => view! {
+            InventoryPage()
+        },
+        AppRoutes::Cook => view! {
+            CookPage()
+        },
+        AppRoutes::Recipe(idx) => view! {
+            RecipePage(RecipePageProps { recipe: Signal::new(*idx) })
+        },
+        AppRoutes::NotFound => view! {
+            // TODO(Create a real one)
+            PlanPage()
+        },
+        AppRoutes::Error(ref e) => {
+            let e = e.clone();
+            view! {
+                "Error: " (e)
             }
-        })
+        }
     })
 }
 
@@ -52,11 +61,8 @@ pub fn ui() -> View<G> {
         ContextProvider(ContextProviderProps {
             value: app_service.clone(),
             children: || {
-                let view = Signal::new(View::empty());
-                let route = Signal::new(AppRoutes::Plan);
-                let page_state = PageState { route: route.clone() };
-                create_effect(cloned!((page_state, view) => move || {
-                    spawn_local_in_scope(cloned!((page_state, view) => {
+                create_effect(move || {
+                    spawn_local_in_scope({
                         let mut app_service = app_service.clone();
                         async move {
                             match AppService::fetch_recipes_from_storage() {
@@ -68,18 +74,18 @@ pub fn ui() -> View<G> {
                                 }
                                 Err(msg) => console_error!("Failed to get recipes {}", msg),
                             }
-                            console_debug!("Determining route.");
-                            view.set(route_switch(page_state.clone()));
-                            console_debug!("Created our route view effect.");
                         }
-                    }));
-                }));
+                    });
+                });
+
                 view! {
-                    // NOTE(jwall): The Router component *requires* there to be exactly one node as the root of this view.
-                    // No fragments or missing nodes allowed or it will panic at runtime.
                     div(class="app") {
                         Header()
-                        (view.get().as_ref().clone())
+                        Router(RouterProps {
+                            route: AppRoutes::Plan,
+                            route_select: route_switch,
+                            browser_integration: BrowserIntegration::new(),
+                        })
                     }
                 }
             }

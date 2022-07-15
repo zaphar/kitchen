@@ -13,11 +13,8 @@
 // limitations under the License.
 use sycamore::prelude::*;
 
-use crate::app_state::AppRoutes;
-
 #[derive(Clone)]
 pub struct TabState<G: GenericNode> {
-    pub route: Signal<AppRoutes>,
     pub inner: View<G>,
 }
 
@@ -27,17 +24,11 @@ pub fn tabbed_view(state: TabState<G>) -> View<G> {
         header(class="no-print") {
             nav {
                 ul {
-                    li { a(href="#", class="no-print", on:click=cloned!((state) => move |_| {
-                            state.route.set(AppRoutes::Plan);
-                        })) { "Plan" } " > "
+                    li { a(href="#plan", class="no-print") { "Plan" } " > "
                     }
-                    li { a(href="#", class="no-print", on:click=cloned!((state) => move |_| {
-                            state.route.set(AppRoutes::Inventory);
-                        })) { "Inventory" } " > "
+                    li { a(href="#inventory", class="no-print") { "Inventory" } " > "
                     }
-                    li { a(href="#", class="no-print", on:click=cloned!((state) => move |_| {
-                            state.route.set(AppRoutes::Cook);
-                        })) { "Cook" }
+                    li { a(href="#cook", class="no-print") { "Cook" }
                     }
                 }
                 ul {
