@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use std::env;
+use std::io;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use clap;
 use clap::{clap_app, crate_authors, crate_version};
+use tracing::{error, info, instrument, warn, Level};
+use tracing_subscriber::FmtSubscriber;
 
 pub mod api;
 mod cli;
@@ -30,6 +33,7 @@ where
         (version: crate_version!())
         (author: crate_authors!())
         (about: "Kitchen Management CLI")
+        (@arg verbose: --verbose -v "Verbosity level for logging (error, warn, info, debug, trace")
         (@subcommand recipe =>
             (about: "parse a recipe file and output info about it")
             (@arg ingredients: -i --ingredients "Output the ingredients list.")
@@ -49,8 +53,29 @@ where
     .setting(clap::AppSettings::SubcommandRequiredElseHelp)
 }
 
+#[instrument]
 fn main() {
     let matches = create_app().get_matches();
+    let subscriber_builder = if let Some(verbosity) = matches.value_of("verbosity") {
+        // Se want verbosity level
+        let level = match verbosity {
+            "error" | "ERROR" => Level::ERROR,
+            "warn" | "WARN" => Level::WARN,
+            "info" | "INFO" => Level::INFO,
+            "debug" | "DEBUG" => Level::DEBUG,
+            "trace" | "TRACE" => Level::TRACE,
+            _ => {
+                println!("Invalid logging level using TRACE");
+                Level::TRACE
+            }
+        };
+        FmtSubscriber::builder().with_max_level(level)
+    } else {
+        FmtSubscriber::builder().with_max_level(Level::INFO)
+    };
+    tracing::subscriber::set_global_default(subscriber_builder.with_writer(io::stderr).finish())
+        .expect("setting default subscriber failed");
+
     if let Some(matches) = matches.subcommand_matches("recipe") {
         // The input argument is required so if we made it here then it's safe to unrwap this value.
         let recipe_file = matches.value_of("INPUT").unwrap();
@@ -58,8 +83,8 @@ fn main() {
             Ok(r) => {
                 cli::output_recipe_info(r, matches.is_present("ingredients"));
             }
-            Err(e) => {
-                eprintln!("{:?}", e);
+            Err(err) => {
+                error!(?err);
             }
         }
     } else if let Some(matches) = matches.subcommand_matches("groceries") {
@@ -73,8 +98,8 @@ fn main() {
                     cli::output_ingredients_list(rs);
                 }
             }
-            Err(e) => {
-                eprintln!("{:?}", e);
+            Err(err) => {
+                error!(?err);
             }
         }
     } else if let Some(matches) = matches.subcommand_matches("serve") {
@@ -91,8 +116,7 @@ fn main() {
         } else {
             "127.0.0.1:3030".parse().unwrap()
         };
-        println!("Launching web interface...");
-        println!("listening on {}", listen_socket);
+        info!(listen=%listen_socket, "Launching web interface...");
         async_std::task::block_on(async { web::ui_main(recipe_dir_path, listen_socket).await });
     }
 }

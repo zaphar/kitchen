@@ -21,6 +21,7 @@ use csv;
 
 use crate::api::ParseError;
 use recipes::{parse, IngredientAccumulator, Recipe};
+use tracing::{error, info, instrument, warn};
 
 // TODO(jwall): We should think a little more closely about
 // the error modeling for this application.
@@ -29,13 +30,14 @@ macro_rules! try_open {
         match File::open(&$path) {
             Ok(reader) => reader,
             Err(e) => {
-                eprintln!("Error opening file for read: {:?}", $path);
+                error!(path=?$path, "Error opening file for read");
                 return Err(ParseError::from(e));
             }
         }
     };
 }
 
+#[instrument]
 pub fn parse_recipe<P>(path: P) -> Result<Recipe, ParseError>
 where
     P: AsRef<Path> + Debug,
@@ -47,6 +49,7 @@ where
     Ok(parse::as_recipe(&i)?)
 }
 
+#[instrument]
 pub fn read_menu_list<P>(path: P) -> Result<Vec<Recipe>, ParseError>
 where
     P: AsRef<Path> + Debug,
@@ -54,7 +57,7 @@ where
     let path = path.as_ref();
     let wd = path.parent().unwrap();
     let mut br = BufReader::new(try_open!(path));
-    eprintln!("Switching to {:?}", wd);
+    info!(directory=?wd, "Switching working directory");
     std::env::set_current_dir(wd)?;
     let mut buf = String::new();
     let mut recipe_list = Vec::new();

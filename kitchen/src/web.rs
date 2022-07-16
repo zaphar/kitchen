@@ -17,10 +17,12 @@ use std::path::PathBuf;
 use async_std::fs::{self, read_dir, read_to_string, DirEntry};
 use async_std::stream::StreamExt;
 use static_dir::static_dir;
+use tracing::{info, instrument, warn};
 use warp::{http::StatusCode, hyper::Uri, Filter};
 
 use crate::api::ParseError;
 
+#[instrument(fields(recipe_dir=?recipe_dir_path), skip_all)]
 pub async fn get_recipes(recipe_dir_path: PathBuf) -> Result<Vec<String>, ParseError> {
     let mut entries = read_dir(recipe_dir_path).await?;
     let mut entry_vec = Vec::new();
@@ -35,19 +37,20 @@ pub async fn get_recipes(recipe_dir_path: PathBuf) -> Result<Vec<String>, ParseE
                 .any(|&s| s == entry.file_name().to_string_lossy().to_string())
         {
             // add it to the entry
-            eprintln!("adding recipe file {}", entry.file_name().to_string_lossy());
+            info!("adding recipe file {}", entry.file_name().to_string_lossy());
             let recipe_contents = read_to_string(entry.path()).await?;
             entry_vec.push(recipe_contents);
         } else {
-            eprintln!(
-                "skipping file {} not a recipe",
-                entry.path().to_string_lossy()
+            warn!(
+                file = %entry.path().to_string_lossy(),
+                "skipping file not a recipe",
             );
         }
     }
     Ok(entry_vec)
 }
 
+#[instrument(fields(recipe_dir=?recipe_dir_path,listen=?listen_socket), skip_all)]
 pub async fn ui_main(recipe_dir_path: PathBuf, listen_socket: SocketAddr) {
     let root = warp::path::end().map(|| warp::redirect::found(Uri::from_static("/ui")));
     let ui = warp::path("ui").and(static_dir!("../web/dist"));
@@ -56,7 +59,7 @@ pub async fn ui_main(recipe_dir_path: PathBuf, listen_socket: SocketAddr) {
     // recipes api path route
     let recipe_path = warp::path("recipes").then(move || {
         let dir_path = (&dir_path).clone();
-        eprintln!("servicing recipe api request.");
+        info!(?dir_path, "servicing recipe api request.");
         async move {
             match get_recipes(dir_path).await {
                 Ok(recipes) => {
@@ -74,7 +77,7 @@ pub async fn ui_main(recipe_dir_path: PathBuf, listen_socket: SocketAddr) {
     let mut file_path = (&recipe_dir_path).clone();
     file_path.push("categories.txt");
     let categories_path = warp::path("categories").then(move || {
-        eprintln!("servicing category api request");
+        info!(?file_path, "servicing category api request");
         let file_path = (&file_path).clone();
         async move {
             match fs::metadata(&file_path).await {
