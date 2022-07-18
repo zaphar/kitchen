@@ -18,6 +18,8 @@ reqwasm = "0.5.0"
 # This makes debugging panics more tractable.
 console_error_panic_hook = "0.1.7"
 serde_json = "1.0.79"
+tracing = "0.1.35"
+tracing-wasm = "0.2.1"
 
 [dependencies.wasm-bindgen]
 # we need wasm-bindgen v0.2.78 exactly

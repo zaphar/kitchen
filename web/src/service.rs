@@ -13,10 +13,9 @@
 // limitations under the License.
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::{console_debug, console_error, console_log};
-
 use reqwasm::http;
 use sycamore::prelude::*;
+use tracing::{debug, error, info, instrument};
 use web_sys::{window, Storage};
 
 use recipes::{parse, Ingredient, IngredientAccumulator, Recipe};
@@ -46,6 +45,7 @@ impl AppService {
             .map_err(|e| format!("{:?}", e))
     }
 
+    #[instrument]
     async fn fetch_recipes_http() -> Result<String, String> {
         let resp = match http::Request::get("/api/v1/recipes").send().await {
             Ok(resp) => resp,
@@ -54,52 +54,55 @@ impl AppService {
         if resp.status() != 200 {
             return Err(format!("Status: {}", resp.status()));
         } else {
-            console_debug!("We got a valid response back!");
+            debug!("We got a valid response back!");
             return Ok(resp.text().await.map_err(|e| format!("{}", e))?);
         }
     }
 
+    #[instrument]
     async fn fetch_categories_http() -> Result<Option<String>, String> {
         let resp = match http::Request::get("/api/v1/categories").send().await {
             Ok(resp) => resp,
             Err(e) => return Err(format!("Error: {}", e)),
         };
         if resp.status() == 404 {
-            console_debug!("Categories returned 404");
+            debug!("Categories returned 404");
             return Ok(None);
         } else if resp.status() != 200 {
             return Err(format!("Status: {}", resp.status()));
         } else {
-            console_debug!("We got a valid response back!");
+            debug!("We got a valid response back!");
             return Ok(Some(resp.text().await.map_err(|e| format!("{}", e))?));
         }
     }
 
+    #[instrument]
     async fn synchronize() -> Result<(), String> {
-        console_log!("Synchronizing Recipes");
+        info!("Synchronizing Recipes");
         let storage = Self::get_storage()?.unwrap();
         let recipes = Self::fetch_recipes_http().await?;
         storage
             .set_item("recipes", &recipes)
             .map_err(|e| format!("{:?}", e))?;
-        console_log!("Synchronizing categories");
+        info!("Synchronizing categories");
         match Self::fetch_categories_http().await {
             Ok(Some(categories_content)) => {
-                console_debug!("categories: {}", categories_content);
+                debug!(categories=?categories_content);
                 storage
                     .set_item("categories", &categories_content)
                     .map_err(|e| format!("{:?}", e))?;
             }
             Ok(None) => {
-                console_error!("There is no category file");
+                error!("There is no category file");
             }
             Err(e) => {
-                console_error!("{}", e);
+                error!("{}", e);
             }
         }
         Ok(())
     }
 
+    #[instrument]
     pub fn fetch_categories_from_storage() -> Result<Option<BTreeMap<String, String>>, String> {
         let storage = Self::get_storage()?.unwrap();
         match storage
@@ -111,7 +114,7 @@ impl AppService {
                 match parse::as_categories(&parsed) {
                     Ok(categories) => Ok(Some(categories)),
                     Err(e) => {
-                        console_debug!("Error parsing categories {}", e);
+                        debug!("Error parsing categories {}", e);
                         Err(format!("Error parsing categories {}", e))
                     }
                 }
@@ -120,6 +123,7 @@ impl AppService {
         }
     }
 
+    #[instrument]
     pub fn fetch_recipes_from_storage(
     ) -> Result<(Option<Recipe>, Option<Vec<(usize, Recipe)>>), String> {
         let storage = Self::get_storage()?.unwrap();
@@ -136,11 +140,10 @@ impl AppService {
                     let recipe = match parse::as_recipe(&r) {
                         Ok(r) => r,
                         Err(e) => {
-                            console_error!("Error parsing recipe {}", e);
+                            error!("Error parsing recipe {}", e);
                             continue;
                         }
                     };
-                    //console_debug!("We parsed a recipe {}", recipe.title);
                     if recipe.title == "Staples" {
                         staples = Some(recipe);
                     } else {
@@ -161,14 +164,15 @@ impl AppService {
         Ok(Self::fetch_categories_from_storage()?)
     }
 
+    #[instrument(skip(self))]
     pub async fn refresh(&mut self) -> Result<(), String> {
         Self::synchronize().await?;
-        console_debug!("refreshing recipes");
+        debug!("refreshing recipes");
         if let (staples, Some(r)) = Self::fetch_recipes().await? {
             self.set_recipes(r);
             self.staples.set(staples);
         }
-        console_debug!("refreshing categories");
+        debug!("refreshing categories");
         if let Some(categories) = Self::fetch_categories().await? {
             self.set_categories(categories);
         }
@@ -179,6 +183,7 @@ impl AppService {
         self.recipes.get().get(idx).map(|(_, r)| r.clone())
     }
 
+    #[instrument(skip(self))]
     pub fn get_shopping_list(&self) -> BTreeMap<String, Vec<(Ingredient, BTreeSet<String>)>> {
         let mut acc = IngredientAccumulator::new();
         let recipe_counts = self.menu_list.get();
@@ -205,7 +210,7 @@ impl AppService {
                 .or_insert(vec![])
                 .push((i.clone(), recipes.clone()));
         }
-        console_debug!("Category map {:?}", self.category_map);
+        debug!(?self.category_map);
         // FIXM(jwall): Sort by categories and names.
         groups
     }

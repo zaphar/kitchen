@@ -11,11 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::console_log;
 use crate::{components::Recipe, service::AppService};
 
 use sycamore::{context::use_context, prelude::*};
+use tracing::{debug, instrument};
 
+#[instrument]
 #[component(RecipeList<G>)]
 pub fn recipe_list() -> View<G> {
     let app_service = use_context::<AppService>();
@@ -26,7 +27,7 @@ pub fn recipe_list() -> View<G> {
             Indexed(IndexedProps{
                 iterable: menu_list,
                 template: |(idx, _count)| {
-                    console_log!("Rendering recipe index: {}", idx);
+                    debug!(idx=%idx, "Rendering recipe");
                     let idx = Signal::new(idx);
                     view ! {
                         Recipe(idx.handle())

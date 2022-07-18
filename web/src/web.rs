@@ -13,7 +13,7 @@
 // limitations under the License.
 use crate::pages::*;
 use crate::{app_state::*, components::*, router_integration::*, service::AppService};
-use crate::{console_error, console_log};
+use tracing::{error, info, instrument};
 
 use sycamore::{
     context::{ContextProvider, ContextProviderProps},
@@ -51,10 +51,11 @@ fn route_switch<G: Html>(route: ReadSignal<AppRoutes>) -> View<G> {
     })
 }
 
+#[instrument]
 #[component(UI<G>)]
 pub fn ui() -> View<G> {
     let app_service = AppService::new();
-    console_log!("Starting UI");
+    info!("Starting UI");
     view! {
         // NOTE(jwall): Set the app_service in our toplevel scope. Children will be able
         // to find the service as long as they are a child of this scope.
@@ -70,9 +71,9 @@ pub fn ui() -> View<G> {
                                     app_service.set_recipes(recipes);
                                 }
                                 Ok((_, None)) => {
-                                    console_error!("No recipes to find");
+                                    error!("No recipes to find");
                                 }
-                                Err(msg) => console_error!("Failed to get recipes {}", msg),
+                                Err(msg) => error!("Failed to get recipes {}", msg),
                             }
                         }
                     });

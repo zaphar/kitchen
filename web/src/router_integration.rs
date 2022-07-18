@@ -16,16 +16,15 @@ use std::rc::Rc;
 use std::str::FromStr;
 
 use sycamore::prelude::*;
+use tracing::{debug, error, instrument};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::Event;
 use web_sys::{Element, HtmlAnchorElement};
 
 use crate::app_state::AppRoutes;
-use crate::console_debug;
-use crate::console_error;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BrowserIntegration(Signal<(String, String, String)>);
 
 impl BrowserIntegration {
@@ -38,6 +37,7 @@ impl BrowserIntegration {
         )))
     }
 
+    #[instrument(skip(self))]
     pub fn click_handler(&self) -> Box<dyn Fn(web_sys::Event)> {
         let route_signal = self.0.clone();
         Box::new(move |ev| {
@@ -49,12 +49,12 @@ impl BrowserIntegration {
                 .unwrap_throw()
                 .map(|e| e.unchecked_into::<HtmlAnchorElement>())
             {
-                console_debug!("handling navigation event.");
+                debug!("handling navigation event.");
                 let location = web_sys::window().unwrap_throw().location();
 
                 if tgt.rel() == "external" {
+                    debug!("External Link so ignoring.");
                     return;
-                    console_debug!("External Link so ignoring.");
                 }
 
                 let origin = tgt.origin();
@@ -67,12 +67,12 @@ impl BrowserIntegration {
                     }
                     (true, _, false) // different hash
                     | (true, false, _) /* different path */ => {
-                        console_debug!("different path or hash");
+                        debug!("different path or hash");
                         ev.prevent_default();
                         // Signal the pathname change
                         let path = format!("{}{}{}", &origin, &tgt_pathname, &hash);
-                        console_debug!("new route: ({}, {}, {})", origin, tgt_pathname, hash);
-                        console_debug!("new path: ({})", &path);
+                        debug!("new route: ({}, {}, {})", origin, tgt_pathname, hash);
+                        debug!("new path: ({})", &path);
                         route_signal.set((origin, tgt_pathname, hash));
                         // Update History API.
                         let window = web_sys::window().unwrap_throw();
@@ -88,6 +88,7 @@ impl BrowserIntegration {
     }
 }
 
+#[derive(Debug)]
 pub struct RouterProps<R, F, G>
 where
     G: GenericNode,
@@ -99,13 +100,18 @@ where
     pub browser_integration: BrowserIntegration,
 }
 
+#[instrument(fields(?props.route,
+        origin=props.browser_integration.0.get().0,
+        pathn=props.browser_integration.0.get().1,
+        hash=props.browser_integration.0.get().2),
+    skip(props))]
 #[component(Router<G>)]
 pub fn router<R, F>(props: RouterProps<R, F, G>) -> View<G>
 where
     R: DeriveRoute + NotFound + Clone + Default + Debug + 'static,
     F: Fn(ReadSignal<R>) -> View<G> + 'static,
 {
-    console_debug!("Setting up router");
+    debug!("Setting up router");
     let integration = Rc::new(props.browser_integration);
     let route_select = Rc::new(props.route_select);
 
@@ -113,10 +119,10 @@ where
     create_effect(
         cloned!((view_signal, integration, route_select) => move || {
             let path_signal = integration.0.clone();
-            console_debug!("new path: {:?}", path_signal.get());
+            debug!("new path: {:?}", path_signal.get());
             let path = path_signal.clone();
             let route = R::from(path.get().as_ref());
-            console_debug!("new route: {:?}", &route);
+            debug!("new route: {:?}", &route);
             // TODO(jwall): this is an unnecessary use of signal.
             let view = route_select.as_ref()(Signal::new(route).handle());
             register_click_handler(&view, integration.clone());
@@ -131,22 +137,23 @@ where
     }
 }
 
+#[instrument(skip_all)]
 fn register_click_handler<G>(view: &View<G>, integration: Rc<BrowserIntegration>)
 where
     G: GenericNode<EventType = Event>,
 {
-    console_debug!("Registring click handler on node(s)");
+    debug!("Registring click handler on node(s)");
     if let Some(node) = view.as_node() {
         node.event("click", integration.click_handler());
     } else if let Some(frag) = view.as_fragment() {
-        console_debug!("Fragment? {:?}", frag);
+        debug!(fragment=?frag);
         for n in frag {
             register_click_handler(n, integration.clone());
         }
     } else if let Some(dyn_node) = view.as_dyn() {
-        console_debug!("Dynamic node? {:?}", dyn_node);
+        debug!(dynamic_node=?dyn_node);
     } else {
-        console_debug!("Unknown node? {:?}", view);
+        debug!(node=?view, "Unknown node");
     }
 }
 
@@ -165,8 +172,9 @@ pub trait DeriveRoute {
 }
 
 impl DeriveRoute for AppRoutes {
+    #[instrument]
     fn from(input: &(String, String, String)) -> AppRoutes {
-        console_debug!("routing: {input:?}");
+        debug!("routing: {input:?}");
         match input.2.as_str() {
             "" => AppRoutes::default(),
             "#plan" => AppRoutes::Plan,
@@ -183,7 +191,7 @@ impl DeriveRoute for AppRoutes {
                         };
                     }
                 }
-                console_error!("Path not found: [{:?}]", input);
+                error!("Path not found: [{:?}]", input);
                 AppRoutes::NotFound
             }
         }

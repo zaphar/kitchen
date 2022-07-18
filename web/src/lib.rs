@@ -16,19 +16,20 @@ mod components;
 mod pages;
 mod router_integration;
 mod service;
-mod typings;
 mod web;
 
 use sycamore::prelude::*;
+#[cfg(feature = "web")]
+use tracing_wasm;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 use web::UI;
 
 #[wasm_bindgen(start)]
 pub fn main() {
-    #[cfg(debug_assertions)]
-    {
+    if cfg!(feature = "web") {
         console_error_panic_hook::set_once();
+        tracing_wasm::set_as_global_default();
     }
     sycamore::render(|| view! { UI() });
 }

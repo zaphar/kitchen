@@ -11,17 +11,22 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::console_log;
-use crate::service::AppService;
 use std::rc::Rc;
 
 use sycamore::{context::use_context, prelude::*};
+use tracing::{debug, instrument};
+
+use crate::service::AppService;
 
 pub struct RecipeCheckBoxProps {
     pub i: usize,
     pub title: ReadSignal<String>,
 }
 
+#[instrument(skip(props), fields(
+    idx=%props.i,
+    title=%props.title.get()
+))]
 #[component(RecipeSelection<G>)]
 pub fn recipe_selection(props: RecipeCheckBoxProps) -> View<G> {
     let app_service = use_context::<AppService>();
@@ -36,7 +41,7 @@ pub fn recipe_selection(props: RecipeCheckBoxProps) -> View<G> {
             label(for=id_cloned_2) { (props.title.get()) }
             input(type="number", class="item-count-sel", min="0", bind:value=count.clone(), name=format!("recipe_id:{}", i), value=id_as_str.clone(), on:change=move |_| {
                 let mut app_service = app_service.clone();
-                console_log!("setting recipe id: {} to count: {}", i, *count.get());
+                debug!(idx=%i, count=*count.get(), "setting recipe count");
                 app_service.set_recipe_count_by_index(i, count.get().parse().unwrap());
             })
         }

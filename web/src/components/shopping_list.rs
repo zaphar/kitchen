@@ -14,9 +14,10 @@
 use crate::service::AppService;
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::console_debug;
 use sycamore::{context::use_context, prelude::*};
+use tracing::{debug, instrument};
 
+#[instrument]
 #[component(ShoppingList<G>)]
 pub fn shopping_list() -> View<G> {
     let app_service = use_context::<AppService>();
@@ -27,7 +28,7 @@ pub fn shopping_list() -> View<G> {
     create_effect(cloned!((app_service, ingredients_map) => move || {
         ingredients_map.set(app_service.get_shopping_list());
     }));
-    console_debug!("Ingredients map: {:?}", ingredients_map.get_untracked());
+    debug!(ingredients_map=?ingredients_map.get_untracked());
     let ingredients = create_memo(cloned!((ingredients_map, filtered_keys) => move || {
         let mut ingredients = Vec::new();
         // This has the effect of sorting the ingredients by category
@@ -40,7 +41,7 @@ pub fn shopping_list() -> View<G> {
         }
         ingredients
     }));
-    console_debug!("Ingredients: {:?}", ingredients.get_untracked());
+    debug!(ingredients = ?ingredients.get_untracked());
     let table_view = Signal::new(View::empty());
     create_effect(
         cloned!((table_view, ingredients, filtered_keys, modified_amts, extras) => move || {
