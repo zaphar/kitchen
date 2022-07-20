@@ -41,7 +41,7 @@ pub fn recipe_selection(props: RecipeCheckBoxProps) -> View<G> {
             label(for=id_cloned_2) { (props.title.get()) }
             input(type="number", class="item-count-sel", min="0", bind:value=count.clone(), name=format!("recipe_id:{}", i), value=id_as_str.clone(), on:change=move |_| {
                 let mut app_service = app_service.clone();
-                debug!(idx=%i, count=*count.get(), "setting recipe count");
+                debug!(idx=%i, count=%(*count.get()), "setting recipe count");
                 app_service.set_recipe_count_by_index(i, count.get().parse().unwrap());
             })
         }

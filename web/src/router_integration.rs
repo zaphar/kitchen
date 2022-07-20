@@ -119,10 +119,10 @@ where
     create_effect(
         cloned!((view_signal, integration, route_select) => move || {
             let path_signal = integration.0.clone();
-            debug!("new path: {:?}", path_signal.get());
+            debug!(origin=%path_signal.get().0, path=%path_signal.get().1, hash=%path_signal.get().2, "new path");
             let path = path_signal.clone();
             let route = R::from(path.get().as_ref());
-            debug!("new route: {:?}", &route);
+            debug!(?route, "new route");
             // TODO(jwall): this is an unnecessary use of signal.
             let view = route_select.as_ref()(Signal::new(route).handle());
             register_click_handler(&view, integration.clone());
@@ -174,7 +174,7 @@ pub trait DeriveRoute {
 impl DeriveRoute for AppRoutes {
     #[instrument]
     fn from(input: &(String, String, String)) -> AppRoutes {
-        debug!("routing: {input:?}");
+        debug!(origin=%input.0, path=%input.1, hash=%input.2, "routing");
         match input.2.as_str() {
             "" => AppRoutes::default(),
             "#plan" => AppRoutes::Plan,
@@ -191,7 +191,7 @@ impl DeriveRoute for AppRoutes {
                         };
                     }
                 }
-                error!("Path not found: [{:?}]", input);
+                error!(origin=%input.0, path=%input.1, hash=%input.2, "Path not found");
                 AppRoutes::NotFound
             }
         }

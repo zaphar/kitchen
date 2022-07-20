@@ -20,7 +20,7 @@ mod web;
 
 use sycamore::prelude::*;
 #[cfg(feature = "web")]
-use tracing_wasm;
+use tracing_browser_subscriber;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 use web::UI;
@@ -29,7 +29,8 @@ use web::UI;
 pub fn main() {
     if cfg!(feature = "web") {
         console_error_panic_hook::set_once();
-        tracing_wasm::set_as_global_default();
+        // TODO(jwall): use the tracing_subscriber_browser default setup function when it exists.
+        tracing_browser_subscriber::configure_as_global_default();
     }
     sycamore::render(|| view! { UI() });
 }
