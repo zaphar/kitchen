@@ -768,7 +768,7 @@ dependencies = [
 
 [[package]]
 name = "kitchen"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "async-std",
  "clap",
@@ -782,7 +782,7 @@ dependencies = [
 
 [[package]]
 name = "kitchen-wasm"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "console_error_panic_hook",
  "recipes",
@@ -1171,7 +1171,7 @@ dependencies = [
 
 [[package]]
 name = "recipes"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "Inflector",
  "abortable_parser",

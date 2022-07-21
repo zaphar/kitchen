@@ -18,7 +18,7 @@
             kitchenWasmGen = (import ./nix/kitchenWasm/default.nix);
             cargoVendorGen = (import ./nix/cargoVendorDeps/default.nix);
             moduleGen = (import ./nix/kitchen/module.nix);
-            version = "0.2.7";
+            version = "0.2.8";
         in
         flake-utils.lib.eachDefaultSystem (system:
             let
