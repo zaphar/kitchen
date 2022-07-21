@@ -37,6 +37,16 @@ impl BrowserIntegration {
         )))
     }
 
+    #[instrument(skip(self, f))]
+    pub fn register_post_state_handler(&self, f: Box<dyn FnMut()>) {
+        let closure = Closure::wrap(f);
+        web_sys::window()
+            .unwrap_throw()
+            .add_event_listener_with_callback("popstate", closure.as_ref().unchecked_ref())
+            .unwrap_throw();
+        closure.forget();
+    }
+
     #[instrument(skip(self))]
     pub fn click_handler(&self) -> Box<dyn Fn(web_sys::Event)> {
         let route_signal = self.0.clone();
@@ -129,6 +139,12 @@ where
             view_signal.set(view);
         }),
     );
+
+    let path_signal = integration.0.clone();
+    integration.register_post_state_handler(Box::new(cloned!((path_signal) => move || {
+        let location = web_sys::window().unwrap_throw().location();
+        path_signal.set((location.origin().unwrap_throw(), location.pathname().unwrap_throw(), location.hash().unwrap_throw()));
+    })));
 
     // NOTE(jwall): This needs to be a dynamic node so Sycamore knows to rerender it
     // based on the results of the effect above.

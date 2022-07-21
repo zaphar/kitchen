@@ -14,11 +14,14 @@
 use crate::components::{recipe::Recipe, tabs::*};
 
 use sycamore::prelude::*;
+use tracing::instrument;
 
+#[derive(Debug)]
 pub struct RecipePageProps {
     pub recipe: Signal<usize>,
 }
 
+#[instrument]
 #[component(RecipePage<G>)]
 pub fn recipe_page(props: RecipePageProps) -> View<G> {
     view! {

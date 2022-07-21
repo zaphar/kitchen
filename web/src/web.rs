@@ -13,7 +13,7 @@
 // limitations under the License.
 use crate::pages::*;
 use crate::{app_state::*, components::*, router_integration::*, service::AppService};
-use tracing::{error, info, instrument};
+use tracing::{debug, error, info, instrument};
 
 use sycamore::{
     context::{ContextProvider, ContextProviderProps},
@@ -21,6 +21,7 @@ use sycamore::{
     prelude::*,
 };
 
+#[instrument]
 fn route_switch<G: Html>(route: ReadSignal<AppRoutes>) -> View<G> {
     // NOTE(jwall): This needs to not be a dynamic node. The rules around
     // this are somewhat unclear and underdocumented for Sycamore. But basically
@@ -66,6 +67,7 @@ pub fn ui() -> View<G> {
                     spawn_local_in_scope({
                         let mut app_service = app_service.clone();
                         async move {
+                            debug!("fetching recipes");
                             match AppService::fetch_recipes_from_storage() {
                                 Ok((_, Some(recipes))) => {
                                     app_service.set_recipes(recipes);

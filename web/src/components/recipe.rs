@@ -49,19 +49,27 @@ fn steps(steps: ReadSignal<Vec<recipes::Step>>) -> View<G> {
 #[component(Recipe<G>)]
 pub fn recipe(idx: ReadSignal<usize>) -> View<G> {
     let app_service = use_context::<AppService>();
-    let recipe = app_service.get_recipes().get()[*idx.get()].1.clone();
-    let title = create_memo(cloned!((recipe) => move || recipe.get().title.clone()));
-    let desc = create_memo(
-        cloned!((recipe) => move || recipe.clone().get().desc.clone().unwrap_or_else(|| String::new())),
-    );
-    let steps = create_memo(cloned!((recipe) => move || recipe.get().steps.clone()));
-    view! {
-        div(class="recipe") {
-            h1(class="recipe_title") { (title.get()) }
-             div(class="recipe_description") {
-                 (desc.get())
-             }
-            Steps(steps)
+    let view = Signal::new(View::empty());
+    create_effect(cloned!((app_service, view) => move || {
+        if let Some((_, recipe)) = app_service.get_recipes().get().get(*idx.get()) {
+            let recipe = recipe.clone();
+            let title = create_memo(cloned!((recipe) => move || recipe.get().title.clone()));
+            let desc = create_memo(
+                cloned!((recipe) => move || recipe.clone().get().desc.clone().unwrap_or_else(|| String::new())),
+            );
+            let steps = create_memo(cloned!((recipe) => move || recipe.get().steps.clone()));
+            view.set(view! {
+                div(class="recipe") {
+                    h1(class="recipe_title") { (title.get()) }
+                     div(class="recipe_description") {
+                         (desc.get())
+                     }
+                    Steps(steps)
+                }
+            });
         }
+    }));
+    view! {
+        (view.get().as_ref())
     }
 }

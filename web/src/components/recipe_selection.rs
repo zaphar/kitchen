@@ -38,7 +38,7 @@ pub fn recipe_selection(props: RecipeCheckBoxProps) -> View<G> {
     let count = Signal::new(format!("{}", app_service.get_recipe_count_by_index(i)));
     view! {
         div() {
-            label(for=id_cloned_2) { (props.title.get()) }
+            label(for=id_cloned_2) { a(href=format!("#recipe/{}", i)) { (props.title.get()) } }
             input(type="number", class="item-count-sel", min="0", bind:value=count.clone(), name=format!("recipe_id:{}", i), value=id_as_str.clone(), on:change=move |_| {
                 let mut app_service = app_service.clone();
                 debug!(idx=%i, count=%(*count.get()), "setting recipe count");
