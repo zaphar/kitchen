@@ -12,8 +12,9 @@ in
 stdenv.mkDerivation {
     inherit src pname;
     version = version;
-    # we need wasmb-bindgen v0.2.78 exactly
+    # we need wasmb-bindgen v0.2.81 exactly
     buildInputs = [ rust-wasm wasm-bindgen-cli wasm-pack binaryen];
+    propagatedBuildInputs = [ rust-wasm wasm-bindgen-cli wasm-pack binaryen];
     phases = [ "postUnpackPhase" "buildPhase"];
     postUnpackPhase = ''
         ln -s ${cargoVendorDeps} ./cargo-vendor-dir
@@ -26,7 +27,7 @@ stdenv.mkDerivation {
         mkdir -p $out
         cd web
         cp -r static $out
-        wasm-pack build --release --target web --out-dir $out;
+        RUST_LOG=info wasm-pack build --mode no-install --release --target web --out-dir $out;
         cp -r index.html $out
     '';
 }

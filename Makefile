@@ -26,12 +26,12 @@ static-prep: web/index.html web/static/*.css
 wasmrelease: wasmrelease-dist static-prep
 
 wasmrelease-dist: web/src/*.rs web/src/components/*.rs
-	cd web; wasm-pack build --release --target web --out-dir dist/
+	cd web; wasm-pack build --mode no-install --release --target web --out-dir dist/
 
 wasm: wasm-dist static-prep
 
 wasm-dist: web/src/*.rs web/src/components/*.rs
-	cd web; wasm-pack build --target web --out-dir dist/
+	cd web; wasm-pack build --mode no-install --target web --out-dir dist/
 
 clean:
 	rm -rf web/dist/*
