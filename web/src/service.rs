@@ -15,7 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use reqwasm::http;
 use sycamore::prelude::*;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, error, info, instrument, warn};
 use web_sys::{window, Storage};
 
 use recipes::{parse, Ingredient, IngredientAccumulator, Recipe};
@@ -93,7 +93,7 @@ impl AppService {
                     .map_err(|e| format!("{:?}", e))?;
             }
             Ok(None) => {
-                error!("There is no category file");
+                warn!("There is no category file");
             }
             Err(e) => {
                 error!("{}", e);
