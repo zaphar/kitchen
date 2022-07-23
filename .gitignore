@@ -5,4 +5,6 @@ web/dist/
 webdist/
 nix/*/result
 result
-.vscode/ 
+.vscode/
+kitchen/.db
+.env

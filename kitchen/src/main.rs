@@ -20,9 +20,13 @@ use clap;
 use clap::{clap_app, crate_authors, crate_version};
 use tracing::{error, info, instrument, warn, Level};
 use tracing_subscriber::FmtSubscriber;
+#[macro_use]
+extern crate diesel;
 
 pub mod api;
 mod cli;
+mod models;
+pub mod schema;
 mod web;
 
 fn create_app<'a, 'b>() -> clap::App<'a, 'b>
