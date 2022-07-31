@@ -184,7 +184,10 @@ impl AppService {
     }
 
     #[instrument(skip(self))]
-    pub fn get_shopping_list(&self) -> BTreeMap<String, Vec<(Ingredient, BTreeSet<String>)>> {
+    pub fn get_shopping_list(
+        &self,
+        show_staples: bool,
+    ) -> BTreeMap<String, Vec<(Ingredient, BTreeSet<String>)>> {
         let mut acc = IngredientAccumulator::new();
         let recipe_counts = self.menu_list.get();
         for (idx, count) in recipe_counts.iter() {
@@ -192,8 +195,10 @@ impl AppService {
                 acc.accumulate_from(self.get_recipe_by_index(*idx).unwrap().get().as_ref());
             }
         }
-        if let Some(staples) = self.staples.get().as_ref() {
-            acc.accumulate_from(staples);
+        if show_staples {
+            if let Some(staples) = self.staples.get().as_ref() {
+                acc.accumulate_from(staples);
+            }
         }
         let mut ingredients = acc.ingredients();
         let mut groups = BTreeMap::new();

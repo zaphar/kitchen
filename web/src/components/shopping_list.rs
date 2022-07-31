@@ -25,9 +25,12 @@ pub fn shopping_list() -> View<G> {
     let ingredients_map = Signal::new(BTreeMap::new());
     let extras = Signal::new(Vec::<(usize, (Signal<String>, Signal<String>))>::new());
     let modified_amts = Signal::new(BTreeMap::new());
-    create_effect(cloned!((app_service, ingredients_map) => move || {
-        ingredients_map.set(app_service.get_shopping_list());
-    }));
+    let show_staples = Signal::new(true);
+    create_effect(
+        cloned!((app_service, ingredients_map, show_staples) => move || {
+            ingredients_map.set(app_service.get_shopping_list(*show_staples.get()));
+        }),
+    );
     debug!(ingredients_map=?ingredients_map.get_untracked());
     let ingredients = create_memo(cloned!((ingredients_map, filtered_keys) => move || {
         let mut ingredients = Vec::new();
@@ -119,15 +122,17 @@ pub fn shopping_list() -> View<G> {
     );
     view! {
         h1 { "Shopping List " }
+        label(for="show_staples_cb") { "Show staples" }
+        input(id="show_staples_cb", type="checkbox", bind:checked=show_staples.clone())
         (table_view.get().as_ref().clone())
         input(type="button", value="Add Item", class="no-print", on:click=cloned!((extras) => move |_| {
             let mut cloned_extras: Vec<(Signal<String>, Signal<String>)> = (*extras.get()).iter().map(|(_, v)| v.clone()).collect();
             cloned_extras.push((Signal::new("".to_owned()), Signal::new("".to_owned())));
             extras.set(cloned_extras.drain(0..).enumerate().collect());
         }))
-        input(type="button", value="Reset", class="no-print", on:click=cloned!((ingredients_map, filtered_keys, app_service, modified_amts, extras) => move |_| {
+        input(type="button", value="Reset", class="no-print", on:click=cloned!((ingredients_map, filtered_keys, app_service, modified_amts, extras, show_staples) => move |_| {
             // TODO(jwall): We should actually pop up a modal here or use a different set of items.
-            ingredients_map.set(app_service.get_shopping_list());
+            ingredients_map.set(app_service.get_shopping_list(*show_staples.get()));
             // clear the filter_signal
             filtered_keys.set(BTreeSet::new());
             modified_amts.set(BTreeMap::new());
