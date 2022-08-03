@@ -23,7 +23,7 @@ tracing-browser-subscriber = "0.1.0"
 
 [dependencies.wasm-bindgen]
 # we need wasm-bindgen v0.2.81 exactly
-version = "0.2.81"
+version = "= 0.2.81"
 
 [dependencies.web-sys]
 version = "0.3"
