@@ -15,7 +15,8 @@ warp = "0.3.2"
 static_dir = "0.2.0"
 
 [dependencies.clap]
-version = "2.34.0"
+version = "3.2.16"
+features = [ "cargo" ]
 
 [dependencies.async-std]
 version = "1.10.0"

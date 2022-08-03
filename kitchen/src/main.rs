@@ -25,10 +25,7 @@ pub mod api;
 mod cli;
 mod web;
 
-fn create_app<'a, 'b>() -> clap::App<'a, 'b>
-where
-    'a: 'b,
-{
+fn create_app<'a>() -> clap::App<'a> {
     clap_app!(kitchen =>
         (version: crate_version!())
         (author: crate_authors!())
