@@ -14,13 +14,15 @@
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use async_std::fs::{self, read_dir, read_to_string, DirEntry};
+use async_std::fs::{read_dir, read_to_string, DirEntry};
 use async_std::stream::StreamExt;
+use recipe_store::*;
 use static_dir::static_dir;
 use tracing::{info, instrument, warn};
 use warp::{http::StatusCode, hyper::Uri, Filter};
 
 use crate::api::ParseError;
+use crate::store;
 
 #[instrument(fields(recipe_dir=?recipe_dir_path), skip_all)]
 pub async fn get_recipes(recipe_dir_path: PathBuf) -> Result<Vec<String>, ParseError> {
@@ -54,19 +56,28 @@ pub async fn get_recipes(recipe_dir_path: PathBuf) -> Result<Vec<String>, ParseE
 pub async fn ui_main(recipe_dir_path: PathBuf, listen_socket: SocketAddr) {
     let root = warp::path::end().map(|| warp::redirect::found(Uri::from_static("/ui")));
     let ui = warp::path("ui").and(static_dir!("../web/dist"));
-    let dir_path = (&recipe_dir_path).clone();
+    let dir_path = recipe_dir_path.clone();
 
     // recipes api path route
     let recipe_path = warp::path("recipes").then(move || {
         let dir_path = (&dir_path).clone();
-        info!(?dir_path, "servicing recipe api request.");
-        async move {
-            match get_recipes(dir_path).await {
-                Ok(recipes) => {
+        async {
+            let store = store::AsyncFileStore::new(dir_path);
+            let recipe_future = store.get_recipes().as_async();
+            match recipe_future.await {
+                Ok(Ok(Some(recipes))) => {
                     warp::reply::with_status(warp::reply::json(&recipes), StatusCode::OK)
                 }
-                Err(e) => warp::reply::with_status(
+                Ok(Ok(None)) => warp::reply::with_status(
+                    warp::reply::json(&Vec::<String>::new()),
+                    StatusCode::OK,
+                ),
+                Ok(Err(e)) => warp::reply::with_status(
                     warp::reply::json(&format!("Error: {:?}", e)),
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                ),
+                Err(e) => warp::reply::with_status(
+                    warp::reply::json(&format!("Error: {}", e)),
                     StatusCode::INTERNAL_SERVER_ERROR,
                 ),
             }
@@ -74,20 +85,25 @@ pub async fn ui_main(recipe_dir_path: PathBuf, listen_socket: SocketAddr) {
     });
 
     // categories api path route
-    let mut file_path = (&recipe_dir_path).clone();
-    file_path.push("categories.txt");
     let categories_path = warp::path("categories").then(move || {
-        info!(?file_path, "servicing category api request");
-        let file_path = (&file_path).clone();
+        let dir_path = (&recipe_dir_path).clone();
         async move {
-            match fs::metadata(&file_path).await {
-                Ok(_) => {
-                    let content = read_to_string(&file_path).await.unwrap();
-                    warp::reply::with_status(warp::reply::json(&content), StatusCode::OK)
+            let store = store::AsyncFileStore::new(dir_path);
+            match store.get_categories().as_async().await {
+                Ok(Ok(Some(categories))) => {
+                    warp::reply::with_status(warp::reply::json(&categories), StatusCode::OK)
                 }
-                Err(_) => warp::reply::with_status(
-                    warp::reply::json(&"No categories found"),
-                    StatusCode::NOT_FOUND,
+                Ok(Ok(None)) => warp::reply::with_status(
+                    warp::reply::json(&Vec::<String>::new()),
+                    StatusCode::OK,
+                ),
+                Ok(Err(e)) => warp::reply::with_status(
+                    warp::reply::json(&format!("Error: {:?}", e)),
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                ),
+                Err(e) => warp::reply::with_status(
+                    warp::reply::json(&format!("Error: {}", e)),
+                    StatusCode::INTERNAL_SERVER_ERROR,
                 ),
             }
         }

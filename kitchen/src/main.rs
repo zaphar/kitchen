@@ -23,6 +23,7 @@ use tracing_subscriber::FmtSubscriber;
 
 pub mod api;
 mod cli;
+mod store;
 mod web;
 
 fn create_app<'a>() -> clap::App<'a> {

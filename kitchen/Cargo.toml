@@ -10,6 +10,7 @@ edition = "2021"
 tracing = "0.1.35"
 tracing-subscriber = "0.3.14"
 recipes = {path = "../recipes" }
+recipe-store = {path = "../recipe-store" }
 csv = "1.1.1"
 warp = "0.3.2"
 static_dir = "0.2.0"

@@ -1,0 +1,8 @@
+Produce: onion|green pepper|Green Pepper|bell pepper|corn|potato|green onion|scallions|lettuce|fresh basil|cucumber|celery
+Meat: ground beef|beef|beef tenderloin|ribeye|filet mignon|pork|chicken|chicken breast|chicken tenders|sausage|hot dogs|bacon|lamb
+Dairy: milk|oat milk|butter|heavy cream|cheddar cheese|mozarella|cheddar|white american|american|swiss
+Drinks: can Sprite|can Coke Zero|can ginger ale|can dr pepper|can coke|orange juice|apple juice
+Dry Goods: sugar|flour|brown sugar|bag powder sugar|bag powdered sugar|baking soda|baking powder
+Spices: cumin|cinnamon|garlic|clove garlic|garlic powder|paprika|basil|oregano|parsley|celery salt|salt|pepper
+Cereal: oatmeal|cream of wheat
+
