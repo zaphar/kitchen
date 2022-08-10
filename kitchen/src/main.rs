@@ -54,7 +54,7 @@ fn create_app<'a>() -> clap::App<'a> {
 #[instrument]
 fn main() {
     let matches = create_app().get_matches();
-    let subscriber_builder = if let Some(verbosity) = matches.value_of("verbosity") {
+    let subscriber_builder = if let Some(verbosity) = matches.value_of("verbose") {
         // Se want verbosity level
         let level = match verbosity {
             "error" | "ERROR" => Level::ERROR,

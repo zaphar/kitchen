@@ -13,13 +13,22 @@
 // limitations under the License.
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use async_std::fs::{read_dir, read_to_string, DirEntry};
 use async_std::stream::StreamExt;
+use axum::{
+    body::{boxed, Full},
+    extract::Extension,
+    handler::Handler,
+    http::{header, StatusCode, Uri},
+    response::{IntoResponse, Response},
+    routing::{get, Router},
+};
+use mime_guess;
 use recipe_store::*;
-use static_dir::static_dir;
+use rust_embed::RustEmbed;
 use tracing::{info, instrument, warn};
-use warp::{http::StatusCode, hyper::Uri, Filter};
 
 use crate::api::ParseError;
 use crate::store;
@@ -52,67 +61,84 @@ pub async fn get_recipes(recipe_dir_path: PathBuf) -> Result<Vec<String>, ParseE
     Ok(entry_vec)
 }
 
+#[derive(RustEmbed)]
+#[folder = "../web/dist"]
+struct UiAssets;
+
+pub struct StaticFile<T>(pub T);
+
+impl<T> IntoResponse for StaticFile<T>
+where
+    T: Into<String>,
+{
+    fn into_response(self) -> Response {
+        let path = self.0.into();
+
+        match UiAssets::get(path.as_str()) {
+            Some(content) => {
+                let body = boxed(Full::from(content.data));
+                let mime = mime_guess::from_path(path).first_or_octet_stream();
+                Response::builder()
+                    .header(header::CONTENT_TYPE, mime.as_ref())
+                    .body(body)
+                    .unwrap()
+            }
+            None => Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body(boxed(Full::from("404")))
+                .unwrap(),
+        }
+    }
+}
+
+async fn ui_static_assets(uri: Uri) -> impl IntoResponse {
+    let path = uri
+        .path()
+        .trim_start_matches("/ui")
+        .trim_start_matches("/")
+        .to_string();
+
+    StaticFile(path)
+}
+
+async fn api_recipes(Extension(store): Extension<Arc<store::AsyncFileStore>>) -> Response {
+    let recipe_future = store.get_recipes();
+    let result: Result<axum::Json<Vec<String>>, String> =
+        match recipe_future.await.map_err(|e| format!("Error: {:?}", e)) {
+            Ok(Some(recipes)) => Ok(axum::Json::from(recipes)),
+            Ok(None) => Ok(axum::Json::from(Vec::<String>::new())),
+            Err(e) => Err(e),
+        };
+    result.into_response()
+}
+
+async fn api_categories(Extension(store): Extension<Arc<store::AsyncFileStore>>) -> Response {
+    let recipe_result = store
+        .get_categories()
+        .await
+        .map_err(|e| format!("Error: {:?}", e));
+    let result: Result<axum::Json<String>, String> = match recipe_result {
+        Ok(Some(categories)) => Ok(axum::Json::from(categories)),
+        Ok(None) => Ok(axum::Json::from(String::new())),
+        Err(e) => Err(e),
+    };
+    result.into_response()
+}
+
 #[instrument(fields(recipe_dir=?recipe_dir_path,listen=?listen_socket), skip_all)]
 pub async fn ui_main(recipe_dir_path: PathBuf, listen_socket: SocketAddr) {
-    let root = warp::path::end().map(|| warp::redirect::found(Uri::from_static("/ui")));
-    let ui = warp::path("ui").and(static_dir!("../web/dist"));
     let dir_path = recipe_dir_path.clone();
-
-    // recipes api path route
-    let recipe_path = warp::path("recipes").then(move || {
-        let dir_path = (&dir_path).clone();
-        async {
-            let store = store::AsyncFileStore::new(dir_path);
-            let recipe_future = store.get_recipes().as_async();
-            match recipe_future.await {
-                Ok(Ok(Some(recipes))) => {
-                    warp::reply::with_status(warp::reply::json(&recipes), StatusCode::OK)
-                }
-                Ok(Ok(None)) => warp::reply::with_status(
-                    warp::reply::json(&Vec::<String>::new()),
-                    StatusCode::OK,
-                ),
-                Ok(Err(e)) => warp::reply::with_status(
-                    warp::reply::json(&format!("Error: {:?}", e)),
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                ),
-                Err(e) => warp::reply::with_status(
-                    warp::reply::json(&format!("Error: {}", e)),
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                ),
-            }
-        }
-    });
-
-    // categories api path route
-    let categories_path = warp::path("categories").then(move || {
-        let dir_path = (&recipe_dir_path).clone();
-        async move {
-            let store = store::AsyncFileStore::new(dir_path);
-            match store.get_categories().as_async().await {
-                Ok(Ok(Some(categories))) => {
-                    warp::reply::with_status(warp::reply::json(&categories), StatusCode::OK)
-                }
-                Ok(Ok(None)) => warp::reply::with_status(
-                    warp::reply::json(&Vec::<String>::new()),
-                    StatusCode::OK,
-                ),
-                Ok(Err(e)) => warp::reply::with_status(
-                    warp::reply::json(&format!("Error: {:?}", e)),
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                ),
-                Err(e) => warp::reply::with_status(
-                    warp::reply::json(&format!("Error: {}", e)),
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                ),
-            }
-        }
-    });
-    let api = warp::path("api")
-        .and(warp::path("v1"))
-        .and(recipe_path.or(categories_path));
-
-    let routes = root.or(ui).or(api).with(warp::log("access log"));
-
-    warp::serve(routes).run(listen_socket).await;
+    let store = Arc::new(store::AsyncFileStore::new(dir_path));
+    //let dir_path = (&dir_path).clone();
+    let mut router = Router::new()
+        .layer(Extension(store))
+        .route("/ui", ui_static_assets.into_service())
+        // recipes api path route
+        .route("/api/v1/recipes", get(api_recipes))
+        // categories api path route
+        .route("/api/v1/categories", get(api_categories));
+    axum::Server::bind(&listen_socket)
+        .serve(router.into_make_service())
+        .await
+        .expect("Failed to start service");
 }

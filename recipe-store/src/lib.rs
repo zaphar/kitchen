@@ -11,38 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::{future::Future, pin::Pin};
-
-pub enum MaybeAsync<T>
-where
-    T: Send,
-{
-    Sync(T),
-    // NOTE(jwall): For reasons I do not entirely understand yet
-    // You have to specify that this is both Future + Send because
-    // the compiler can't figure it out for you.
-    Async(Pin<Box<dyn Future<Output = T> + Send>>),
-}
-
-impl<T> MaybeAsync<T>
-where
-    T: Send,
-{
-    pub async fn as_async(self) -> Result<T, &'static str> {
-        use MaybeAsync::{Async, Sync};
-        match self {
-            Async(f) => Ok(f.await),
-            Sync(_) => Err("Something went very wrong. Attempted to use Sync as Async."),
-        }
-    }
-    pub fn as_sync(self) -> Result<T, &'static str> {
-        use MaybeAsync::{Async, Sync};
-        match self {
-            Async(_) => Err("Something went very wrong. Attempted to use Async as Sync."),
-            Sync(v) => Ok(v),
-        }
-    }
-}
+use async_trait::async_trait;
 
 pub trait TenantStoreFactory<S, E>
 where
@@ -52,12 +21,36 @@ where
     fn get_user_store(&self, user: String) -> S;
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[async_trait]
+/// Define the shared interface to use for interacting with a store of recipes.
 pub trait RecipeStore<E>
 where
     E: Send,
 {
+    // NOTE(jwall): For reasons I do not entirely understand yet
+    // You have to specify that these are both Future + Send below
+    // because the compiler can't figure it out for you.
+
     /// Get categories text unparsed.
-    fn get_categories(&self) -> MaybeAsync<Result<Option<String>, E>>;
+    async fn get_categories(&self) -> Result<Option<String>, E>;
     /// Get list of recipe text unparsed.
-    fn get_recipes(&self) -> MaybeAsync<Result<Option<Vec<String>>, E>>;
+    async fn get_recipes(&self) -> Result<Option<Vec<String>>, E>;
+}
+
+#[cfg(target_arch = "wasm32")]
+#[async_trait(?Send)]
+/// Define the shared interface to use for interacting with a store of recipes.
+pub trait RecipeStore<E>
+where
+    E: Send,
+{
+    // NOTE(jwall): For reasons I do not entirely understand yet
+    // You have to specify that these are both Future + Send below
+    // because the compiler can't figure it out for you.
+
+    /// Get categories text unparsed.
+    async fn get_categories(&self) -> Result<Option<String>, E>;
+    /// Get list of recipe text unparsed.
+    async fn get_recipes(&self) -> Result<Option<Vec<String>>, E>;
 }
