@@ -19,16 +19,15 @@ use async_std::fs::{read_dir, read_to_string, DirEntry};
 use async_std::stream::StreamExt;
 use axum::{
     body::{boxed, Full},
-    extract::Extension,
-    handler::Handler,
+    extract::{Extension, Path},
     http::{header, StatusCode, Uri},
-    response::{IntoResponse, Response},
+    response::{IntoResponse, Redirect, Response},
     routing::{get, Router},
 };
 use mime_guess;
 use recipe_store::{self, RecipeStore};
 use rust_embed::RustEmbed;
-use tracing::{info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 
 use crate::api::ParseError;
 
@@ -90,16 +89,17 @@ where
     }
 }
 
-async fn ui_static_assets(uri: Uri) -> impl IntoResponse {
-    let path = uri
-        .path()
-        .trim_start_matches("/ui")
-        .trim_start_matches("/")
-        .to_string();
+#[instrument]
+async fn ui_static_assets(Path(path): Path<String>) -> impl IntoResponse {
+    info!(path = path, "Serving ui path");
 
-    StaticFile(path)
+    let mut path = path.trim_start_matches("/");
+    path = if path == "" { "index.html" } else { path };
+    debug!(path = path, "Serving ui path");
+    StaticFile(path.to_owned())
 }
 
+#[instrument(skip(store))]
 async fn api_recipes(Extension(store): Extension<Arc<recipe_store::AsyncFileStore>>) -> Response {
     let result: Result<axum::Json<Vec<String>>, String> = match store
         .get_recipes()
@@ -113,6 +113,7 @@ async fn api_recipes(Extension(store): Extension<Arc<recipe_store::AsyncFileStor
     result.into_response()
 }
 
+#[instrument(skip(store))]
 async fn api_categories(
     Extension(store): Extension<Arc<recipe_store::AsyncFileStore>>,
 ) -> Response {
@@ -130,16 +131,20 @@ async fn api_categories(
 
 #[instrument(fields(recipe_dir=?recipe_dir_path,listen=?listen_socket), skip_all)]
 pub async fn ui_main(recipe_dir_path: PathBuf, listen_socket: SocketAddr) {
-    let dir_path = recipe_dir_path.clone();
-    let store = Arc::new(recipe_store::AsyncFileStore::new(dir_path));
+    let store = Arc::new(recipe_store::AsyncFileStore::new(recipe_dir_path.clone()));
     //let dir_path = (&dir_path).clone();
     let router = Router::new()
         .layer(Extension(store))
-        .route("/ui", ui_static_assets.into_service())
+        .route("/", get(|| async { Redirect::temporary("/ui/") }))
+        .route("/ui/*path", get(ui_static_assets))
         // recipes api path route
         .route("/api/v1/recipes", get(api_recipes))
         // categories api path route
         .route("/api/v1/categories", get(api_categories));
+    info!(
+        http = format!("http://{}", listen_socket),
+        "Starting server"
+    );
     axum::Server::bind(&listen_socket)
         .serve(router.into_make_service())
         .await
