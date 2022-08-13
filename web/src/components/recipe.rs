@@ -11,10 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::service::AppService;
-
 use recipes;
-use sycamore::{context::use_context, prelude::*};
+use sycamore::prelude::*;
+
+use crate::service::get_appservice_from_context;
 
 #[component(Steps<G>)]
 fn steps(steps: ReadSignal<Vec<recipes::Step>>) -> View<G> {
@@ -48,7 +48,7 @@ fn steps(steps: ReadSignal<Vec<recipes::Step>>) -> View<G> {
 
 #[component(Recipe<G>)]
 pub fn recipe(idx: ReadSignal<usize>) -> View<G> {
-    let app_service = use_context::<AppService>();
+    let app_service = get_appservice_from_context();
     let view = Signal::new(View::empty());
     create_effect(cloned!((app_service, view) => move || {
         if let Some((_, recipe)) = app_service.get_recipes().get().get(*idx.get()) {

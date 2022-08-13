@@ -13,10 +13,10 @@
 // limitations under the License.
 use std::rc::Rc;
 
-use sycamore::{context::use_context, prelude::*};
+use sycamore::prelude::*;
 use tracing::{debug, instrument};
 
-use crate::service::AppService;
+use crate::service::get_appservice_from_context;
 
 pub struct RecipeCheckBoxProps {
     pub i: usize,
@@ -29,7 +29,7 @@ pub struct RecipeCheckBoxProps {
 ))]
 #[component(RecipeSelection<G>)]
 pub fn recipe_selection(props: RecipeCheckBoxProps) -> View<G> {
-    let app_service = use_context::<AppService>();
+    let app_service = get_appservice_from_context();
     // This is total hack but it works around the borrow issues with
     // the `view!` macro.
     let i = props.i;

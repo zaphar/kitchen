@@ -15,6 +15,7 @@ use crate::pages::*;
 use crate::{app_state::*, components::*, router_integration::*, service::AppService};
 use tracing::{debug, error, info, instrument};
 
+use recipe_store::{self, AsyncFileStore};
 use sycamore::{
     context::{ContextProvider, ContextProviderProps},
     futures::spawn_local_in_scope,
@@ -52,10 +53,19 @@ fn route_switch<G: Html>(route: ReadSignal<AppRoutes>) -> View<G> {
     })
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+fn get_appservice() -> AppService<AsyncFileStore> {
+    AppService::new(recipe_store::AsyncFileStore::new("/".to_owned()))
+}
+#[cfg(target_arch = "wasm32")]
+fn get_appservice() -> AppService<HttpStore> {
+    AppService::new(recipe_store::HttpStore::new("/api/v1".to_owned()))
+}
+
 #[instrument]
 #[component(UI<G>)]
 pub fn ui() -> View<G> {
-    let app_service = AppService::new();
+    let app_service = get_appservice();
     info!("Starting UI");
     view! {
         // NOTE(jwall): Set the app_service in our toplevel scope. Children will be able
@@ -68,7 +78,7 @@ pub fn ui() -> View<G> {
                         let mut app_service = app_service.clone();
                         async move {
                             debug!("fetching recipes");
-                            match AppService::fetch_recipes_from_storage() {
+                            match app_service.fetch_recipes_from_storage() {
                                 Ok((_, Some(recipes))) => {
                                     app_service.set_recipes(recipes);
                                 }

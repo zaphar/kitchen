@@ -11,15 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{components::recipe_selection::*, service::AppService};
-
-use sycamore::{context::use_context, futures::spawn_local_in_scope, prelude::*};
+use sycamore::{futures::spawn_local_in_scope, prelude::*};
 use tracing::{error, instrument};
+
+use crate::components::recipe_selection::*;
+use crate::service::get_appservice_from_context;
 
 #[instrument]
 #[component(RecipeSelector<G>)]
 pub fn recipe_selector() -> View<G> {
-    let app_service = use_context::<AppService>();
+    let app_service = get_appservice_from_context();
     let rows = create_memo(cloned!(app_service => move || {
         let mut rows = Vec::new();
         for row in app_service.get_recipes().get().as_slice().chunks(4) {

@@ -1028,8 +1028,11 @@ dependencies = [
 name = "recipe-store"
 version = "0.1.0"
 dependencies = [
+ "async-std",
  "async-trait",
  "recipes",
+ "reqwasm",
+ "tracing",
 ]
 
 [[package]]

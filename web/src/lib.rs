@@ -16,7 +16,6 @@ mod components;
 mod pages;
 mod router_integration;
 mod service;
-mod store;
 mod web;
 
 use sycamore::prelude::*;

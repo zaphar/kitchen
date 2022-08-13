@@ -11,12 +11,41 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use async_std::{
+    fs::{read_dir, read_to_string, DirEntry, File},
+    io::{self, ReadExt},
+    path::PathBuf,
+    stream::StreamExt,
+};
 use async_trait::async_trait;
+#[cfg(target_arch = "wasm32")]
+use reqwasm;
+use tracing::{info, instrument, warn};
 
-pub trait TenantStoreFactory<S, E>
+#[derive(Debug)]
+pub struct Error(String);
+
+impl From<std::io::Error> for Error {
+    fn from(item: std::io::Error) -> Self {
+        Error(format!("{:?}", item))
+    }
+}
+
+impl From<String> for Error {
+    fn from(item: String) -> Self {
+        Error(item)
+    }
+}
+
+impl From<std::string::FromUtf8Error> for Error {
+    fn from(item: std::string::FromUtf8Error) -> Self {
+        Error(format!("{:?}", item))
+    }
+}
+
+pub trait TenantStoreFactory<S>
 where
-    S: RecipeStore<E>,
-    E: Send,
+    S: RecipeStore,
 {
     fn get_user_store(&self, user: String) -> S;
 }
@@ -24,33 +53,132 @@ where
 #[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
 /// Define the shared interface to use for interacting with a store of recipes.
-pub trait RecipeStore<E>
-where
-    E: Send,
-{
-    // NOTE(jwall): For reasons I do not entirely understand yet
-    // You have to specify that these are both Future + Send below
-    // because the compiler can't figure it out for you.
-
+pub trait RecipeStore: Clone + Sized {
     /// Get categories text unparsed.
-    async fn get_categories(&self) -> Result<Option<String>, E>;
+    async fn get_categories(&self) -> Result<Option<String>, Error>;
     /// Get list of recipe text unparsed.
-    async fn get_recipes(&self) -> Result<Option<Vec<String>>, E>;
+    async fn get_recipes(&self) -> Result<Option<Vec<String>>, Error>;
+}
+
+// NOTE(jwall): Futures in webassembly can't implement `Send` easily so we define
+// this trait differently based on architecture.
+#[cfg(target_arch = "wasm32")]
+#[async_trait(?Send)]
+/// Define the shared interface to use for interacting with a store of recipes.
+pub trait RecipeStore: Clone + Sized {
+    /// Get categories text unparsed.
+    async fn get_categories(&self) -> Result<Option<String>, Error>;
+    /// Get list of recipe text unparsed.
+    async fn get_recipes(&self) -> Result<Option<Vec<String>>, Error>;
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(Clone)]
+pub struct AsyncFileStore {
+    path: PathBuf,
+}
+
+impl AsyncFileStore {
+    pub fn new<P: Into<PathBuf>>(root: P) -> Self {
+        Self { path: root.into() }
+    }
+}
+
+#[async_trait]
+// TODO(jwall): We need to model our own set of errors for this.
+impl RecipeStore for AsyncFileStore {
+    #[instrument(skip_all)]
+    async fn get_categories(&self) -> Result<Option<String>, Error> {
+        let mut category_path = PathBuf::new();
+        category_path.push(&self.path);
+        category_path.push("categories.txt");
+        let category_file = File::open(&category_path).await?;
+        let mut buf_reader = io::BufReader::new(category_file);
+        let mut contents = Vec::new();
+        buf_reader.read_to_end(&mut contents).await?;
+        Ok(Some(String::from_utf8(contents)?))
+    }
+
+    async fn get_recipes(&self) -> Result<Option<Vec<String>>, Error> {
+        let mut recipe_path = PathBuf::new();
+        recipe_path.push(&self.path);
+        recipe_path.push("recipes");
+        let mut entries = read_dir(&recipe_path).await?;
+        let mut entry_vec = Vec::new();
+        // Special files that we ignore when fetching recipes
+        let filtered = vec!["menu.txt", "categories.txt"];
+        while let Some(res) = entries.next().await {
+            let entry: DirEntry = res?;
+
+            if !entry.file_type().await?.is_dir()
+                && !filtered
+                    .iter()
+                    .any(|&s| s == entry.file_name().to_string_lossy().to_string())
+            {
+                // add it to the entry
+                info!("adding recipe file {}", entry.file_name().to_string_lossy());
+                let recipe_contents = read_to_string(entry.path()).await?;
+                entry_vec.push(recipe_contents);
+            } else {
+                warn!(
+                    file = %entry.path().to_string_lossy(),
+                    "skipping file not a recipe",
+                );
+            }
+        }
+        Ok(Some(entry_vec))
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+pub struct HttpStore {
+    root: String,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl HttpStore {
+    pub fn new(root: String) -> Self {
+        Self { root }
+    }
 }
 
 #[cfg(target_arch = "wasm32")]
 #[async_trait(?Send)]
-/// Define the shared interface to use for interacting with a store of recipes.
-pub trait RecipeStore<E>
-where
-    E: Send,
-{
-    // NOTE(jwall): For reasons I do not entirely understand yet
-    // You have to specify that these are both Future + Send below
-    // because the compiler can't figure it out for you.
+impl RecipeStore<String> for HttpStore {
+    #[instrument]
+    async fn get_categories(&self) -> Result<Option<String>, String> {
+        let mut path = self.root.clone();
+        path.push_str("/categories");
+        let resp = match reqwasm::http::Request::get(&path).send().await {
+            Ok(resp) => resp,
+            Err(e) => return Err(format!("Error: {}", e)),
+        };
+        if resp.status() == 404 {
+            debug!("Categories returned 404");
+            Ok(None)
+        } else if resp.status() != 200 {
+            Err(format!("Status: {}", resp.status()))
+        } else {
+            debug!("We got a valid response back!");
+            let resp = resp.text().await;
+            Ok(Some(resp.map_err(|e| format!("{}", e))?))
+        }
+    }
 
-    /// Get categories text unparsed.
-    async fn get_categories(&self) -> Result<Option<String>, E>;
-    /// Get list of recipe text unparsed.
-    async fn get_recipes(&self) -> Result<Option<Vec<String>>, E>;
+    #[instrument]
+    async fn get_recipes(&self) -> Result<Option<Vec<String>>, String> {
+        let mut path = self.root.clone();
+        path.push_str("/recipes");
+        let resp = match reqwasm::http::Request::get(&path).send().await {
+            Ok(resp) => resp,
+            Err(e) => return Err(format!("Error: {}", e)),
+        };
+        if resp.status() != 200 {
+            Err(format!("Status: {}", resp.status()))
+        } else {
+            debug!("We got a valid response back!");
+            Ok(resp.json().await.map_err(|e| format!("{}", e))?)
+        }
+    }
+    //
 }

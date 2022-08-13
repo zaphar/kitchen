@@ -11,15 +11,17 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{components::Recipe, service::AppService};
+use crate::components::Recipe;
 
-use sycamore::{context::use_context, prelude::*};
+use sycamore::prelude::*;
 use tracing::{debug, instrument};
+
+use crate::service::get_appservice_from_context;
 
 #[instrument]
 #[component(RecipeList<G>)]
 pub fn recipe_list() -> View<G> {
-    let app_service = use_context::<AppService>();
+    let app_service = get_appservice_from_context();
     let menu_list = create_memo(move || app_service.get_menu_list());
     view! {
         h1 { "Recipe List" }

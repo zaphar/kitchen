@@ -11,16 +11,17 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::service::AppService;
 use std::collections::{BTreeMap, BTreeSet};
 
-use sycamore::{context::use_context, prelude::*};
+use sycamore::prelude::*;
 use tracing::{debug, instrument};
+
+use crate::service::get_appservice_from_context;
 
 #[instrument]
 #[component(ShoppingList<G>)]
 pub fn shopping_list() -> View<G> {
-    let app_service = use_context::<AppService>();
+    let app_service = get_appservice_from_context();
     let filtered_keys = Signal::new(BTreeSet::new());
     let ingredients_map = Signal::new(BTreeMap::new());
     let extras = Signal::new(Vec::<(usize, (Signal<String>, Signal<String>))>::new());

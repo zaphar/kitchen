@@ -13,79 +13,75 @@
 // limitations under the License.
 use std::collections::{BTreeMap, BTreeSet};
 
+#[cfg(target_arch = "wasm32")]
 use reqwasm::http;
-use sycamore::prelude::*;
+use serde_json::{from_str, to_string};
+use sycamore::{context::use_context, prelude::*};
 use tracing::{debug, error, info, instrument, warn};
 use web_sys::{window, Storage};
 
+use recipe_store::{AsyncFileStore, RecipeStore};
 use recipes::{parse, Ingredient, IngredientAccumulator, Recipe};
 
-#[derive(Clone)]
-pub struct AppService {
+#[cfg(not(target_arch = "wasm32"))]
+pub fn get_appservice_from_context() -> AppService<AsyncFileStore> {
+    use_context::<AppService<AsyncFileStore>>()
+}
+#[cfg(target_arch = "wasm32")]
+pub fn get_appservice_from_context() -> AppService<AsyncFileStore> {
+    use_context::<AppService<HttpStore>>()
+}
+
+#[derive(Clone, Debug)]
+pub struct AppService<S>
+where
+    S: RecipeStore,
+{
     recipes: Signal<Vec<(usize, Signal<Recipe>)>>,
     staples: Signal<Option<Recipe>>,
     category_map: Signal<BTreeMap<String, String>>,
     menu_list: Signal<BTreeMap<usize, usize>>,
+    store: S,
 }
 
-impl AppService {
-    pub fn new() -> Self {
+impl<S> AppService<S>
+where
+    S: RecipeStore,
+{
+    pub fn new(store: S) -> Self {
         Self {
             recipes: Signal::new(Vec::new()),
             staples: Signal::new(None),
             category_map: Signal::new(BTreeMap::new()),
             menu_list: Signal::new(BTreeMap::new()),
+            store: store,
         }
     }
 
-    fn get_storage() -> Result<Option<Storage>, String> {
+    fn get_storage(&self) -> Result<Option<Storage>, String> {
         window()
             .unwrap()
             .local_storage()
             .map_err(|e| format!("{:?}", e))
     }
 
-    #[instrument]
-    async fn fetch_recipes_http() -> Result<String, String> {
-        let resp = match http::Request::get("/api/v1/recipes").send().await {
-            Ok(resp) => resp,
-            Err(e) => return Err(format!("Error: {}", e)),
-        };
-        if resp.status() != 200 {
-            return Err(format!("Status: {}", resp.status()));
-        } else {
-            debug!("We got a valid response back!");
-            return Ok(resp.text().await.map_err(|e| format!("{}", e))?);
-        }
-    }
-
-    #[instrument]
-    async fn fetch_categories_http() -> Result<Option<String>, String> {
-        let resp = match http::Request::get("/api/v1/categories").send().await {
-            Ok(resp) => resp,
-            Err(e) => return Err(format!("Error: {}", e)),
-        };
-        if resp.status() == 404 {
-            debug!("Categories returned 404");
-            return Ok(None);
-        } else if resp.status() != 200 {
-            return Err(format!("Status: {}", resp.status()));
-        } else {
-            debug!("We got a valid response back!");
-            return Ok(Some(resp.text().await.map_err(|e| format!("{}", e))?));
-        }
-    }
-
-    #[instrument]
-    async fn synchronize() -> Result<(), String> {
+    #[instrument(skip(self))]
+    async fn synchronize(&self) -> Result<(), String> {
         info!("Synchronizing Recipes");
-        let storage = Self::get_storage()?.unwrap();
-        let recipes = Self::fetch_recipes_http().await?;
+        let storage = self.get_storage()?.unwrap();
+        let recipes = self
+            .store
+            .get_recipes()
+            .await
+            .map_err(|e| format!("{:?}", e))?;
         storage
-            .set_item("recipes", &recipes)
+            .set_item(
+                "recipes",
+                &(to_string(&recipes).map_err(|e| format!("{:?}", e))?),
+            )
             .map_err(|e| format!("{:?}", e))?;
         info!("Synchronizing categories");
-        match Self::fetch_categories_http().await {
+        match self.store.get_categories().await {
             Ok(Some(categories_content)) => {
                 debug!(categories=?categories_content);
                 storage
@@ -96,21 +92,23 @@ impl AppService {
                 warn!("There is no category file");
             }
             Err(e) => {
-                error!("{}", e);
+                error!("{:?}", e);
             }
         }
         Ok(())
     }
 
-    #[instrument]
-    pub fn fetch_categories_from_storage() -> Result<Option<BTreeMap<String, String>>, String> {
-        let storage = Self::get_storage()?.unwrap();
+    #[instrument(skip(self))]
+    pub fn fetch_categories_from_storage(
+        &self,
+    ) -> Result<Option<BTreeMap<String, String>>, String> {
+        let storage = self.get_storage()?.unwrap();
         match storage
             .get_item("categories")
             .map_err(|e| format!("{:?}", e))?
         {
             Some(s) => {
-                let parsed = serde_json::from_str::<String>(&s).map_err(|e| format!("{}", e))?;
+                let parsed = from_str::<String>(&s).map_err(|e| format!("{}", e))?;
                 match parse::as_categories(&parsed) {
                     Ok(categories) => Ok(Some(categories)),
                     Err(e) => {
@@ -123,18 +121,18 @@ impl AppService {
         }
     }
 
-    #[instrument]
+    #[instrument(skip(self))]
     pub fn fetch_recipes_from_storage(
+        &self,
     ) -> Result<(Option<Recipe>, Option<Vec<(usize, Recipe)>>), String> {
-        let storage = Self::get_storage()?.unwrap();
+        let storage = self.get_storage()?.unwrap();
         let mut staples = None;
         match storage
             .get_item("recipes")
             .map_err(|e| format!("{:?}", e))?
         {
             Some(s) => {
-                let parsed =
-                    serde_json::from_str::<Vec<String>>(&s).map_err(|e| format!("{}", e))?;
+                let parsed = from_str::<Vec<String>>(&s).map_err(|e| format!("{}", e))?;
                 let mut parsed_list = Vec::new();
                 for r in parsed {
                     let recipe = match parse::as_recipe(&r) {
@@ -156,24 +154,26 @@ impl AppService {
         }
     }
 
-    async fn fetch_recipes() -> Result<(Option<Recipe>, Option<Vec<(usize, Recipe)>>), String> {
-        Ok(Self::fetch_recipes_from_storage()?)
+    async fn fetch_recipes(
+        &self,
+    ) -> Result<(Option<Recipe>, Option<Vec<(usize, Recipe)>>), String> {
+        Ok(self.fetch_recipes_from_storage()?)
     }
 
-    async fn fetch_categories() -> Result<Option<BTreeMap<String, String>>, String> {
-        Ok(Self::fetch_categories_from_storage()?)
+    async fn fetch_categories(&self) -> Result<Option<BTreeMap<String, String>>, String> {
+        Ok(self.fetch_categories_from_storage()?)
     }
 
     #[instrument(skip(self))]
     pub async fn refresh(&mut self) -> Result<(), String> {
-        Self::synchronize().await?;
+        self.synchronize().await?;
         debug!("refreshing recipes");
-        if let (staples, Some(r)) = Self::fetch_recipes().await? {
+        if let (staples, Some(r)) = self.fetch_recipes().await? {
             self.set_recipes(r);
             self.staples.set(staples);
         }
         debug!("refreshing categories");
-        if let Some(categories) = Self::fetch_categories().await? {
+        if let Some(categories) = self.fetch_categories().await? {
             self.set_categories(categories);
         }
         Ok(())

@@ -26,12 +26,11 @@ use axum::{
     routing::{get, Router},
 };
 use mime_guess;
-use recipe_store::*;
+use recipe_store::{self, RecipeStore};
 use rust_embed::RustEmbed;
 use tracing::{info, instrument, warn};
 
 use crate::api::ParseError;
-use crate::store;
 
 #[instrument(fields(recipe_dir=?recipe_dir_path), skip_all)]
 pub async fn get_recipes(recipe_dir_path: PathBuf) -> Result<Vec<String>, ParseError> {
@@ -101,18 +100,22 @@ async fn ui_static_assets(uri: Uri) -> impl IntoResponse {
     StaticFile(path)
 }
 
-async fn api_recipes(Extension(store): Extension<Arc<store::AsyncFileStore>>) -> Response {
-    let recipe_future = store.get_recipes();
-    let result: Result<axum::Json<Vec<String>>, String> =
-        match recipe_future.await.map_err(|e| format!("Error: {:?}", e)) {
-            Ok(Some(recipes)) => Ok(axum::Json::from(recipes)),
-            Ok(None) => Ok(axum::Json::from(Vec::<String>::new())),
-            Err(e) => Err(e),
-        };
+async fn api_recipes(Extension(store): Extension<Arc<recipe_store::AsyncFileStore>>) -> Response {
+    let result: Result<axum::Json<Vec<String>>, String> = match store
+        .get_recipes()
+        .await
+        .map_err(|e| format!("Error: {:?}", e))
+    {
+        Ok(Some(recipes)) => Ok(axum::Json::from(recipes)),
+        Ok(None) => Ok(axum::Json::from(Vec::<String>::new())),
+        Err(e) => Err(e),
+    };
     result.into_response()
 }
 
-async fn api_categories(Extension(store): Extension<Arc<store::AsyncFileStore>>) -> Response {
+async fn api_categories(
+    Extension(store): Extension<Arc<recipe_store::AsyncFileStore>>,
+) -> Response {
     let recipe_result = store
         .get_categories()
         .await
@@ -128,9 +131,9 @@ async fn api_categories(Extension(store): Extension<Arc<store::AsyncFileStore>>)
 #[instrument(fields(recipe_dir=?recipe_dir_path,listen=?listen_socket), skip_all)]
 pub async fn ui_main(recipe_dir_path: PathBuf, listen_socket: SocketAddr) {
     let dir_path = recipe_dir_path.clone();
-    let store = Arc::new(store::AsyncFileStore::new(dir_path));
+    let store = Arc::new(recipe_store::AsyncFileStore::new(dir_path));
     //let dir_path = (&dir_path).clone();
-    let mut router = Router::new()
+    let router = Router::new()
         .layer(Extension(store))
         .route("/ui", ui_static_assets.into_service())
         // recipes api path route
