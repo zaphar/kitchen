@@ -20,13 +20,14 @@ use async_std::stream::StreamExt;
 use axum::{
     body::{boxed, Full},
     extract::{Extension, Path},
-    http::{header, StatusCode, Uri},
+    http::{header, StatusCode},
     response::{IntoResponse, Redirect, Response},
     routing::{get, Router},
 };
 use mime_guess;
 use recipe_store::{self, RecipeStore};
 use rust_embed::RustEmbed;
+use tower_http::trace::TraceLayer;
 use tracing::{debug, info, instrument, warn};
 
 use crate::api::ParseError;
@@ -91,15 +92,15 @@ where
 
 #[instrument]
 async fn ui_static_assets(Path(path): Path<String>) -> impl IntoResponse {
-    info!(path = path, "Serving ui path");
+    info!("Serving ui path");
 
     let mut path = path.trim_start_matches("/");
     path = if path == "" { "index.html" } else { path };
-    debug!(path = path, "Serving ui path");
+    debug!(path = path, "Serving transformed path");
     StaticFile(path.to_owned())
 }
 
-#[instrument(skip(store))]
+#[instrument]
 async fn api_recipes(Extension(store): Extension<Arc<recipe_store::AsyncFileStore>>) -> Response {
     let result: Result<axum::Json<Vec<String>>, String> = match store
         .get_recipes()
@@ -113,7 +114,7 @@ async fn api_recipes(Extension(store): Extension<Arc<recipe_store::AsyncFileStor
     result.into_response()
 }
 
-#[instrument(skip(store))]
+#[instrument]
 async fn api_categories(
     Extension(store): Extension<Arc<recipe_store::AsyncFileStore>>,
 ) -> Response {
@@ -134,13 +135,16 @@ pub async fn ui_main(recipe_dir_path: PathBuf, listen_socket: SocketAddr) {
     let store = Arc::new(recipe_store::AsyncFileStore::new(recipe_dir_path.clone()));
     //let dir_path = (&dir_path).clone();
     let router = Router::new()
-        .layer(Extension(store))
         .route("/", get(|| async { Redirect::temporary("/ui/") }))
         .route("/ui/*path", get(ui_static_assets))
         // recipes api path route
         .route("/api/v1/recipes", get(api_recipes))
         // categories api path route
-        .route("/api/v1/categories", get(api_categories));
+        .route("/api/v1/categories", get(api_categories))
+        // NOTE(jwall): Note that the layers are applied to the preceding routes not
+        // the following routes.
+        .layer(TraceLayer::new_for_http())
+        .layer(Extension(store));
     info!(
         http = format!("http://{}", listen_socket),
         "Starting server"

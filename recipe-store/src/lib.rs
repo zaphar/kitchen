@@ -21,11 +21,9 @@ use async_std::{
 use async_trait::async_trait;
 #[cfg(target_arch = "wasm32")]
 use reqwasm;
-#[cfg(target_arch = "wasm32")]
-use tracing::debug;
-use tracing::instrument;
 #[cfg(not(target_arch = "wasm32"))]
-use tracing::{info, warn};
+use tracing::warn;
+use tracing::{debug, instrument};
 
 #[derive(Debug)]
 pub struct Error(String);
@@ -85,7 +83,7 @@ pub trait RecipeStore: Clone + Sized {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AsyncFileStore {
     path: PathBuf,
 }
@@ -107,6 +105,7 @@ impl RecipeStore for AsyncFileStore {
         category_path.push(&self.path);
         category_path.push("categories.txt");
         let category_file = File::open(&category_path).await?;
+        debug!(category_file = ?category_path, "Opened category file");
         let mut buf_reader = io::BufReader::new(category_file);
         let mut contents = Vec::new();
         buf_reader.read_to_end(&mut contents).await?;
@@ -130,7 +129,7 @@ impl RecipeStore for AsyncFileStore {
                     .any(|&s| s == entry.file_name().to_string_lossy().to_string())
             {
                 // add it to the entry
-                info!("adding recipe file {}", entry.file_name().to_string_lossy());
+                debug!("adding recipe file {}", entry.file_name().to_string_lossy());
                 let recipe_contents = read_to_string(entry.path()).await?;
                 entry_vec.push(recipe_contents);
             } else {

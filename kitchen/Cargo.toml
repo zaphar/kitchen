@@ -16,6 +16,7 @@ axum = "0.5.13"
 rust-embed="6.4.0"
 mime_guess = "2.0.4"
 async-trait = "0.1.57"
+tower-http = { version = "0.3.0", features = ["trace"] }
 
 [dependencies.clap]
 version = "3.2.16"

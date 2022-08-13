@@ -30,7 +30,7 @@ fn create_app<'a>() -> clap::App<'a> {
         (version: crate_version!())
         (author: crate_authors!())
         (about: "Kitchen Management CLI")
-        (@arg verbose: --verbose -v "Verbosity level for logging (error, warn, info, debug, trace")
+        (@arg verbose: --verbose -v +takes_value "Verbosity level for logging (error, warn, info, debug, trace")
         (@subcommand recipe =>
             (about: "parse a recipe file and output info about it")
             (@arg ingredients: -i --ingredients "Output the ingredients list.")
