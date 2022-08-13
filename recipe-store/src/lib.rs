@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#[cfg(not(target_arch = "wasm32"))]
 use async_std::{
     fs::{read_dir, read_to_string, DirEntry, File},
     io::{self, ReadExt},
@@ -20,7 +21,11 @@ use async_std::{
 use async_trait::async_trait;
 #[cfg(target_arch = "wasm32")]
 use reqwasm;
-use tracing::{info, instrument, warn};
+#[cfg(target_arch = "wasm32")]
+use tracing::debug;
+use tracing::instrument;
+#[cfg(not(target_arch = "wasm32"))]
+use tracing::{info, warn};
 
 #[derive(Debug)]
 pub struct Error(String);
@@ -39,6 +44,13 @@ impl From<String> for Error {
 
 impl From<std::string::FromUtf8Error> for Error {
     fn from(item: std::string::FromUtf8Error) -> Self {
+        Error(format!("{:?}", item))
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl From<reqwasm::Error> for Error {
+    fn from(item: reqwasm::Error) -> Self {
         Error(format!("{:?}", item))
     }
 }
@@ -78,12 +90,14 @@ pub struct AsyncFileStore {
     path: PathBuf,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl AsyncFileStore {
     pub fn new<P: Into<PathBuf>>(root: P) -> Self {
         Self { path: root.into() }
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
 // TODO(jwall): We need to model our own set of errors for this.
 impl RecipeStore for AsyncFileStore {
@@ -131,6 +145,7 @@ impl RecipeStore for AsyncFileStore {
 }
 
 #[cfg(target_arch = "wasm32")]
+#[derive(Clone, Debug)]
 pub struct HttpStore {
     root: String,
 }
@@ -144,20 +159,17 @@ impl HttpStore {
 
 #[cfg(target_arch = "wasm32")]
 #[async_trait(?Send)]
-impl RecipeStore<String> for HttpStore {
+impl RecipeStore for HttpStore {
     #[instrument]
-    async fn get_categories(&self) -> Result<Option<String>, String> {
+    async fn get_categories(&self) -> Result<Option<String>, Error> {
         let mut path = self.root.clone();
         path.push_str("/categories");
-        let resp = match reqwasm::http::Request::get(&path).send().await {
-            Ok(resp) => resp,
-            Err(e) => return Err(format!("Error: {}", e)),
-        };
+        let resp = reqwasm::http::Request::get(&path).send().await?;
         if resp.status() == 404 {
             debug!("Categories returned 404");
             Ok(None)
         } else if resp.status() != 200 {
-            Err(format!("Status: {}", resp.status()))
+            Err(format!("Status: {}", resp.status()).into())
         } else {
             debug!("We got a valid response back!");
             let resp = resp.text().await;
@@ -166,15 +178,12 @@ impl RecipeStore<String> for HttpStore {
     }
 
     #[instrument]
-    async fn get_recipes(&self) -> Result<Option<Vec<String>>, String> {
+    async fn get_recipes(&self) -> Result<Option<Vec<String>>, Error> {
         let mut path = self.root.clone();
         path.push_str("/recipes");
-        let resp = match reqwasm::http::Request::get(&path).send().await {
-            Ok(resp) => resp,
-            Err(e) => return Err(format!("Error: {}", e)),
-        };
+        let resp = reqwasm::http::Request::get(&path).send().await?;
         if resp.status() != 200 {
-            Err(format!("Status: {}", resp.status()))
+            Err(format!("Status: {}", resp.status()).into())
         } else {
             debug!("We got a valid response back!");
             Ok(resp.json().await.map_err(|e| format!("{}", e))?)

@@ -15,7 +15,7 @@ use crate::pages::*;
 use crate::{app_state::*, components::*, router_integration::*, service::AppService};
 use tracing::{debug, error, info, instrument};
 
-use recipe_store::{self, AsyncFileStore};
+use recipe_store::{self, *};
 use sycamore::{
     context::{ContextProvider, ContextProviderProps},
     futures::spawn_local_in_scope,

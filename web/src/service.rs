@@ -13,14 +13,12 @@
 // limitations under the License.
 use std::collections::{BTreeMap, BTreeSet};
 
-#[cfg(target_arch = "wasm32")]
-use reqwasm::http;
 use serde_json::{from_str, to_string};
 use sycamore::{context::use_context, prelude::*};
 use tracing::{debug, error, info, instrument, warn};
 use web_sys::{window, Storage};
 
-use recipe_store::{AsyncFileStore, RecipeStore};
+use recipe_store::*;
 use recipes::{parse, Ingredient, IngredientAccumulator, Recipe};
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -28,7 +26,7 @@ pub fn get_appservice_from_context() -> AppService<AsyncFileStore> {
     use_context::<AppService<AsyncFileStore>>()
 }
 #[cfg(target_arch = "wasm32")]
-pub fn get_appservice_from_context() -> AppService<AsyncFileStore> {
+pub fn get_appservice_from_context() -> AppService<HttpStore> {
     use_context::<AppService<HttpStore>>()
 }
 
