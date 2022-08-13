@@ -18,19 +18,35 @@ mod router_integration;
 mod service;
 mod web;
 
+use router_integration::DeriveRoute;
 use sycamore::prelude::*;
-#[cfg(feature = "web")]
+#[cfg(target_arch = "wasm32")]
 use tracing_browser_subscriber;
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::wasm_bindgen;
 
 use web::UI;
 
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(start)]
 pub fn main() {
-    if cfg!(feature = "web") {
-        console_error_panic_hook::set_once();
-        // TODO(jwall): use the tracing_subscriber_browser default setup function when it exists.
-        tracing_browser_subscriber::configure_as_global_default();
-    }
-    sycamore::render(|| view! { UI() });
+    console_error_panic_hook::set_once();
+    tracing_browser_subscriber::configure_as_global_default();
+    let root = web_sys::window()
+        .unwrap()
+        .document()
+        .unwrap()
+        .query_selector("#sycamore")
+        .unwrap()
+        .unwrap();
+
+    sycamore::hydrate_to(|| view! { UI() }, &root);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn render_to_string(path: &str) -> String {
+    use app_state::AppRoutes;
+
+    let route = <AppRoutes as DeriveRoute>::from(&(String::new(), path.to_owned(), String::new()));
+    sycamore::render_to_string(|| view! { UI(route) })
 }

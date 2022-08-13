@@ -3,11 +3,6 @@ name = "kitchen-wasm"
 version = "0.2.9"
 edition = "2021"
 
-[features]
-ssr = []
-web = []
-default = ["web"]
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -45,7 +40,7 @@ features = [
 
 [dependencies.sycamore]
 version = "0.7.1"
-features = ["futures", "serde", "default"]
+features = ["futures", "serde", "default", "ssr"]
 
 [profile.release]
 lto = true

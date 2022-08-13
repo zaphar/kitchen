@@ -32,11 +32,22 @@ use tracing::{debug, info, instrument};
 #[folder = "../web/dist"]
 struct UiAssets;
 
-pub struct StaticFile<T>(pub T);
+pub struct StaticFile<T>(pub T)
+where
+    T: Into<String> + Clone;
+
+impl<T> StaticFile<T>
+where
+    T: Into<String> + Clone,
+{
+    pub fn exists(&self) -> bool {
+        UiAssets::get(self.0.clone().into().as_str()).is_some()
+    }
+}
 
 impl<T> IntoResponse for StaticFile<T>
 where
-    T: Into<String>,
+    T: Into<String> + Clone,
 {
     fn into_response(self) -> Response {
         let path = self.0.into();
@@ -59,13 +70,18 @@ where
 }
 
 #[instrument]
-async fn ui_static_assets(Path(path): Path<String>) -> impl IntoResponse {
+async fn ui_assets(Path(path): Path<String>) -> impl IntoResponse {
     info!("Serving ui path");
 
     let mut path = path.trim_start_matches("/");
     path = if path == "" { "index.html" } else { path };
     debug!(path = path, "Serving transformed path");
-    StaticFile(path.to_owned())
+    let file = StaticFile(path.to_owned());
+    if file.exists() {
+        file.into_response()
+    } else {
+        kitchen_wasm::render_to_string(path).into_response()
+    }
 }
 
 #[instrument]
@@ -104,7 +120,7 @@ pub async fn ui_main(recipe_dir_path: PathBuf, listen_socket: SocketAddr) {
     //let dir_path = (&dir_path).clone();
     let router = Router::new()
         .route("/", get(|| async { Redirect::temporary("/ui/") }))
-        .route("/ui/*path", get(ui_static_assets))
+        .route("/ui/*path", get(ui_assets))
         // recipes api path route
         .route("/api/v1/recipes", get(api_recipes))
         // categories api path route

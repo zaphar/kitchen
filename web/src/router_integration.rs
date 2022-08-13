@@ -152,6 +152,27 @@ where
     }
 }
 
+#[derive(Debug)]
+pub struct StaticRouterProps<R, F, G>
+where
+    G: GenericNode,
+    R: DeriveRoute + NotFound + Clone + Default + Debug + 'static,
+    F: Fn(ReadSignal<R>) -> View<G> + 'static,
+{
+    pub route: R,
+    pub route_select: F,
+}
+
+#[component(StaticRouter<G>)]
+pub fn static_router<R, F>(props: StaticRouterProps<R, F, G>) -> View<G>
+where
+    R: DeriveRoute + NotFound + Clone + Default + Debug + 'static,
+    F: Fn(ReadSignal<R>) -> View<G> + 'static,
+{
+    debug!("Setting up static router");
+    (props.route_select)(Signal::new(props.route).handle())
+}
+
 #[instrument(skip_all)]
 fn register_click_handler<G>(view: &View<G>, integration: Rc<BrowserIntegration>)
 where

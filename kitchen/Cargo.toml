@@ -11,6 +11,7 @@ tracing = "0.1.35"
 tracing-subscriber = "0.3.14"
 recipes = { path = "../recipes" }
 recipe-store = {path = "../recipe-store" }
+kitchen-wasm = { path= "../web" }
 csv = "1.1.1"
 axum = "0.5.13"
 rust-embed="6.4.0"
