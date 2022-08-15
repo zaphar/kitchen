@@ -21,23 +21,26 @@ pub struct TabState<G: GenericNode> {
 #[component(TabbedView<G>)]
 pub fn tabbed_view(state: TabState<G>) -> View<G> {
     cloned!((state) => view! {
-        header(class="no-print") {
-            nav {
-                ul {
-                    li { a(href="/ui/plan", class="no-print") { "Plan" } " > "
+        // NOTE(jwall): this needs to be a single node or the Router freaks out.
+        div {
+            header(class="no-print") {
+                nav {
+                    ul {
+                        li { a(href="/ui/plan", class="no-print") { "Plan" } " > "
+                        }
+                        li { a(href="/ui/inventory", class="no-print") { "Inventory" } " > "
+                        }
+                        li { a(href="/ui/cook", class="no-print") { "Cook" }
+                        }
                     }
-                    li { a(href="/ui/inventory", class="no-print") { "Inventory" } " > "
+                    ul {
+                        li { a(href="https://github.com/zaphar/kitchen") { "Github" } }
                     }
-                    li { a(href="/ui/cook", class="no-print") { "Cook" }
-                    }
-                }
-                ul {
-                    li { a(href="https://github.com/zaphar/kitchen") { "Github" } }
                 }
             }
-        }
-        main(class=".conatiner-fluid") {
-            (state.inner)
+            main(class=".conatiner-fluid") {
+                (state.inner)
+            }
         }
     })
 }

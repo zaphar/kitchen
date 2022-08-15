@@ -27,7 +27,7 @@ fn route_switch<G: Html>(route: ReadSignal<AppRoutes>) -> View<G> {
     // NOTE(jwall): This needs to not be a dynamic node. The rules around
     // this are somewhat unclear and underdocumented for Sycamore. But basically
     // avoid conditionals in the `view!` macro calls here.
-    cloned!((route) => match route.get().as_ref() {
+    let node = cloned!((route) => match route.get().as_ref() {
         AppRoutes::Plan => view! {
             PlanPage()
         },
@@ -50,7 +50,9 @@ fn route_switch<G: Html>(route: ReadSignal<AppRoutes>) -> View<G> {
                 "Error: " (e)
             }
         }
-    })
+    });
+    debug!(node=?node, "routing to new page");
+    node
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -95,17 +97,11 @@ pub fn ui(route: Option<AppRoutes>) -> View<G> {
             children: || {
                 create_effect(move || {
                     spawn_local_in_scope({
-                        let mut app_service = app_service.clone();
+                        let app_service = app_service.clone();
                         async move {
                             debug!("fetching recipes");
-                            match app_service.fetch_recipes_from_storage() {
-                                Ok((_, Some(recipes))) => {
-                                    app_service.set_recipes(recipes);
-                                }
-                                Ok((_, None)) => {
-                                    error!("No recipes to find");
-                                }
-                                Err(msg) => error!("Failed to get recipes {}", msg),
+                            if let Err(msg) =  app_service.init(false).await {
+                                error!("Failed to get recipes {}", msg)
                             }
                         }
                     });

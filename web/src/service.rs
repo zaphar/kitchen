@@ -13,9 +13,15 @@
 // limitations under the License.
 use std::collections::{BTreeMap, BTreeSet};
 
-use serde_json::{from_str, to_string};
+#[cfg(target_arch = "wasm32")]
+use serde_json::from_str;
+#[cfg(target_arch = "wasm32")]
+use serde_json::to_string;
 use sycamore::{context::use_context, prelude::*};
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, instrument, warn};
+#[cfg(target_arch = "wasm32")]
+use tracing::{error, info};
+#[cfg(target_arch = "wasm32")]
 use web_sys::{window, Storage};
 
 use recipe_store::*;
@@ -56,6 +62,7 @@ where
         }
     }
 
+    #[cfg(target_arch = "wasm32")]
     fn get_storage(&self) -> Result<Option<Storage>, String> {
         window()
             .unwrap()
@@ -63,9 +70,19 @@ where
             .map_err(|e| format!("{:?}", e))
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     #[instrument(skip(self))]
-    async fn synchronize(&self) -> Result<(), String> {
+    pub async fn init(&self, force: bool) -> Result<(), String> {
+        // TODO(jwall): Allow this to work for the ssr case.
+        todo!()
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    #[instrument(skip(self))]
+    pub async fn init(&self, force: bool) -> Result<(), String> {
         info!("Synchronizing Recipes");
+        // TODO(jwall): Check to see if we already have them in storage
+        // only fetch via http if force is true.
         let storage = self.get_storage()?.unwrap();
         let recipes = self
             .store
@@ -96,10 +113,9 @@ where
         Ok(())
     }
 
+    #[cfg(target_arch = "wasm32")]
     #[instrument(skip(self))]
-    pub fn fetch_categories_from_storage(
-        &self,
-    ) -> Result<Option<BTreeMap<String, String>>, String> {
+    fn fetch_categories_from_storage(&self) -> Result<Option<BTreeMap<String, String>>, String> {
         let storage = self.get_storage()?.unwrap();
         match storage
             .get_item("categories")
@@ -119,8 +135,9 @@ where
         }
     }
 
+    #[cfg(target_arch = "wasm32")]
     #[instrument(skip(self))]
-    pub fn fetch_recipes_from_storage(
+    fn fetch_recipes_from_storage(
         &self,
     ) -> Result<(Option<Recipe>, Option<BTreeMap<String, Recipe>>), String> {
         let storage = self.get_storage()?.unwrap();
@@ -153,19 +170,32 @@ where
         }
     }
 
+    #[cfg(target_arch = "wasm32")]
     async fn fetch_recipes(
         &self,
     ) -> Result<(Option<Recipe>, Option<BTreeMap<String, Recipe>>), String> {
         Ok(self.fetch_recipes_from_storage()?)
     }
+    #[cfg(not(target_arch = "wasm32"))]
+    async fn fetch_recipes(
+        &self,
+    ) -> Result<(Option<Recipe>, Option<BTreeMap<String, Recipe>>), String> {
+        Ok((None, None))
+    }
 
+    #[cfg(target_arch = "wasm32")]
     async fn fetch_categories(&self) -> Result<Option<BTreeMap<String, String>>, String> {
         Ok(self.fetch_categories_from_storage()?)
     }
+    #[cfg(not(target_arch = "wasm32"))]
+    async fn fetch_categories(&self) -> Result<Option<BTreeMap<String, String>>, String> {
+        Ok(None)
+    }
 
+    // FIXME(jwall): Stays public
     #[instrument(skip(self))]
     pub async fn refresh(&mut self) -> Result<(), String> {
-        self.synchronize().await?;
+        self.init(true).await?;
         debug!("refreshing recipes");
         if let (staples, Some(r)) = self.fetch_recipes().await? {
             self.set_recipes(r);
@@ -182,6 +212,7 @@ where
         self.recipes.get().get(idx).map(|r| r.clone())
     }
 
+    // FIXME(jwall): Stays public
     #[instrument(skip(self))]
     pub fn get_shopping_list(
         &self,
@@ -243,7 +274,7 @@ where
             .collect()
     }
 
-    pub fn set_recipes(&mut self, mut recipes: BTreeMap<String, Recipe>) {
+    pub fn set_recipes(&mut self, recipes: BTreeMap<String, Recipe>) {
         self.recipes.set(
             recipes
                 .iter()
