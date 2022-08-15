@@ -21,6 +21,7 @@ use async_std::{
 use async_trait::async_trait;
 #[cfg(target_arch = "wasm32")]
 use reqwasm;
+use serde::{Deserialize, Serialize};
 #[cfg(not(target_arch = "wasm32"))]
 use tracing::warn;
 use tracing::{debug, instrument};
@@ -60,6 +61,19 @@ where
     fn get_user_store(&self, user: String) -> S;
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct RecipeEntry(String, String);
+
+impl RecipeEntry {
+    pub fn recipe_id(&self) -> &str {
+        self.0.as_str()
+    }
+
+    pub fn recipe_text(&self) -> &str {
+        self.1.as_str()
+    }
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
 /// Define the shared interface to use for interacting with a store of recipes.
@@ -67,7 +81,7 @@ pub trait RecipeStore: Clone + Sized {
     /// Get categories text unparsed.
     async fn get_categories(&self) -> Result<Option<String>, Error>;
     /// Get list of recipe text unparsed.
-    async fn get_recipes(&self) -> Result<Option<Vec<String>>, Error>;
+    async fn get_recipes(&self) -> Result<Option<Vec<RecipeEntry>>, Error>;
 }
 
 // NOTE(jwall): Futures in webassembly can't implement `Send` easily so we define
@@ -79,7 +93,7 @@ pub trait RecipeStore: Clone + Sized {
     /// Get categories text unparsed.
     async fn get_categories(&self) -> Result<Option<String>, Error>;
     /// Get list of recipe text unparsed.
-    async fn get_recipes(&self) -> Result<Option<Vec<String>>, Error>;
+    async fn get_recipes(&self) -> Result<Option<Vec<RecipeEntry>>, Error>;
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -112,7 +126,7 @@ impl RecipeStore for AsyncFileStore {
         Ok(Some(String::from_utf8(contents)?))
     }
 
-    async fn get_recipes(&self) -> Result<Option<Vec<String>>, Error> {
+    async fn get_recipes(&self) -> Result<Option<Vec<RecipeEntry>>, Error> {
         let mut recipe_path = PathBuf::new();
         recipe_path.push(&self.path);
         recipe_path.push("recipes");
@@ -129,9 +143,10 @@ impl RecipeStore for AsyncFileStore {
                     .any(|&s| s == entry.file_name().to_string_lossy().to_string())
             {
                 // add it to the entry
-                debug!("adding recipe file {}", entry.file_name().to_string_lossy());
+                let file_name = entry.file_name().to_string_lossy().to_string();
+                debug!("adding recipe file {}", file_name);
                 let recipe_contents = read_to_string(entry.path()).await?;
-                entry_vec.push(recipe_contents);
+                entry_vec.push(RecipeEntry(file_name, recipe_contents));
             } else {
                 warn!(
                     file = %entry.path().to_string_lossy(),
@@ -177,7 +192,7 @@ impl RecipeStore for HttpStore {
     }
 
     #[instrument]
-    async fn get_recipes(&self) -> Result<Option<Vec<String>>, Error> {
+    async fn get_recipes(&self) -> Result<Option<Vec<RecipeEntry>>, Error> {
         let mut path = self.root.clone();
         path.push_str("/recipes");
         let resp = reqwasm::http::Request::get(&path).send().await?;
@@ -188,5 +203,4 @@ impl RecipeStore for HttpStore {
             Ok(resp.json().await.map_err(|e| format!("{}", e))?)
         }
     }
-    //
 }

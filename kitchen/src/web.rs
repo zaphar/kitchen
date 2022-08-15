@@ -15,8 +15,6 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use async_std::fs::{read_dir, read_to_string, DirEntry};
-use async_std::stream::StreamExt;
 use axum::{
     body::{boxed, Full},
     extract::{Extension, Path},
@@ -25,40 +23,10 @@ use axum::{
     routing::{get, Router},
 };
 use mime_guess;
-use recipe_store::{self, RecipeStore};
+use recipe_store::{self, RecipeEntry, RecipeStore};
 use rust_embed::RustEmbed;
 use tower_http::trace::TraceLayer;
-use tracing::{debug, info, instrument, warn};
-
-use crate::api::ParseError;
-
-#[instrument(fields(recipe_dir=?recipe_dir_path), skip_all)]
-pub async fn get_recipes(recipe_dir_path: PathBuf) -> Result<Vec<String>, ParseError> {
-    let mut entries = read_dir(recipe_dir_path).await?;
-    let mut entry_vec = Vec::new();
-    // Special files that we ignore when fetching recipes
-    let filtered = vec!["menu.txt", "categories.txt"];
-    while let Some(res) = entries.next().await {
-        let entry: DirEntry = res?;
-
-        if !entry.file_type().await?.is_dir()
-            && !filtered
-                .iter()
-                .any(|&s| s == entry.file_name().to_string_lossy().to_string())
-        {
-            // add it to the entry
-            info!("adding recipe file {}", entry.file_name().to_string_lossy());
-            let recipe_contents = read_to_string(entry.path()).await?;
-            entry_vec.push(recipe_contents);
-        } else {
-            warn!(
-                file = %entry.path().to_string_lossy(),
-                "skipping file not a recipe",
-            );
-        }
-    }
-    Ok(entry_vec)
-}
+use tracing::{debug, info, instrument};
 
 #[derive(RustEmbed)]
 #[folder = "../web/dist"]
@@ -102,13 +70,13 @@ async fn ui_static_assets(Path(path): Path<String>) -> impl IntoResponse {
 
 #[instrument]
 async fn api_recipes(Extension(store): Extension<Arc<recipe_store::AsyncFileStore>>) -> Response {
-    let result: Result<axum::Json<Vec<String>>, String> = match store
+    let result: Result<axum::Json<Vec<RecipeEntry>>, String> = match store
         .get_recipes()
         .await
         .map_err(|e| format!("Error: {:?}", e))
     {
         Ok(Some(recipes)) => Ok(axum::Json::from(recipes)),
-        Ok(None) => Ok(axum::Json::from(Vec::<String>::new())),
+        Ok(None) => Ok(axum::Json::from(Vec::<RecipeEntry>::new())),
         Err(e) => Err(e),
     };
     result.into_response()

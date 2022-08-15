@@ -19,7 +19,7 @@ use tracing::{debug, instrument};
 use crate::service::get_appservice_from_context;
 
 pub struct RecipeCheckBoxProps {
-    pub i: usize,
+    pub i: String,
     pub title: ReadSignal<String>,
 }
 
@@ -32,18 +32,23 @@ pub fn recipe_selection(props: RecipeCheckBoxProps) -> View<G> {
     let app_service = get_appservice_from_context();
     // This is total hack but it works around the borrow issues with
     // the `view!` macro.
-    let i = props.i;
-    let id_as_str = Rc::new(format!("{}", i));
-    let id_cloned_2 = id_as_str.clone();
-    let count = Signal::new(format!("{}", app_service.get_recipe_count_by_index(i)));
+    let id = Rc::new(props.i);
+    let count = Signal::new(format!(
+        "{}",
+        app_service.get_recipe_count_by_index(id.as_ref())
+    ));
+    let for_id = id.clone();
+    let href = format!("#recipe/{}", id);
+    let name = format!("recipe_id:{}", id);
+    let value = id.clone();
     view! {
         div() {
-            label(for=id_cloned_2) { a(href=format!("#recipe/{}", i)) { (props.title.get()) } }
-            input(type="number", class="item-count-sel", min="0", bind:value=count.clone(), name=format!("recipe_id:{}", i), value=id_as_str.clone(), on:change=move |_| {
+            label(for=for_id) { a(href=href) { (props.title.get()) } }
+            input(type="number", class="item-count-sel", min="0", bind:value=count.clone(), name=name, value=value, on:change=cloned!((id) => move |_| {
                 let mut app_service = app_service.clone();
-                debug!(idx=%i, count=%(*count.get()), "setting recipe count");
-                app_service.set_recipe_count_by_index(i, count.get().parse().unwrap());
-            })
+                debug!(idx=%id, count=%(*count.get()), "setting recipe count");
+                app_service.set_recipe_count_by_index(id.as_ref().to_owned(), count.get().parse().unwrap());
+            }))
         }
     }
 }

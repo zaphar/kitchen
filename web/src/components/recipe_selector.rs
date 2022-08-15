@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use recipes::Recipe;
 use sycamore::{futures::spawn_local_in_scope, prelude::*};
 use tracing::{error, instrument};
 
@@ -23,7 +24,7 @@ pub fn recipe_selector() -> View<G> {
     let app_service = get_appservice_from_context();
     let rows = create_memo(cloned!(app_service => move || {
         let mut rows = Vec::new();
-        for row in app_service.get_recipes().get().as_slice().chunks(4) {
+        for row in app_service.get_recipes().get().iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<(String, Signal<Recipe>)>>().chunks(4) {
             rows.push(Signal::new(Vec::from(row)));
         }
         rows

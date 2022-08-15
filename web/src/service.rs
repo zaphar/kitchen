@@ -35,10 +35,10 @@ pub struct AppService<S>
 where
     S: RecipeStore,
 {
-    recipes: Signal<Vec<(usize, Signal<Recipe>)>>,
+    recipes: Signal<BTreeMap<String, Signal<Recipe>>>,
     staples: Signal<Option<Recipe>>,
     category_map: Signal<BTreeMap<String, String>>,
-    menu_list: Signal<BTreeMap<usize, usize>>,
+    menu_list: Signal<BTreeMap<String, usize>>,
     store: S,
 }
 
@@ -48,7 +48,7 @@ where
 {
     pub fn new(store: S) -> Self {
         Self {
-            recipes: Signal::new(Vec::new()),
+            recipes: Signal::new(BTreeMap::new()),
             staples: Signal::new(None),
             category_map: Signal::new(BTreeMap::new()),
             menu_list: Signal::new(BTreeMap::new()),
@@ -122,7 +122,7 @@ where
     #[instrument(skip(self))]
     pub fn fetch_recipes_from_storage(
         &self,
-    ) -> Result<(Option<Recipe>, Option<Vec<(usize, Recipe)>>), String> {
+    ) -> Result<(Option<Recipe>, Option<BTreeMap<String, Recipe>>), String> {
         let storage = self.get_storage()?.unwrap();
         let mut staples = None;
         match storage
@@ -130,10 +130,11 @@ where
             .map_err(|e| format!("{:?}", e))?
         {
             Some(s) => {
-                let parsed = from_str::<Vec<String>>(&s).map_err(|e| format!("{}", e))?;
-                let mut parsed_list = Vec::new();
+                let parsed = from_str::<Vec<RecipeEntry>>(&s).map_err(|e| format!("{}", e))?;
+                let mut parsed_map = BTreeMap::new();
+                // TODO(jwall): Utilize the id instead of the index from now on.
                 for r in parsed {
-                    let recipe = match parse::as_recipe(&r) {
+                    let recipe = match parse::as_recipe(&r.recipe_text()) {
                         Ok(r) => r,
                         Err(e) => {
                             error!("Error parsing recipe {}", e);
@@ -143,10 +144,10 @@ where
                     if recipe.title == "Staples" {
                         staples = Some(recipe);
                     } else {
-                        parsed_list.push(recipe);
+                        parsed_map.insert(r.recipe_id().to_owned(), recipe);
                     }
                 }
-                Ok((staples, Some(parsed_list.drain(0..).enumerate().collect())))
+                Ok((staples, Some(parsed_map)))
             }
             None => Ok((None, None)),
         }
@@ -154,7 +155,7 @@ where
 
     async fn fetch_recipes(
         &self,
-    ) -> Result<(Option<Recipe>, Option<Vec<(usize, Recipe)>>), String> {
+    ) -> Result<(Option<Recipe>, Option<BTreeMap<String, Recipe>>), String> {
         Ok(self.fetch_recipes_from_storage()?)
     }
 
@@ -177,8 +178,8 @@ where
         Ok(())
     }
 
-    pub fn get_recipe_by_index(&self, idx: usize) -> Option<Signal<Recipe>> {
-        self.recipes.get().get(idx).map(|(_, r)| r.clone())
+    pub fn get_recipe_by_index(&self, idx: &str) -> Option<Signal<Recipe>> {
+        self.recipes.get().get(idx).map(|r| r.clone())
     }
 
     #[instrument(skip(self))]
@@ -190,7 +191,7 @@ where
         let recipe_counts = self.menu_list.get();
         for (idx, count) in recipe_counts.iter() {
             for _ in 0..*count {
-                acc.accumulate_from(self.get_recipe_by_index(*idx).unwrap().get().as_ref());
+                acc.accumulate_from(self.get_recipe_by_index(idx).unwrap().get().as_ref());
             }
         }
         if show_staples {
@@ -218,35 +219,35 @@ where
         groups
     }
 
-    pub fn set_recipe_count_by_index(&mut self, i: usize, count: usize) {
+    pub fn set_recipe_count_by_index(&mut self, i: String, count: usize) {
         let mut v = (*self.menu_list.get()).clone();
         v.insert(i, count);
         self.menu_list.set(v);
     }
 
-    pub fn get_recipe_count_by_index(&self, i: usize) -> usize {
-        self.menu_list.get().get(&i).map(|i| *i).unwrap_or_default()
+    pub fn get_recipe_count_by_index(&self, i: &str) -> usize {
+        self.menu_list.get().get(i).map(|i| *i).unwrap_or_default()
     }
 
-    pub fn get_recipes(&self) -> Signal<Vec<(usize, Signal<Recipe>)>> {
+    pub fn get_recipes(&self) -> Signal<BTreeMap<String, Signal<Recipe>>> {
         self.recipes.clone()
     }
 
-    pub fn get_menu_list(&self) -> Vec<(usize, usize)> {
+    pub fn get_menu_list(&self) -> Vec<(String, usize)> {
         self.menu_list
             .get()
             .iter()
             // We exclude recipes in the menu_list with count 0
             .filter(|&(_, count)| *count != 0)
-            .map(|(idx, count)| (*idx, *count))
+            .map(|(idx, count)| (idx.clone(), *count))
             .collect()
     }
 
-    pub fn set_recipes(&mut self, mut recipes: Vec<(usize, Recipe)>) {
+    pub fn set_recipes(&mut self, mut recipes: BTreeMap<String, Recipe>) {
         self.recipes.set(
             recipes
-                .drain(0..)
-                .map(|(i, r)| (i, Signal::new(r)))
+                .iter()
+                .map(|(i, r)| (i.clone(), Signal::new(r.clone())))
                 .collect(),
         );
     }

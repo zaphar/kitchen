@@ -13,7 +13,6 @@
 // limitations under the License.
 use std::fmt::Debug;
 use std::rc::Rc;
-use std::str::FromStr;
 
 use sycamore::prelude::*;
 use tracing::{debug, error, instrument};
@@ -201,10 +200,7 @@ impl DeriveRoute for AppRoutes {
                 let parts: Vec<&str> = h.splitn(2, "/").collect();
                 if let Some(&"#recipe") = parts.get(0) {
                     if let Some(&idx) = parts.get(1) {
-                        return match usize::from_str(idx) {
-                            Ok(idx) => AppRoutes::Recipe(idx),
-                            Err(e) => AppRoutes::Error(format!("{:?}", e)),
-                        };
+                        return AppRoutes::Recipe(idx.to_owned());
                     }
                 }
                 error!(origin=%input.0, path=%input.1, hash=%input.2, "Path not found");

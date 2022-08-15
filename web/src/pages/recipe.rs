@@ -18,7 +18,7 @@ use tracing::instrument;
 
 #[derive(Debug)]
 pub struct RecipePageProps {
-    pub recipe: Signal<usize>,
+    pub recipe: Signal<String>,
 }
 
 #[instrument]

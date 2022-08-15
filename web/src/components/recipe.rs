@@ -47,11 +47,12 @@ fn steps(steps: ReadSignal<Vec<recipes::Step>>) -> View<G> {
 }
 
 #[component(Recipe<G>)]
-pub fn recipe(idx: ReadSignal<usize>) -> View<G> {
+pub fn recipe(idx: ReadSignal<String>) -> View<G> {
     let app_service = get_appservice_from_context();
     let view = Signal::new(View::empty());
     create_effect(cloned!((app_service, view) => move || {
-        if let Some((_, recipe)) = app_service.get_recipes().get().get(*idx.get()) {
+        let recipe_id: String = idx.get().as_ref().to_owned();
+        if let Some(recipe) = app_service.get_recipes().get().get(&recipe_id) {
             let recipe = recipe.clone();
             let title = create_memo(cloned!((recipe) => move || recipe.get().title.clone()));
             let desc = create_memo(

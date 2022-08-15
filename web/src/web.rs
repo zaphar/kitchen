@@ -38,7 +38,7 @@ fn route_switch<G: Html>(route: ReadSignal<AppRoutes>) -> View<G> {
             CookPage()
         },
         AppRoutes::Recipe(idx) => view! {
-            RecipePage(RecipePageProps { recipe: Signal::new(*idx) })
+            RecipePage(RecipePageProps { recipe: Signal::new(idx.clone()) })
         },
         AppRoutes::NotFound => view! {
             // TODO(Create a real one)
