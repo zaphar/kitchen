@@ -20,14 +20,11 @@ mod web;
 
 use router_integration::DeriveRoute;
 use sycamore::prelude::*;
-#[cfg(target_arch = "wasm32")]
 use tracing_browser_subscriber;
-#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::wasm_bindgen;
 
 use web::UI;
 
-#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(start)]
 pub fn main() {
     console_error_panic_hook::set_once();
@@ -36,11 +33,11 @@ pub fn main() {
         .unwrap()
         .document()
         .unwrap()
-        .query_selector("#sycamore")
+        .query_selector("#main")
         .unwrap()
         .unwrap();
 
-    sycamore::hydrate_to(|| view! { UI() }, &root);
+    sycamore::hydrate_to(|| view! { UI(None) }, &root);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -48,5 +45,5 @@ pub fn render_to_string(path: &str) -> String {
     use app_state::AppRoutes;
 
     let route = <AppRoutes as DeriveRoute>::from(&(String::new(), path.to_owned(), String::new()));
-    sycamore::render_to_string(|| view! { UI(route) })
+    sycamore::render_to_string(|| view! { UI(Some(route)) })
 }

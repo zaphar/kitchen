@@ -73,14 +73,23 @@ where
 async fn ui_assets(Path(path): Path<String>) -> impl IntoResponse {
     info!("Serving ui path");
 
-    let mut path = path.trim_start_matches("/");
-    path = if path == "" { "index.html" } else { path };
+    let path = path.trim_start_matches("/");
     debug!(path = path, "Serving transformed path");
     let file = StaticFile(path.to_owned());
+    // TODO(jwall): We need to construct the entire html page here.
+    // not just this split form.
     if file.exists() {
         file.into_response()
     } else {
-        kitchen_wasm::render_to_string(path).into_response()
+        let index = UiAssets::get("index.html").expect("Unexpectedly can't find index.html");
+        let body = boxed(Full::from(
+            String::from_utf8_lossy(index.data.as_ref())
+                .replace("%kitchen-wasm", &kitchen_wasm::render_to_string(path)),
+        ));
+        Response::builder()
+            .header(header::CONTENT_TYPE, "text/html")
+            .body(body)
+            .unwrap()
     }
 }
 
