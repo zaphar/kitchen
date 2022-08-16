@@ -18,9 +18,9 @@ use serde_json::from_str;
 #[cfg(target_arch = "wasm32")]
 use serde_json::to_string;
 use sycamore::{context::use_context, prelude::*};
-use tracing::{debug, instrument, warn};
 #[cfg(target_arch = "wasm32")]
-use tracing::{error, info};
+use tracing::info;
+use tracing::{debug, error, instrument, warn};
 #[cfg(target_arch = "wasm32")]
 use web_sys::{window, Storage};
 
@@ -73,8 +73,8 @@ where
     #[cfg(not(target_arch = "wasm32"))]
     #[instrument(skip(self))]
     pub async fn init(&self, force: bool) -> Result<(), String> {
-        // TODO(jwall): Allow this to work for the ssr case.
-        todo!()
+        // When we are not in web assembly this is a noop.
+        Ok(())
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -180,7 +180,33 @@ where
     async fn fetch_recipes(
         &self,
     ) -> Result<(Option<Recipe>, Option<BTreeMap<String, Recipe>>), String> {
-        Ok((None, None))
+        if let Some(recipes) = self
+            .store
+            .get_recipes()
+            .await
+            .map_err(|e| format!("{:?}", e))?
+        {
+            let mut parsed_map = BTreeMap::new();
+            // TODO(jwall): Utilize the id instead of the index from now on.
+            let mut staples = None;
+            for r in recipes {
+                let recipe = match parse::as_recipe(&r.recipe_text()) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        error!("Error parsing recipe {}", e);
+                        continue;
+                    }
+                };
+                if recipe.title == "Staples" {
+                    staples = Some(recipe);
+                } else {
+                    parsed_map.insert(r.recipe_id().to_owned(), recipe);
+                }
+            }
+            Ok((staples, Some(parsed_map)))
+        } else {
+            Ok((None, None))
+        }
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -189,7 +215,22 @@ where
     }
     #[cfg(not(target_arch = "wasm32"))]
     async fn fetch_categories(&self) -> Result<Option<BTreeMap<String, String>>, String> {
-        Ok(None)
+        if let Some(contents) = self
+            .store
+            .get_categories()
+            .await
+            .map_err(|e| format!("{:?}", e))?
+        {
+            match parse::as_categories(&contents) {
+                Ok(categories) => Ok(Some(categories)),
+                Err(e) => {
+                    debug!("Error parsing categories {}", e);
+                    Err(format!("Error parsing categories {}", e))
+                }
+            }
+        } else {
+            Ok(None)
+        }
     }
 
     // FIXME(jwall): Stays public

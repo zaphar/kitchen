@@ -64,8 +64,10 @@ fn get_appservice() -> AppService<HttpStore> {
     AppService::new(recipe_store::HttpStore::new("/api/v1".to_owned()))
 }
 
+#[instrument]
 #[component(RouterComponent<G>)]
 fn router_component(route: Option<AppRoutes>) -> View<G> {
+    debug!("Setting up router component");
     match route {
         Some(route) => {
             view! {
@@ -95,22 +97,25 @@ pub fn ui(route: Option<AppRoutes>) -> View<G> {
         ContextProvider(ContextProviderProps {
             value: app_service.clone(),
             children: || {
-                create_effect(move || {
+                let view = Signal::new(View::empty());
+                create_effect(cloned!((route, view, app_service) => move || {
                     spawn_local_in_scope({
-                        let app_service = app_service.clone();
-                        async move {
+                        cloned!((route, view, app_service) => async move {
                             debug!("fetching recipes");
                             if let Err(msg) =  app_service.init(false).await {
-                                error!("Failed to get recipes {}", msg)
+                                error!("Failed to get recipes {}", msg);
                             }
-                        }
-                    });
-                });
+                            view.set(view!{
+                                RouterComponent(route)
+                            });
+                        })
+                    })
+                }));
 
                 view! {
                     div(class="app") {
                         Header()
-                        RouterComponent(route)
+                        (view.get().as_ref().clone())
                     }
                 }
             }

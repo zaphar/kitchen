@@ -55,7 +55,8 @@ where
         match UiAssets::get(path.as_str()) {
             Some(content) => {
                 let body = boxed(Full::from(content.data));
-                let mime = mime_guess::from_path(path).first_or_octet_stream();
+                let mime = mime_guess::from_path(&path).first_or_octet_stream();
+                debug!(mime_type=%mime, %path, "request mime type determined");
                 Response::builder()
                     .header(header::CONTENT_TYPE, mime.as_ref())
                     .body(body)
@@ -83,8 +84,10 @@ async fn ui_assets(Path(path): Path<String>) -> impl IntoResponse {
     } else {
         let index = UiAssets::get("index.html").expect("Unexpectedly can't find index.html");
         let body = boxed(Full::from(
-            String::from_utf8_lossy(index.data.as_ref())
-                .replace("%kitchen-wasm", &kitchen_wasm::render_to_string(path)),
+            String::from_utf8_lossy(index.data.as_ref()).replace(
+                "%kitchen-wasm",
+                &kitchen_wasm::render_to_string(&format!("/ui/{}", path)),
+            ),
         ));
         Response::builder()
             .header(header::CONTENT_TYPE, "text/html")
