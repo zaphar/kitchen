@@ -51,7 +51,7 @@ fn route_switch<G: Html>(route: ReadSignal<AppRoutes>) -> View<G> {
             }
         }
     });
-    debug!(node=?node, "routing to new page");
+    debug!(node=?node, route=?route.get_untracked(), "routing to new page");
     node
 }
 
@@ -70,11 +70,13 @@ fn router_component(route: Option<AppRoutes>) -> View<G> {
     debug!("Setting up router component");
     match route {
         Some(route) => {
+            debug!("Using static router");
             view! {
                 StaticRouter(StaticRouterProps{route: route, route_select: route_switch})
             }
         }
         None => {
+            debug!("Using dynamic router");
             view! {
                 Router(RouterProps{
                     route: AppRoutes::default(),

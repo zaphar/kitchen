@@ -18,6 +18,7 @@ mod router_integration;
 mod service;
 mod web;
 
+#[cfg(not(target_arch = "wasm32"))]
 use router_integration::DeriveRoute;
 use sycamore::prelude::*;
 use tracing::{debug, instrument};
