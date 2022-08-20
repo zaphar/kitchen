@@ -46,13 +46,14 @@ pub fn recipe_selector() -> View<G> {
             (View::new_fragment(
                 rows.get().iter().cloned().map(|r| {
                     view ! {
-                        div(class="grid") {Indexed(IndexedProps{
+                        div(class="grid") {Keyed(KeyedProps{
                             iterable: r.handle(),
                             template: |(i, recipe)| {
                                 view! {
                                     RecipeSelection(RecipeCheckBoxProps{i: i, title: create_memo(move || recipe.get().title.clone())})
                                 }
                             },
+                            key: |r| r.0.clone(),
                         })}
                     }
                 }).collect()
