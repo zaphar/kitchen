@@ -24,11 +24,11 @@ pub fn tabbed_view(state: TabState<G>) -> View<G> {
         header(class="no-print") {
             nav {
                 ul {
-                    li { a(href="#plan", class="no-print") { "Plan" } " > "
+                    li { a(href="/ui/plan", class="no-print") { "Plan" } " > "
                     }
-                    li { a(href="#inventory", class="no-print") { "Inventory" } " > "
+                    li { a(href="/ui/inventory", class="no-print") { "Inventory" } " > "
                     }
-                    li { a(href="#cook", class="no-print") { "Cook" }
+                    li { a(href="/ui/cook", class="no-print") { "Cook" }
                     }
                 }
                 ul {

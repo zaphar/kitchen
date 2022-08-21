@@ -15,7 +15,7 @@ use std::fmt::Debug;
 use std::rc::Rc;
 
 use sycamore::prelude::*;
-use tracing::{debug, error, instrument};
+use tracing::{debug, error, info, instrument};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::Event;
@@ -190,11 +190,12 @@ impl DeriveRoute for AppRoutes {
     #[instrument]
     fn from(input: &(String, String, String)) -> AppRoutes {
         debug!(origin=%input.0, path=%input.1, hash=%input.2, "routing");
-        match input.2.as_str() {
+        let (_origin, path, _hash) = input;
+        let route = match path.as_str() {
             "" => AppRoutes::default(),
-            "#plan" => AppRoutes::Plan,
-            "#cook" => AppRoutes::Cook,
-            "#inventory" => AppRoutes::Inventory,
+            "/ui/plan" | "/" => AppRoutes::Plan,
+            "/ui/ook" => AppRoutes::Cook,
+            "/ui/inventory" => AppRoutes::Inventory,
             h => {
                 // TODO(jwall): Parse the recipe hash
                 let parts: Vec<&str> = h.splitn(2, "/").collect();
@@ -206,6 +207,8 @@ impl DeriveRoute for AppRoutes {
                 error!(origin=%input.0, path=%input.1, hash=%input.2, "Path not found");
                 AppRoutes::NotFound
             }
-        }
+        };
+        info!(route=?route, "Route identified");
+        route
     }
 }
