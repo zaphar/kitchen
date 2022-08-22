@@ -215,7 +215,7 @@ impl DeriveRoute for AppRoutes {
         let route = match path.as_str() {
             "" => AppRoutes::default(),
             "/ui/plan" | "/" => AppRoutes::Plan,
-            "/ui/ook" => AppRoutes::Cook,
+            "/ui/cook" => AppRoutes::Cook,
             "/ui/inventory" => AppRoutes::Inventory,
             h => {
                 // TODO(jwall): Parse the recipe hash
