@@ -42,15 +42,15 @@ pub fn recipe_selector() -> View<G> {
         }));
     }));
     view! {
-        fieldset(class="recipe_selector no-print") {
+        table(class="recipe_selector no-print") {
             (View::new_fragment(
                 rows.get().iter().cloned().map(|r| {
                     view ! {
-                        div(class="grid") {Keyed(KeyedProps{
+                        tr { Keyed(KeyedProps{
                             iterable: r.handle(),
                             template: |(i, recipe)| {
                                 view! {
-                                    RecipeSelection(RecipeCheckBoxProps{i: i, title: create_memo(move || recipe.get().title.clone())})
+                                    td { RecipeSelection(RecipeCheckBoxProps{i: i, title: create_memo(move || recipe.get().title.clone())}) }
                                 }
                             },
                             key: |r| r.0.clone(),
