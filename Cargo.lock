@@ -691,7 +691,7 @@ dependencies = [
 
 [[package]]
 name = "kitchen"
-version = "0.2.9"
+version = "0.2.10"
 dependencies = [
  "async-std",
  "async-trait",
@@ -1027,7 +1027,7 @@ dependencies = [
 
 [[package]]
 name = "recipe-store"
-version = "0.1.0"
+version = "0.2.10"
 dependencies = [
  "async-std",
  "async-trait",
@@ -1040,7 +1040,7 @@ dependencies = [
 
 [[package]]
 name = "recipes"
-version = "0.2.9"
+version = "0.2.10"
 dependencies = [
  "Inflector",
  "abortable_parser",
