@@ -8,6 +8,10 @@ with pkgs;
 let
     pname = "kitchen-wasm";
     src = ./../..;
+    lockFile = ./../../Cargo.lock;
+    # NOTE(jwall): Because we use wasm-pack directly below we need
+    # the cargo dependencies to already be installed.
+     cargoDeps = (pkgs.rustPlatform.importCargoLock { inherit lockFile; });
 in
 stdenv.mkDerivation {
     inherit src pname;
@@ -17,7 +21,7 @@ stdenv.mkDerivation {
     propagatedBuildInputs = [ rust-wasm wasm-bindgen-cli wasm-pack binaryen];
     phases = [ "postUnpackPhase" "buildPhase"];
     postUnpackPhase = ''
-        ln -s ${cargoVendorDeps} ./cargo-vendor-dir
+        ln -s ${cargoDeps} ./cargo-vendor-dir
         cp -r ./cargo-vendor-dir/.cargo ./
         cp -r $src/* ./
     '';
