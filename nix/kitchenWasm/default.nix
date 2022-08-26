@@ -1,8 +1,6 @@
 {pkgs? (import <nixpkgs>) {},
  version ? "0.2.1",
- cargoVendorDeps ? (import ./../cargoVendorDeps/default.nix {inherit pkgs version; }),
  rust-wasm,
- trunk ? (import ./../trunk/default.nix {inherit pkgs;}),
 }:
 with pkgs;
 let

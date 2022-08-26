@@ -192,9 +192,9 @@ impl DeriveRoute for AppRoutes {
         debug!(origin=%input.0, path=%input.1, hash=%input.2, "routing");
         let (_origin, path, _hash) = input;
         let route = match path.as_str() {
-            "" => AppRoutes::default(),
+            "" | "/" | "/ui/" => AppRoutes::default(),
             "/ui/plan" | "/" => AppRoutes::Plan,
-            "/ui/ook" => AppRoutes::Cook,
+            "/ui/cook" => AppRoutes::Cook,
             "/ui/inventory" => AppRoutes::Inventory,
             h => {
                 // TODO(jwall): Parse the recipe hash
