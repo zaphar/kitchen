@@ -243,7 +243,7 @@ where
             .collect()
     }
 
-    pub fn set_recipes(&mut self, mut recipes: BTreeMap<String, Recipe>) {
+    pub fn set_recipes(&mut self, recipes: BTreeMap<String, Recipe>) {
         self.recipes.set(
             recipes
                 .iter()

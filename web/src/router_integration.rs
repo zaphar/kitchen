@@ -193,7 +193,7 @@ impl DeriveRoute for AppRoutes {
         let (_origin, path, _hash) = input;
         let route = match path.as_str() {
             "" | "/" | "/ui/" => AppRoutes::default(),
-            "/ui/plan" | "/" => AppRoutes::Plan,
+            "/ui/plan" => AppRoutes::Plan,
             "/ui/cook" => AppRoutes::Cook,
             "/ui/inventory" => AppRoutes::Inventory,
             h => {
