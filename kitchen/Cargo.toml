@@ -12,14 +12,37 @@ tracing-subscriber = "0.3.14"
 recipes = { path = "../recipes" }
 recipe-store = {path = "../recipe-store" }
 csv = "1.1.1"
-axum = "0.5.13"
 rust-embed="6.4.0"
 mime_guess = "2.0.4"
 async-trait = "0.1.57"
-tower-http = { version = "0.3.0", features = ["trace"] }
 async-session = "3.0.0"
 ciborium = "0.2.0"
 rocksdb = "0.19.0"
+tower = "0.4.13"
+serde = "1.0.144"
+
+[dependencies.argon2]
+version = "0.4.1"
+
+[dependencies.secrecy]
+version = "0.8.0"
+features = ["serde"]
+
+[dependencies.axum-auth]
+version = "0.3.0"
+features = ["auth-basic"]
+
+[dependencies.tower-http]
+version = "0.3.0"
+features = ["trace", "auth", "sensitive-headers"]
+
+[dependencies.uuid]
+version = "1.0.144"
+features = ["serde", "v4"]
+
+[dependencies.axum]
+version = "0.5.15"
+features = ["headers", "http2"]
 
 [dependencies.clap]
 version = "3.2.16"

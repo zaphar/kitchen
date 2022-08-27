@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use std::iter::once;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -20,14 +21,17 @@ use axum::{
     extract::{Extension, Path},
     http::{header, StatusCode},
     response::{IntoResponse, Redirect, Response},
-    routing::{get, Router},
+    routing::{get, post, Router},
 };
 use mime_guess;
 use recipe_store::{self, RecipeEntry, RecipeStore};
 use rust_embed::RustEmbed;
+use tower::ServiceBuilder;
+use tower_http::sensitive_headers::SetSensitiveRequestHeadersLayer;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, info, instrument};
 
+mod auth;
 mod session;
 
 #[derive(RustEmbed)]
@@ -71,7 +75,12 @@ async fn ui_static_assets(Path(path): Path<String>) -> impl IntoResponse {
 }
 
 #[instrument]
-async fn api_recipes(Extension(store): Extension<Arc<recipe_store::AsyncFileStore>>) -> Response {
+async fn api_recipes(
+    Extension(store): Extension<Arc<recipe_store::AsyncFileStore>>,
+    session: session::UserIdFromSession,
+) -> impl IntoResponse {
+    // TODO(jwall): Select recipes based on the user-id if it exists.
+    // Or serve the default if it does not.
     let result: Result<axum::Json<Vec<RecipeEntry>>, String> = match store
         .get_recipes()
         .await
@@ -81,13 +90,16 @@ async fn api_recipes(Extension(store): Extension<Arc<recipe_store::AsyncFileStor
         Ok(None) => Ok(axum::Json::from(Vec::<RecipeEntry>::new())),
         Err(e) => Err(e),
     };
-    result.into_response()
+    result
 }
 
 #[instrument]
 async fn api_categories(
     Extension(store): Extension<Arc<recipe_store::AsyncFileStore>>,
-) -> Response {
+    session: session::UserIdFromSession,
+) -> impl IntoResponse {
+    // TODO(jwall): Select recipes based on the user-id if it exists.
+    // Or serve the default if it does not.
     let recipe_result = store
         .get_categories()
         .await
@@ -97,13 +109,19 @@ async fn api_categories(
         Ok(None) => Ok(axum::Json::from(String::new())),
         Err(e) => Err(e),
     };
-    result.into_response()
+    result
 }
 
 #[instrument(fields(recipe_dir=?recipe_dir_path,listen=?listen_socket), skip_all)]
-pub async fn ui_main(recipe_dir_path: PathBuf, listen_socket: SocketAddr) {
+pub async fn ui_main(
+    recipe_dir_path: PathBuf,
+    session_store_path: PathBuf,
+    listen_socket: SocketAddr,
+) {
     let store = Arc::new(recipe_store::AsyncFileStore::new(recipe_dir_path.clone()));
     //let dir_path = (&dir_path).clone();
+    let session_store = session::RocksdbInnerStore::new(session_store_path)
+        .expect("Unable to create session_store");
     let router = Router::new()
         .route("/", get(|| async { Redirect::temporary("/ui/plan") }))
         .route("/ui/*path", get(ui_static_assets))
@@ -111,10 +129,21 @@ pub async fn ui_main(recipe_dir_path: PathBuf, listen_socket: SocketAddr) {
         .route("/api/v1/recipes", get(api_recipes))
         // categories api path route
         .route("/api/v1/categories", get(api_categories))
+        // All the routes above require a UserId.
+        .route("/api/v1/auth", post(auth::handler))
         // NOTE(jwall): Note that the layers are applied to the preceding routes not
         // the following routes.
-        .layer(TraceLayer::new_for_http())
-        .layer(Extension(store));
+        .layer(
+            // NOTE(jwall): However service builder will apply the layers from top
+            // to bottom.
+            ServiceBuilder::new()
+                .layer(TraceLayer::new_for_http())
+                .layer(Extension(store))
+                .layer(Extension(session_store))
+                .layer(SetSensitiveRequestHeadersLayer::new(once(
+                    axum::http::header::AUTHORIZATION,
+                ))),
+        );
     info!(
         http = format!("http://{}", listen_socket),
         "Starting server"

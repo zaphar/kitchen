@@ -44,6 +44,7 @@ fn create_app<'a>() -> clap::App<'a> {
         (@subcommand serve =>
             (about: "Serve the interface via the web")
             (@arg recipe_dir: -d --dir +takes_value "Directory containing recipe files to use")
+            (@arg session_dir: --sesion_dir + takes_value "Session store directory to use")
             (@arg listen: --listen +takes_value "address and port to listen on 0.0.0.0:3030")
         )
     )
@@ -105,6 +106,14 @@ fn main() {
         } else {
             std::env::current_dir().expect("Unable to get current directory. Bailing out.")
         };
+        let session_store_path: PathBuf = if let Some(dir) = matches.value_of("session_dir") {
+            PathBuf::from(dir)
+        } else {
+            let mut dir =
+                std::env::current_dir().expect("Unable to get current directory. Bailing out.");
+            dir.push(".session_store");
+            dir
+        };
         let listen_socket: SocketAddr = if let Some(listen_socket) = matches.value_of("listen") {
             listen_socket.parse().expect(&format!(
                 "--listen must be of the form <addr>:<port> but got {}",
@@ -114,6 +123,8 @@ fn main() {
             "127.0.0.1:3030".parse().unwrap()
         };
         info!(listen=%listen_socket, "Launching web interface...");
-        async_std::task::block_on(async { web::ui_main(recipe_dir_path, listen_socket).await });
+        async_std::task::block_on(async {
+            web::ui_main(recipe_dir_path, session_store_path, listen_socket).await
+        });
     }
 }
