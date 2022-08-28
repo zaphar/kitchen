@@ -13,8 +13,12 @@
 // limitations under the License.
 use std::str::FromStr;
 
-use async_session::SessionStore;
-use axum::{extract::Extension, http::StatusCode, response::IntoResponse};
+use async_session::{Session, SessionStore};
+use axum::{
+    extract::Extension,
+    http::{header, HeaderMap, StatusCode},
+    response::IntoResponse,
+};
 use axum_auth::AuthBasic;
 use secrecy::Secret;
 
@@ -24,20 +28,38 @@ pub async fn handler(
     auth: AuthBasic,
     Extension(session_store): Extension<session::RocksdbInnerStore>,
 ) -> impl IntoResponse {
-    if let Ok(true) = session_store.check_user_creds(session::UserCreds::from(auth)) {
+    if let Ok(true) = session_store.check_user_creds(session::UserCreds::from(&auth)) {
         // TODO(jwall): set up session for them
         // and redirect to the UI.
-        todo!()
+        // 1. Create a session identifier.
+        let mut session = Session::new();
+        session.insert("user_id", auth.0).unwrap();
+        let cookie_value = session_store.store_session(session).await.unwrap().unwrap();
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::SET_COOKIE,
+            format!("{}={}", session::AXUM_SESSION_COOKIE_NAME, cookie_value)
+                .parse()
+                .unwrap(),
+        );
+        // 2. Store the session in the store.
+        // 3. Construct the Session Cookie.
+        (StatusCode::OK, headers, "Login Successful")
     } else {
-        (StatusCode::UNAUTHORIZED, "Invalid user id or password")
+        let headers = HeaderMap::new();
+        (
+            StatusCode::UNAUTHORIZED,
+            headers,
+            "Invalid user id or password",
+        )
     }
 }
 
-impl From<AuthBasic> for session::UserCreds {
-    fn from(AuthBasic((id, pass)): AuthBasic) -> Self {
+impl<'a> From<&'a AuthBasic> for session::UserCreds {
+    fn from(AuthBasic((id, pass)): &'a AuthBasic) -> Self {
         Self {
-            id: session::UserId(id),
-            pass: Secret::from_str(pass.unwrap().as_str()).unwrap(),
+            id: session::UserId(id.clone()),
+            pass: Secret::from_str(pass.clone().unwrap().as_str()).unwrap(),
         }
     }
 }

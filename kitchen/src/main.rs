@@ -17,6 +17,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use clap;
+use clap::ArgMatches;
 use clap::{clap_app, crate_authors, crate_version};
 use tracing::{error, info, instrument, warn, Level};
 use tracing_subscriber::FmtSubscriber;
@@ -47,8 +48,25 @@ fn create_app<'a>() -> clap::App<'a> {
             (@arg session_dir: --sesion_dir + takes_value "Session store directory to use")
             (@arg listen: --listen +takes_value "address and port to listen on 0.0.0.0:3030")
         )
+        (@subcommand add_user =>
+            (about: "add users to to the interface")
+            (@arg user: -u --user +takes_value +required "username to add")
+            (@arg pass: -p --pass +takes_value +required "password to add for this user")
+            (@arg session_dir: --sesion_dir +takes_value "Session store directory to use")
+        )
     )
     .setting(clap::AppSettings::SubcommandRequiredElseHelp)
+}
+
+fn get_session_store_path(matches: &ArgMatches) -> PathBuf {
+    if let Some(dir) = matches.value_of("session_dir") {
+        PathBuf::from(dir)
+    } else {
+        let mut dir =
+            std::env::current_dir().expect("Unable to get current directory. Bailing out.");
+        dir.push(".session_store");
+        dir
+    }
 }
 
 #[instrument]
@@ -106,14 +124,7 @@ fn main() {
         } else {
             std::env::current_dir().expect("Unable to get current directory. Bailing out.")
         };
-        let session_store_path: PathBuf = if let Some(dir) = matches.value_of("session_dir") {
-            PathBuf::from(dir)
-        } else {
-            let mut dir =
-                std::env::current_dir().expect("Unable to get current directory. Bailing out.");
-            dir.push(".session_store");
-            dir
-        };
+        let session_store_path: PathBuf = get_session_store_path(matches);
         let listen_socket: SocketAddr = if let Some(listen_socket) = matches.value_of("listen") {
             listen_socket.parse().expect(&format!(
                 "--listen must be of the form <addr>:<port> but got {}",
@@ -126,5 +137,12 @@ fn main() {
         async_std::task::block_on(async {
             web::ui_main(recipe_dir_path, session_store_path, listen_socket).await
         });
+    } else if let Some(matches) = matches.subcommand_matches("add_user") {
+        let session_store_path: PathBuf = get_session_store_path(matches);
+        web::add_user(
+            session_store_path,
+            matches.value_of("user").unwrap().to_owned(),
+            matches.value_of("pass").unwrap().to_owned(),
+        );
     }
 }

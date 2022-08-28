@@ -30,12 +30,12 @@ use rocksdb::{
 };
 use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error, instrument};
+use tracing::{debug, error, info, instrument};
 
 const SESSION_CF: &'static str = "kitchen_session";
 const USER_CF: &'static str = "kitchen_users";
 
-const AXUM_SESSION_COOKIE_NAME: &'static str = "kitchen-session-cookie";
+pub const AXUM_SESSION_COOKIE_NAME: &'static str = "kitchen-session-cookie";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserId(pub String);
@@ -86,6 +86,7 @@ impl RocksdbInnerStore {
         Ok(Session::id_from_cookie_value(cookie_value)?)
     }
 
+    #[instrument(skip_all)]
     pub fn check_user_creds(&self, user_creds: UserCreds) -> async_session::Result<bool> {
         let cf_handle = self
             .get_users_column_family_handle()
@@ -100,7 +101,9 @@ impl RocksdbInnerStore {
         Ok(false)
     }
 
+    #[instrument(skip_all)]
     pub fn store_user_creds(&self, user_creds: UserCreds) -> async_session::Result<()> {
+        info!("storing credentials for user {}", user_creds.id.0);
         let cf_handle = self
             .get_users_column_family_handle()
             .expect(&format!("column family {} is missing", USER_CF));

@@ -112,6 +112,18 @@ async fn api_categories(
     result
 }
 
+pub fn add_user(session_store_path: PathBuf, username: String, password: String) {
+    let session_store = session::RocksdbInnerStore::new(session_store_path)
+        .expect("Unable to create session_store");
+    let user_creds = session::UserCreds {
+        id: session::UserId(username),
+        pass: secrecy::Secret::from(password),
+    };
+    session_store
+        .store_user_creds(user_creds)
+        .expect("Failed to store user creds");
+}
+
 #[instrument(fields(recipe_dir=?recipe_dir_path,listen=?listen_socket), skip_all)]
 pub async fn ui_main(
     recipe_dir_path: PathBuf,
