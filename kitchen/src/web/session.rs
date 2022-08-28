@@ -51,6 +51,12 @@ pub struct UserCreds {
     pub pass: Secret<String>,
 }
 
+impl UserCreds {
+    pub fn user_id(&self) -> &str {
+        self.id.0.as_str()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct RocksdbInnerStore {
     db: Arc<DBWithThreadMode<MultiThreaded>>,
@@ -86,23 +92,30 @@ impl RocksdbInnerStore {
         Ok(Session::id_from_cookie_value(cookie_value)?)
     }
 
-    #[instrument(skip_all)]
-    pub fn check_user_creds(&self, user_creds: UserCreds) -> async_session::Result<bool> {
+    #[instrument(fields(user=%user_creds.id.0), skip_all)]
+    pub fn check_user_creds(&self, user_creds: &UserCreds) -> async_session::Result<bool> {
+        info!("checking credentials for user");
         let cf_handle = self
             .get_users_column_family_handle()
             .expect(&format!("column family {} is missing", USER_CF));
         if let Some(payload) = self.db.get_cf(&cf_handle, user_creds.id.0.as_bytes())? {
+            debug!("Found user in credential store");
             let payload = String::from_utf8_lossy(payload.as_slice()).to_string();
             let parsed_hash = PasswordHash::new(&payload).expect("Invalid Password Hash");
-            return Ok(Argon2::default()
-                .verify_password(user_creds.pass.expose_secret().as_bytes(), &parsed_hash)
-                .is_ok());
+            debug!(password_hash=?parsed_hash, "successfuly obtained password hash");
+            let check = Argon2::default()
+                .verify_password(user_creds.pass.expose_secret().as_bytes(), &parsed_hash);
+            if let Err(err) = &check {
+                debug!(err=?err, "Couldn't verify password")
+            }
+            return Ok(check.is_ok());
         }
         Ok(false)
     }
 
-    #[instrument(skip_all)]
+    #[instrument(fields(user=%user_creds.id.0), skip_all)]
     pub fn store_user_creds(&self, user_creds: UserCreds) -> async_session::Result<()> {
+        // TODO(jwall): Enforce a password length?
         info!("storing credentials for user {}", user_creds.id.0);
         let cf_handle = self
             .get_users_column_family_handle()

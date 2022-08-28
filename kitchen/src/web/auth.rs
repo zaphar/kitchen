@@ -21,31 +21,39 @@ use axum::{
 };
 use axum_auth::AuthBasic;
 use secrecy::Secret;
+use tracing::{debug, info, instrument};
 
 use super::session;
 
+#[instrument(skip_all, fields(user=%auth.0.0))]
 pub async fn handler(
     auth: AuthBasic,
     Extension(session_store): Extension<session::RocksdbInnerStore>,
 ) -> impl IntoResponse {
-    if let Ok(true) = session_store.check_user_creds(session::UserCreds::from(&auth)) {
-        // TODO(jwall): set up session for them
-        // and redirect to the UI.
+    // NOTE(jwall): It is very important that you do **not** log the password
+    // here. We convert the AuthBasic into UserCreds immediately to help prevent
+    // that. Do not circumvent that protection.
+    let auth = session::UserCreds::from(auth);
+    info!("Handling authentication request");
+    if let Ok(true) = session_store.check_user_creds(&auth) {
+        debug!("successfully authenticated user");
         // 1. Create a session identifier.
         let mut session = Session::new();
-        session.insert("user_id", auth.0).unwrap();
+        session.insert("user_id", auth.user_id()).unwrap();
+        // 2. Store the session in the store.
         let cookie_value = session_store.store_session(session).await.unwrap().unwrap();
         let mut headers = HeaderMap::new();
+        // 3. Construct the Session Cookie.
         headers.insert(
             header::SET_COOKIE,
             format!("{}={}", session::AXUM_SESSION_COOKIE_NAME, cookie_value)
                 .parse()
                 .unwrap(),
         );
-        // 2. Store the session in the store.
-        // 3. Construct the Session Cookie.
+        // Respond with 200 OK
         (StatusCode::OK, headers, "Login Successful")
     } else {
+        debug!("Invalid credentials");
         let headers = HeaderMap::new();
         (
             StatusCode::UNAUTHORIZED,
@@ -55,8 +63,8 @@ pub async fn handler(
     }
 }
 
-impl<'a> From<&'a AuthBasic> for session::UserCreds {
-    fn from(AuthBasic((id, pass)): &'a AuthBasic) -> Self {
+impl From<AuthBasic> for session::UserCreds {
+    fn from(AuthBasic((id, pass)): AuthBasic) -> Self {
         Self {
             id: session::UserId(id.clone()),
             pass: Secret::from_str(pass.clone().unwrap().as_str()).unwrap(),

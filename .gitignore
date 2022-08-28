@@ -5,4 +5,5 @@ web/dist/
 webdist/
 nix/*/result
 result
-.vscode/ 
+.vscode/
+.session_store/ 

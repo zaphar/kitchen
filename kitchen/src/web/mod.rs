@@ -21,7 +21,7 @@ use axum::{
     extract::{Extension, Path},
     http::{header, StatusCode},
     response::{IntoResponse, Redirect, Response},
-    routing::{get, post, Router},
+    routing::{any, get, post, Router},
 };
 use mime_guess;
 use recipe_store::{self, RecipeEntry, RecipeStore};
@@ -142,7 +142,7 @@ pub async fn ui_main(
         // categories api path route
         .route("/api/v1/categories", get(api_categories))
         // All the routes above require a UserId.
-        .route("/api/v1/auth", post(auth::handler))
+        .route("/api/v1/auth", get(auth::handler).post(auth::handler))
         // NOTE(jwall): Note that the layers are applied to the preceding routes not
         // the following routes.
         .layer(
@@ -151,10 +151,7 @@ pub async fn ui_main(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
                 .layer(Extension(store))
-                .layer(Extension(session_store))
-                .layer(SetSensitiveRequestHeadersLayer::new(once(
-                    axum::http::header::AUTHORIZATION,
-                ))),
+                .layer(Extension(session_store)),
         );
     info!(
         http = format!("http://{}", listen_socket),

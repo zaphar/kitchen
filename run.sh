@@ -13,8 +13,6 @@
 # limitations under the License.
 EXAMPLES=${EXAMPLES:-../examples}
 make clean wasm kitchen
-pushd kitchen
 echo Starting api server serving ${EXAMPLES}
 cargo run -- --verbose debug serve --dir ${EXAMPLES}
-popd
 # This is ghetto but I'm doing it anyway
