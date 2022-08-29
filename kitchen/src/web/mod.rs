@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::iter::once;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -21,13 +20,12 @@ use axum::{
     extract::{Extension, Path},
     http::{header, StatusCode},
     response::{IntoResponse, Redirect, Response},
-    routing::{any, get, post, Router},
+    routing::{get, Router},
 };
 use mime_guess;
 use recipe_store::{self, RecipeEntry, RecipeStore};
 use rust_embed::RustEmbed;
 use tower::ServiceBuilder;
-use tower_http::sensitive_headers::SetSensitiveRequestHeadersLayer;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, info, instrument};
 
