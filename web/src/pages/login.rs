@@ -56,6 +56,7 @@ pub fn login_form() -> View<G> {
         if username != "" && password != "" {
             spawn_local_in_scope(async move {
                 debug!("authenticating against ui");
+                // TODO(jwall): Navigate to plan if the below is successful.
                 authenticate(username, password).await;
             });
         }

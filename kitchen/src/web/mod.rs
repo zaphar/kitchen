@@ -29,6 +29,8 @@ use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, info, instrument};
 
+use session::AuthStore;
+
 mod auth;
 mod session;
 
@@ -113,8 +115,9 @@ async fn api_categories(
     result
 }
 
-pub fn add_user(session_store_path: PathBuf, username: String, password: String) {
-    let session_store = session::RocksdbInnerStore::new(session_store_path)
+pub async fn add_user(session_store_path: PathBuf, username: String, password: String) {
+    let session_store = session::SqliteStore::new(session_store_path)
+        .await
         .expect("Unable to create session_store");
     let user_creds = session::UserCreds {
         id: session::UserId(username),
@@ -122,6 +125,7 @@ pub fn add_user(session_store_path: PathBuf, username: String, password: String)
     };
     session_store
         .store_user_creds(user_creds)
+        .await
         .expect("Failed to store user creds");
 }
 
@@ -133,7 +137,8 @@ pub async fn ui_main(
 ) {
     let store = Arc::new(recipe_store::AsyncFileStore::new(recipe_dir_path.clone()));
     //let dir_path = (&dir_path).clone();
-    let session_store = session::RocksdbInnerStore::new(session_store_path)
+    let session_store = session::SqliteStore::new(session_store_path)
+        .await
         .expect("Unable to create session_store");
     let router = Router::new()
         .route("/", get(|| async { Redirect::temporary("/ui/plan") }))

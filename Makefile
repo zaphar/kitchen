@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+sqlx-prepare: wasm kitches/src/*.rs
+	cd kitchen; cargo sqlx-prepare
+
 kitchen: wasm kitchen/src/*.rs
 	cd kitchen; cargo build
 

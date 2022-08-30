@@ -20,22 +20,23 @@ use axum::{
     response::IntoResponse,
 };
 use axum_auth::AuthBasic;
+use cookie::{Cookie, SameSite};
 use secrecy::Secret;
 use tracing::{debug, info, instrument};
 
-use super::session;
+use super::session::{self, AuthStore};
 
 #[instrument(skip_all, fields(user=%auth.0.0))]
 pub async fn handler(
     auth: AuthBasic,
-    Extension(session_store): Extension<session::RocksdbInnerStore>,
+    Extension(session_store): Extension<session::SqliteStore>,
 ) -> impl IntoResponse {
     // NOTE(jwall): It is very important that you do **not** log the password
     // here. We convert the AuthBasic into UserCreds immediately to help prevent
     // that. Do not circumvent that protection.
     let auth = session::UserCreds::from(auth);
     info!("Handling authentication request");
-    if let Ok(true) = session_store.check_user_creds(&auth) {
+    if let Ok(true) = session_store.check_user_creds(&auth).await {
         debug!("successfully authenticated user");
         // 1. Create a session identifier.
         let mut session = Session::new();
@@ -44,17 +45,11 @@ pub async fn handler(
         let cookie_value = session_store.store_session(session).await.unwrap().unwrap();
         let mut headers = HeaderMap::new();
         // 3. Construct the Session Cookie.
-        // TODO(jwall): Find or Build a cookie builder.
-        headers.insert(
-            header::SET_COOKIE,
-            format!(
-                "{}={} SameSite=Strict Secure",
-                session::AXUM_SESSION_COOKIE_NAME,
-                cookie_value
-            )
-            .parse()
-            .unwrap(),
-        );
+        let cookie = Cookie::build(session::AXUM_SESSION_COOKIE_NAME, cookie_value)
+            .same_site(SameSite::Strict)
+            .secure(true)
+            .finish();
+        headers.insert(header::SET_COOKIE, cookie.to_string().parse().unwrap());
         // Respond with 200 OK
         (StatusCode::OK, headers, "Login Successful")
     } else {

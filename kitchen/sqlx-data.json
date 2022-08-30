@@ -1,0 +1,79 @@
+{
+  "db": "SQLite",
+  "104f07472670436d3eee1733578bbf0c92dc4f965d3d13f9bf4bfbc92958c5b6": {
+    "describe": {
+      "columns": [
+        {
+          "name": "password_hashed",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select password_hashed from users where id = ?"
+  },
+  "5d743897fb0d8fd54c3708f1b1c6e416346201faa9e28823c1ba5a421472b1fa": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "insert into users (id, password_hashed) values (?, ?)"
+  },
+  "7578157607967a6a4c60f12408c5d9900d15b429a49681a4cae4e02d31c524ec": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "delete from sessions where id = ?"
+  },
+  "928a479ca0f765ec7715bf8784c5490e214486edbf5b78fd501823feb328375b": {
+    "describe": {
+      "columns": [
+        {
+          "name": "session_value",
+          "ordinal": 0,
+          "type_info": "Blob"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select session_value from sessions where id = ?"
+  },
+  "9ad4acd9b9d32c9f9f441276aa71a17674fe4d65698848044778bd4aef77d42d": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "insert into sessions (id, session_value) values (?, ?)"
+  },
+  "d84685a82585c5e4ae72c86ba1fe6e4a7241c4c3c9e948213e5849d956132bad": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 0
+      }
+    },
+    "query": "delete from sessions"
+  }
+}

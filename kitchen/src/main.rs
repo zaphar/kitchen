@@ -45,14 +45,14 @@ fn create_app<'a>() -> clap::App<'a> {
         (@subcommand serve =>
             (about: "Serve the interface via the web")
             (@arg recipe_dir: -d --dir +takes_value "Directory containing recipe files to use")
-            (@arg session_dir: --sesion_dir + takes_value "Session store directory to use")
+            (@arg session_dir: --session_dir + takes_value "Session store directory to use")
             (@arg listen: --listen +takes_value "address and port to listen on 0.0.0.0:3030")
         )
         (@subcommand add_user =>
             (about: "add users to to the interface")
             (@arg user: -u --user +takes_value +required "username to add")
             (@arg pass: -p --pass +takes_value +required "password to add for this user")
-            (@arg session_dir: --sesion_dir +takes_value "Session store directory to use")
+            (@arg session_dir: --session_dir +takes_value "Session store directory to use")
         )
     )
     .setting(clap::AppSettings::SubcommandRequiredElseHelp)
@@ -139,10 +139,13 @@ fn main() {
         });
     } else if let Some(matches) = matches.subcommand_matches("add_user") {
         let session_store_path: PathBuf = get_session_store_path(matches);
-        web::add_user(
-            session_store_path,
-            matches.value_of("user").unwrap().to_owned(),
-            matches.value_of("pass").unwrap().to_owned(),
-        );
+        async_std::task::block_on(async {
+            web::add_user(
+                session_store_path,
+                matches.value_of("user").unwrap().to_owned(),
+                matches.value_of("pass").unwrap().to_owned(),
+            )
+            .await;
+        });
     }
 }

@@ -13,7 +13,7 @@ with pkgs;
     buildInputs = [ rust-wasm ];
     # However the crate we are building has it's root in specific crate.
     src = root;
-    nativeBuildInputs = if stdenv.isDarwin then [ xcbuild ] else [ ];
+    nativeBuildInputs = (if stdenv.isDarwin then [ xcbuild pkgs.darwin.apple_sdk.frameworks.Security ] else [ ]) ++ [llvm clang];
     cargoBuildOptions = opts: opts ++ ["-p" "${pname}" ];
     postPatch = ''
       mkdir -p web/dist

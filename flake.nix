@@ -56,9 +56,7 @@
                     type = "app";
                     program = "${kitchen}/bin/kitchen";
                 };
-                devShell = pkgs.mkShell {
-                    buildInputs = [ rust-wasm ] ++ (with pkgs; [wasm-bindgen-cli wasm-pack]);
-                };
+                devShell = pkgs.callPackage ./nix/devShell/default.nix { inherit rust-wasm; };
             } 
         );
 }

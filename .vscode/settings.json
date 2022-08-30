@@ -2,4 +2,8 @@
     "rust-analyzer.diagnostics.disabled": [
         "macro-error"
     ],
+    "rust-analyzer.cargo.noDefaultFeatures": false,
+    "rust-analyzer.cargo.features": [
+        "sqlite"
+    ],
 }
