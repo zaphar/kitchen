@@ -67,7 +67,10 @@ async fn ui_static_assets(Path(path): Path<String>) -> impl IntoResponse {
     info!("Serving ui path");
 
     let mut path = path.trim_start_matches("/");
-    path = if path == "" { "index.html" } else { path };
+    path = match path {
+        "" | "inventory" | "plan" | "cook" | "login" => "index.html",
+        _ => path,
+    };
     debug!(path = path, "Serving transformed path");
     StaticFile(path.to_owned())
 }

@@ -13,10 +13,12 @@
 // limitations under the License.
 mod cook;
 mod inventory;
+mod login;
 mod plan;
 mod recipe;
 
 pub use cook::*;
 pub use inventory::*;
+pub use login::*;
 pub use plan::*;
 pub use recipe::*;

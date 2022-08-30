@@ -44,11 +44,16 @@ pub async fn handler(
         let cookie_value = session_store.store_session(session).await.unwrap().unwrap();
         let mut headers = HeaderMap::new();
         // 3. Construct the Session Cookie.
+        // TODO(jwall): Find or Build a cookie builder.
         headers.insert(
             header::SET_COOKIE,
-            format!("{}={}", session::AXUM_SESSION_COOKIE_NAME, cookie_value)
-                .parse()
-                .unwrap(),
+            format!(
+                "{}={} SameSite=Strict Secure",
+                session::AXUM_SESSION_COOKIE_NAME,
+                cookie_value
+            )
+            .parse()
+            .unwrap(),
         );
         // Respond with 200 OK
         (StatusCode::OK, headers, "Login Successful")

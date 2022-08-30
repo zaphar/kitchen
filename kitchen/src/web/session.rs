@@ -214,7 +214,7 @@ where
             }
         } else {
             debug!("no cookies defined in headers.");
-            return Err((StatusCode::UNAUTHORIZED, "Authentication Required"));
+            return Ok(Self::NoUserId);
         }
     }
 }

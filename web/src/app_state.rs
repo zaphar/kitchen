@@ -18,6 +18,7 @@ pub enum AppRoutes {
     Inventory,
     Cook,
     Recipe(String),
+    Login,
     Error(String),
     NotFound,
 }

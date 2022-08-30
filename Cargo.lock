@@ -1048,6 +1048,7 @@ name = "kitchen-wasm"
 version = "0.2.9"
 dependencies = [
  "async-trait",
+ "base64",
  "console_error_panic_hook",
  "recipe-store",
  "recipes",

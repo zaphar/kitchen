@@ -34,6 +34,9 @@ fn route_switch<G: Html>(route: ReadSignal<AppRoutes>) -> View<G> {
         AppRoutes::Inventory => view! {
             InventoryPage()
         },
+        AppRoutes::Login => view! {
+            LoginPage()
+        },
         AppRoutes::Cook => view! {
             CookPage()
         },
