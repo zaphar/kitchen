@@ -55,13 +55,3 @@ features = ["tokio1"]
 [dependencies.sqlx]
 version = "0.6.1"
 features = ["sqlite", "runtime-async-std-rustls", "offline"]
-optional = true
-
-[dependencies.rocksdb]
-version = "0.19.0"
-optional = true
-
-[features]
-sqlite = ["dep:sqlx"]
-rocksdb = ["dep:rocksdb"]
-default = ["sqlite"]
