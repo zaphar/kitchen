@@ -62,7 +62,7 @@ where
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct RecipeEntry(String, String);
+pub struct RecipeEntry(pub String, pub String);
 
 impl RecipeEntry {
     pub fn recipe_id(&self) -> &str {

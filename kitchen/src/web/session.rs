@@ -36,6 +36,8 @@ use sqlx::{
 };
 use tracing::{debug, error, info, instrument};
 
+use recipe_store::RecipeEntry;
+
 pub const AXUM_SESSION_COOKIE_NAME: &'static str = "kitchen-session-cookie";
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -231,5 +233,58 @@ impl AuthStore for SqliteStore {
         .execute(self.pool.as_ref())
         .await?;
         Ok(())
+    }
+}
+
+impl SqliteStore {
+    pub async fn get_categories_for_user(
+        &self,
+        user_id: &str,
+    ) -> Result<Option<String>, recipe_store::Error> {
+        match sqlx::query_scalar!(
+            "select category_text from categories where user_id = ?",
+            user_id,
+        )
+        .fetch_optional(self.pool.as_ref())
+        .await
+        {
+            Ok(Some(result)) => return Ok(result),
+            Ok(None) => return Ok(None),
+            Err(err) => {
+                error!(?err, "Error getting categories from sqlite db");
+                return Err(recipe_store::Error::from(format!("{:?}", err)));
+            }
+        }
+    }
+
+    pub async fn get_recipes_for_user(
+        &self,
+        user_id: &str,
+    ) -> Result<Option<Vec<RecipeEntry>>, recipe_store::Error> {
+        // NOTE(jwall): We allow dead code becaue Rust can't figure out that
+        // this code is actually constructed but it's done via the query_as
+        // macro.
+        #[allow(dead_code)]
+        struct RecipeRow {
+            pub recipe_id: String,
+            pub recipe_text: Option<String>,
+        };
+        let rows = sqlx::query_as!(
+            RecipeRow,
+            "select recipe_id, recipe_text from recipes where user_id = ?",
+            user_id,
+        )
+        .fetch_all(self.pool.as_ref())
+        .await
+        .map_err(|e| format!("{:?}", e))?
+        .iter()
+        .map(|row| {
+            RecipeEntry(
+                row.recipe_id.clone(),
+                row.recipe_text.clone().unwrap_or_else(|| String::new()),
+            )
+        })
+        .collect();
+        Ok(Some(rows))
     }
 }

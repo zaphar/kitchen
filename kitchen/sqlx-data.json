@@ -56,6 +56,30 @@
     },
     "query": "select session_value from sessions where id = ?"
   },
+  "95fbc362a2e17add05218a2dac431275b5cc55bd7ac8f4173ee10afefceafa3b": {
+    "describe": {
+      "columns": [
+        {
+          "name": "recipe_id",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "recipe_text",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        true
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select recipe_id, recipe_text from recipes where user_id = ?"
+  },
   "9ad4acd9b9d32c9f9f441276aa71a17674fe4d65698848044778bd4aef77d42d": {
     "describe": {
       "columns": [],
@@ -65,6 +89,24 @@
       }
     },
     "query": "insert into sessions (id, session_value) values (?, ?)"
+  },
+  "c988364f9f83f4fa8bd0e594bab432ee7c9ec47ca40f4d16e5e2a8763653f377": {
+    "describe": {
+      "columns": [
+        {
+          "name": "category_text",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        true
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select category_text from categories where user_id = ?"
   },
   "d84685a82585c5e4ae72c86ba1fe6e4a7241c4c3c9e948213e5849d956132bad": {
     "describe": {

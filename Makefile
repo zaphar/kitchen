@@ -37,5 +37,5 @@ clean:
 	rm -rf web/dist/*
 	cargo clean
 
-sqlx-prepare: wasm kitches/src/*.rs
-	cd kitchen; cargo sqlx-prepare
+sqlx-prepare:
+	cd kitchen; cargo sqlx prepare
