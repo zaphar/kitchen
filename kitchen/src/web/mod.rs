@@ -146,9 +146,11 @@ pub async fn add_user(store_path: PathBuf, username: String, password: String) {
 pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socket: SocketAddr) {
     let store = Arc::new(recipe_store::AsyncFileStore::new(recipe_dir_path.clone()));
     //let dir_path = (&dir_path).clone();
-    let app_store = storage::SqliteStore::new(store_path)
-        .await
-        .expect("Unable to create app_store");
+    let app_store = Arc::new(
+        storage::SqliteStore::new(store_path)
+            .await
+            .expect("Unable to create app_store"),
+    );
     let router = Router::new()
         .route("/", get(|| async { Redirect::temporary("/ui/plan") }))
         .route("/ui/*path", get(ui_static_assets))

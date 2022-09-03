@@ -107,6 +107,9 @@ where
         {
             Some(s) => {
                 let parsed = from_str::<String>(&s).map_err(|e| format!("{}", e))?;
+                if parsed.is_empty() {
+                    return Ok(None);
+                }
                 match parse::as_categories(&parsed) {
                     Ok(categories) => Ok(Some(categories)),
                     Err(e) => {

@@ -38,6 +38,10 @@ use tracing::{debug, error, info, instrument};
 
 use recipe_store::RecipeEntry;
 
+mod error;
+
+pub use error::*;
+
 pub const AXUM_SESSION_COOKIE_NAME: &'static str = "kitchen-session-cookie";
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -60,6 +64,8 @@ impl UserCreds {
     }
 }
 
+pub type Result<T> = std::result::Result<T, Error>;
+
 fn make_id_key(cookie_value: &str) -> async_session::Result<String> {
     debug!("deserializing cookie");
     Ok(Session::id_from_cookie_value(cookie_value)?)
@@ -78,12 +84,19 @@ fn check_pass(payload: &String, pass: &Secret<String>) -> bool {
 }
 
 #[async_trait]
+pub trait APIStore {
+    async fn get_categories_for_user(&self, user_id: &str) -> Result<Option<String>>;
+
+    async fn get_recipes_for_user(&self, user_id: &str) -> Result<Option<Vec<RecipeEntry>>>;
+}
+
+#[async_trait]
 pub trait AuthStore: SessionStore {
     /// Check user credentials against the user store.
-    async fn check_user_creds(&self, user_creds: &UserCreds) -> async_session::Result<bool>;
+    async fn check_user_creds(&self, user_creds: &UserCreds) -> Result<bool>;
 
     /// Insert or update user credentials in the user store.
-    async fn store_user_creds(&self, user_creds: UserCreds) -> async_session::Result<()>;
+    async fn store_user_creds(&self, user_creds: UserCreds) -> Result<()>;
 }
 
 #[async_trait]
@@ -94,13 +107,13 @@ where
     type Rejection = (StatusCode, &'static str);
 
     #[instrument(skip_all)]
-    async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
-        let Extension(session_store) = Extension::<SqliteStore>::from_request(req)
+    async fn from_request(req: &mut RequestParts<B>) -> std::result::Result<Self, Self::Rejection> {
+        let Extension(session_store) = Extension::<Arc<SqliteStore>>::from_request(req)
             .await
             .expect("No Session store configured!");
         let cookies = Option::<TypedHeader<Cookie>>::from_request(req)
             .await
-            .unwrap();
+            .expect("Unable to get headers fromrequest");
         // TODO(jwall): We should really validate the expiration and such on this cookie.
         if let Some(session_cookie) = cookies
             .as_ref()
@@ -203,7 +216,7 @@ impl SessionStore for SqliteStore {
 #[async_trait]
 impl AuthStore for SqliteStore {
     #[instrument(fields(user=%user_creds.id.0, conn_string=self.url), skip_all)]
-    async fn check_user_creds(&self, user_creds: &UserCreds) -> async_session::Result<bool> {
+    async fn check_user_creds(&self, user_creds: &UserCreds) -> Result<bool> {
         let id = user_creds.user_id().to_owned();
         if let Some(payload) =
             sqlx::query_scalar!("select password_hashed from users where id = ?", id)
@@ -217,7 +230,7 @@ impl AuthStore for SqliteStore {
     }
 
     #[instrument(fields(user=%user_creds.id.0, conn_string=self.url), skip_all)]
-    async fn store_user_creds(&self, user_creds: UserCreds) -> async_session::Result<()> {
+    async fn store_user_creds(&self, user_creds: UserCreds) -> Result<()> {
         let salt = SaltString::generate(&mut OsRng);
         let password_hash = Argon2::default()
             .hash_password(user_creds.pass.expose_secret().as_bytes(), &salt)
@@ -238,44 +251,21 @@ impl AuthStore for SqliteStore {
 
 // TODO(jwall): We need to do some serious error modeling here.
 #[async_trait]
-pub trait APIStore {
-    async fn get_categories_for_user(
-        &self,
-        user_id: &str,
-    ) -> Result<Option<String>, recipe_store::Error>;
-
-    async fn get_recipes_for_user(
-        &self,
-        user_id: &str,
-    ) -> Result<Option<Vec<RecipeEntry>>, recipe_store::Error>;
-}
-
-#[async_trait]
 impl APIStore for SqliteStore {
-    async fn get_categories_for_user(
-        &self,
-        user_id: &str,
-    ) -> Result<Option<String>, recipe_store::Error> {
+    async fn get_categories_for_user(&self, user_id: &str) -> Result<Option<String>> {
         match sqlx::query_scalar!(
             "select category_text from categories where user_id = ?",
             user_id,
         )
         .fetch_optional(self.pool.as_ref())
-        .await
+        .await?
         {
-            Ok(Some(result)) => return Ok(result),
-            Ok(None) => return Ok(None),
-            Err(err) => {
-                error!(?err, "Error getting categories from sqlite db");
-                return Err(recipe_store::Error::from(format!("{:?}", err)));
-            }
+            Some(result) => Ok(result),
+            None => Ok(None),
         }
     }
 
-    async fn get_recipes_for_user(
-        &self,
-        user_id: &str,
-    ) -> Result<Option<Vec<RecipeEntry>>, recipe_store::Error> {
+    async fn get_recipes_for_user(&self, user_id: &str) -> Result<Option<Vec<RecipeEntry>>> {
         // NOTE(jwall): We allow dead code becaue Rust can't figure out that
         // this code is actually constructed but it's done via the query_as
         // macro.
@@ -283,15 +273,14 @@ impl APIStore for SqliteStore {
         struct RecipeRow {
             pub recipe_id: String,
             pub recipe_text: Option<String>,
-        };
+        }
         let rows = sqlx::query_as!(
             RecipeRow,
             "select recipe_id, recipe_text from recipes where user_id = ?",
             user_id,
         )
         .fetch_all(self.pool.as_ref())
-        .await
-        .map_err(|e| format!("{:?}", e))?
+        .await?
         .iter()
         .map(|row| {
             RecipeEntry(
