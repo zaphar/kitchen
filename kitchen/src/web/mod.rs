@@ -80,34 +80,47 @@ async fn ui_static_assets(Path(path): Path<String>) -> impl IntoResponse {
 #[instrument]
 async fn api_recipes(
     Extension(store): Extension<Arc<recipe_store::AsyncFileStore>>,
+    Extension(app_store): Extension<Arc<session::SqliteStore>>,
     session: session::UserIdFromSession,
 ) -> impl IntoResponse {
-    // TODO(jwall): Select recipes based on the user-id if it exists.
-    // Or serve the default if it does not.
-    let result: Result<axum::Json<Vec<RecipeEntry>>, String> = match store
-        .get_recipes()
-        .await
-        .map_err(|e| format!("Error: {:?}", e))
-    {
+    // Select recipes based on the user-id if it exists or serve the default if it does not.
+    use session::{UserId, UserIdFromSession::*};
+    let result = match session {
+        NoUserId => store
+            .get_recipes()
+            .await
+            .map_err(|e| format!("Error: {:?}", e)),
+        FoundUserId(UserId(id)) => app_store
+            .get_recipes_for_user(id.as_str())
+            .await
+            .map_err(|e| format!("Error: {:?}", e)),
+    };
+    match result {
         Ok(Some(recipes)) => Ok(axum::Json::from(recipes)),
         Ok(None) => Ok(axum::Json::from(Vec::<RecipeEntry>::new())),
         Err(e) => Err(e),
-    };
-    result
+    }
 }
 
 #[instrument]
 async fn api_categories(
     Extension(store): Extension<Arc<recipe_store::AsyncFileStore>>,
+    Extension(app_store): Extension<Arc<session::SqliteStore>>,
     session: session::UserIdFromSession,
 ) -> impl IntoResponse {
-    // TODO(jwall): Select recipes based on the user-id if it exists.
-    // Or serve the default if it does not.
-    let recipe_result = store
-        .get_categories()
-        .await
-        .map_err(|e| format!("Error: {:?}", e));
-    let result: Result<axum::Json<String>, String> = match recipe_result {
+    // Select Categories based on the user-id if it exists or serve the default if it does not.
+    use session::{UserId, UserIdFromSession::*};
+    let categories_result = match session {
+        NoUserId => store
+            .get_categories()
+            .await
+            .map_err(|e| format!("Error: {:?}", e)),
+        FoundUserId(UserId(id)) => app_store
+            .get_categories_for_user(id.as_str())
+            .await
+            .map_err(|e| format!("Error: {:?}", e)),
+    };
+    let result: Result<axum::Json<String>, String> = match categories_result {
         Ok(Some(categories)) => Ok(axum::Json::from(categories)),
         Ok(None) => Ok(axum::Json::from(String::new())),
         Err(e) => Err(e),
@@ -115,31 +128,27 @@ async fn api_categories(
     result
 }
 
-pub async fn add_user(session_store_path: PathBuf, username: String, password: String) {
-    let session_store = session::SqliteStore::new(session_store_path)
+pub async fn add_user(store_path: PathBuf, username: String, password: String) {
+    let app_store = session::SqliteStore::new(store_path)
         .await
-        .expect("Unable to create session_store");
+        .expect("Unable to create app_store");
     let user_creds = session::UserCreds {
         id: session::UserId(username),
         pass: secrecy::Secret::from(password),
     };
-    session_store
+    app_store
         .store_user_creds(user_creds)
         .await
         .expect("Failed to store user creds");
 }
 
 #[instrument(fields(recipe_dir=?recipe_dir_path,listen=?listen_socket), skip_all)]
-pub async fn ui_main(
-    recipe_dir_path: PathBuf,
-    session_store_path: PathBuf,
-    listen_socket: SocketAddr,
-) {
+pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socket: SocketAddr) {
     let store = Arc::new(recipe_store::AsyncFileStore::new(recipe_dir_path.clone()));
     //let dir_path = (&dir_path).clone();
-    let session_store = session::SqliteStore::new(session_store_path)
+    let app_store = session::SqliteStore::new(store_path)
         .await
-        .expect("Unable to create session_store");
+        .expect("Unable to create app_store");
     let router = Router::new()
         .route("/", get(|| async { Redirect::temporary("/ui/plan") }))
         .route("/ui/*path", get(ui_static_assets))
@@ -157,7 +166,7 @@ pub async fn ui_main(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
                 .layer(Extension(store))
-                .layer(Extension(session_store)),
+                .layer(Extension(app_store)),
         );
     info!(
         http = format!("http://{}", listen_socket),
