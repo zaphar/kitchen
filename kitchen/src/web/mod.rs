@@ -128,18 +128,47 @@ async fn api_categories(
     result
 }
 
-pub async fn add_user(store_path: PathBuf, username: String, password: String) {
+pub async fn add_user(
+    store_path: PathBuf,
+    username: String,
+    password: String,
+    recipe_dir_path: Option<PathBuf>,
+) {
     let app_store = storage::SqliteStore::new(store_path)
         .await
         .expect("Unable to create app_store");
     let user_creds = storage::UserCreds {
-        id: storage::UserId(username),
+        id: storage::UserId(username.clone()),
         pass: secrecy::Secret::from(password),
     };
     app_store
         .store_user_creds(user_creds)
         .await
         .expect("Failed to store user creds");
+    if let Some(path) = recipe_dir_path {
+        let store = recipe_store::AsyncFileStore::new(path);
+        if let Some(recipes) = store
+            .get_recipes()
+            .await
+            .expect("Unable to get recipes to load for user")
+        {
+            app_store
+                .store_recipes_for_user(&username, &recipes)
+                .await
+                .expect("Failed to load user recipes");
+        }
+        if let Some(categories) = store
+            .get_categories()
+            .await
+            .expect("Unable to get categories to fetch for user")
+        {
+            app_store
+                .store_categories_for_user(&username, &categories)
+                .await
+                .expect("Failed to load user categories");
+        }
+        // TODO(jwall): Load all the recipes into our sqlite database
+    }
 }
 
 #[instrument(fields(recipe_dir=?recipe_dir_path,listen=?listen_socket), skip_all)]

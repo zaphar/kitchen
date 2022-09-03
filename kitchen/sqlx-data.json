@@ -18,6 +18,26 @@
     },
     "query": "select password_hashed from users where id = ?"
   },
+  "2519fa6cd665764d0c9a0152e5c8ce20152fc4853c5cd9c34259cec27d8bf47e": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "insert into categories (user_id, category_text) values (?, ?)"
+  },
+  "3311b1ceb15128dca0a3554f1e0f50c03e6c531919a6be1e7f9f940544236143": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "insert into recipes (user_id, recipe_id, recipe_text) values (?, ?, ?)"
+  },
   "5d743897fb0d8fd54c3708f1b1c6e416346201faa9e28823c1ba5a421472b1fa": {
     "describe": {
       "columns": [],

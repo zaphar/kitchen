@@ -38,4 +38,4 @@ clean:
 	cargo clean
 
 sqlx-prepare:
-	cd kitchen; cargo sqlx prepare
+	cd kitchen; cargo sqlx prepare --database-url sqlite://\$(pwd)/../.session_store/store.db

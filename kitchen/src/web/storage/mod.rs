@@ -88,6 +88,11 @@ pub trait APIStore {
     async fn get_categories_for_user(&self, user_id: &str) -> Result<Option<String>>;
 
     async fn get_recipes_for_user(&self, user_id: &str) -> Result<Option<Vec<RecipeEntry>>>;
+
+    async fn store_recipes_for_user(&self, user_id: &str, recipes: &Vec<RecipeEntry>)
+        -> Result<()>;
+
+    async fn store_categories_for_user(&self, user_id: &str, categories: &str) -> Result<()>;
 }
 
 #[async_trait]
@@ -156,6 +161,7 @@ impl SqliteStore {
     pub async fn new<P: AsRef<Path>>(path: P) -> sqlx::Result<Self> {
         let url = format!("sqlite://{}/store.db", path.as_ref().to_string_lossy());
         let options = SqliteConnectOptions::from_str(&url)?.journal_mode(SqliteJournalMode::Wal);
+        info!(?options, "Connecting to sqlite db");
         let pool = Arc::new(sqlx::SqlitePool::connect_with(options).await?);
         Ok(Self { pool, url })
     }
@@ -290,5 +296,36 @@ impl APIStore for SqliteStore {
         })
         .collect();
         Ok(Some(rows))
+    }
+
+    async fn store_recipes_for_user(
+        &self,
+        user_id: &str,
+        recipes: &Vec<RecipeEntry>,
+    ) -> Result<()> {
+        for entry in recipes {
+            let recipe_id = entry.recipe_id().to_owned();
+            let recipe_text = entry.recipe_text().to_owned();
+            sqlx::query!(
+                "insert into recipes (user_id, recipe_id, recipe_text) values (?, ?, ?)",
+                user_id,
+                recipe_id,
+                recipe_text,
+            )
+            .execute(self.pool.as_ref())
+            .await?;
+        }
+        Ok(())
+    }
+
+    async fn store_categories_for_user(&self, user_id: &str, categories: &str) -> Result<()> {
+        sqlx::query!(
+            "insert into categories (user_id, category_text) values (?, ?)",
+            user_id,
+            categories,
+        )
+        .execute(self.pool.as_ref())
+        .await?;
+        Ok(())
     }
 }
