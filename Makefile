@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
+mkfile_dir := $(dir $(mkfile_path))
+
 kitchen: wasm kitchen/src/*.rs
 	cd kitchen; cargo build
 
@@ -38,4 +41,4 @@ clean:
 	cargo clean
 
 sqlx-prepare:
-	cd kitchen; cargo sqlx prepare --database-url sqlite://\$(pwd)/../.session_store/store.db
+	cd kitchen; cargo sqlx prepare --database-url sqlite://$(mkfile_dir)/.session_store/store.db
