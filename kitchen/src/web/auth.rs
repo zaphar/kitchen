@@ -24,17 +24,17 @@ use cookie::{Cookie, SameSite};
 use secrecy::Secret;
 use tracing::{debug, info, instrument};
 
-use super::session::{self, AuthStore};
+use super::storage::{self, AuthStore};
 
 #[instrument(skip_all, fields(user=%auth.0.0))]
 pub async fn handler(
     auth: AuthBasic,
-    Extension(session_store): Extension<session::SqliteStore>,
+    Extension(session_store): Extension<storage::SqliteStore>,
 ) -> impl IntoResponse {
     // NOTE(jwall): It is very important that you do **not** log the password
     // here. We convert the AuthBasic into UserCreds immediately to help prevent
     // that. Do not circumvent that protection.
-    let auth = session::UserCreds::from(auth);
+    let auth = storage::UserCreds::from(auth);
     info!("Handling authentication request");
     if let Ok(true) = session_store.check_user_creds(&auth).await {
         debug!("successfully authenticated user");
@@ -45,7 +45,7 @@ pub async fn handler(
         let cookie_value = session_store.store_session(session).await.unwrap().unwrap();
         let mut headers = HeaderMap::new();
         // 3. Construct the Session Cookie.
-        let cookie = Cookie::build(session::AXUM_SESSION_COOKIE_NAME, cookie_value)
+        let cookie = Cookie::build(storage::AXUM_SESSION_COOKIE_NAME, cookie_value)
             .same_site(SameSite::Strict)
             .secure(true)
             .finish();
@@ -63,10 +63,10 @@ pub async fn handler(
     }
 }
 
-impl From<AuthBasic> for session::UserCreds {
+impl From<AuthBasic> for storage::UserCreds {
     fn from(AuthBasic((id, pass)): AuthBasic) -> Self {
         Self {
-            id: session::UserId(id.clone()),
+            id: storage::UserId(id.clone()),
             pass: Secret::from_str(pass.clone().unwrap().as_str()).unwrap(),
         }
     }

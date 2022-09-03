@@ -29,10 +29,10 @@ use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, info, instrument};
 
-use session::AuthStore;
+use storage::{APIStore, AuthStore};
 
 mod auth;
-mod session;
+mod storage;
 
 #[derive(RustEmbed)]
 #[folder = "../web/dist"]
@@ -80,11 +80,11 @@ async fn ui_static_assets(Path(path): Path<String>) -> impl IntoResponse {
 #[instrument]
 async fn api_recipes(
     Extension(store): Extension<Arc<recipe_store::AsyncFileStore>>,
-    Extension(app_store): Extension<Arc<session::SqliteStore>>,
-    session: session::UserIdFromSession,
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
 ) -> impl IntoResponse {
     // Select recipes based on the user-id if it exists or serve the default if it does not.
-    use session::{UserId, UserIdFromSession::*};
+    use storage::{UserId, UserIdFromSession::*};
     let result = match session {
         NoUserId => store
             .get_recipes()
@@ -105,11 +105,11 @@ async fn api_recipes(
 #[instrument]
 async fn api_categories(
     Extension(store): Extension<Arc<recipe_store::AsyncFileStore>>,
-    Extension(app_store): Extension<Arc<session::SqliteStore>>,
-    session: session::UserIdFromSession,
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
 ) -> impl IntoResponse {
     // Select Categories based on the user-id if it exists or serve the default if it does not.
-    use session::{UserId, UserIdFromSession::*};
+    use storage::{UserId, UserIdFromSession::*};
     let categories_result = match session {
         NoUserId => store
             .get_categories()
@@ -129,11 +129,11 @@ async fn api_categories(
 }
 
 pub async fn add_user(store_path: PathBuf, username: String, password: String) {
-    let app_store = session::SqliteStore::new(store_path)
+    let app_store = storage::SqliteStore::new(store_path)
         .await
         .expect("Unable to create app_store");
-    let user_creds = session::UserCreds {
-        id: session::UserId(username),
+    let user_creds = storage::UserCreds {
+        id: storage::UserId(username),
         pass: secrecy::Secret::from(password),
     };
     app_store
@@ -146,7 +146,7 @@ pub async fn add_user(store_path: PathBuf, username: String, password: String) {
 pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socket: SocketAddr) {
     let store = Arc::new(recipe_store::AsyncFileStore::new(recipe_dir_path.clone()));
     //let dir_path = (&dir_path).clone();
-    let app_store = session::SqliteStore::new(store_path)
+    let app_store = storage::SqliteStore::new(store_path)
         .await
         .expect("Unable to create app_store");
     let router = Router::new()

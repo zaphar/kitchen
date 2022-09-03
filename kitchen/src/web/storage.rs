@@ -236,8 +236,23 @@ impl AuthStore for SqliteStore {
     }
 }
 
-impl SqliteStore {
-    pub async fn get_categories_for_user(
+// TODO(jwall): We need to do some serious error modeling here.
+#[async_trait]
+pub trait APIStore {
+    async fn get_categories_for_user(
+        &self,
+        user_id: &str,
+    ) -> Result<Option<String>, recipe_store::Error>;
+
+    async fn get_recipes_for_user(
+        &self,
+        user_id: &str,
+    ) -> Result<Option<Vec<RecipeEntry>>, recipe_store::Error>;
+}
+
+#[async_trait]
+impl APIStore for SqliteStore {
+    async fn get_categories_for_user(
         &self,
         user_id: &str,
     ) -> Result<Option<String>, recipe_store::Error> {
@@ -257,7 +272,7 @@ impl SqliteStore {
         }
     }
 
-    pub async fn get_recipes_for_user(
+    async fn get_recipes_for_user(
         &self,
         user_id: &str,
     ) -> Result<Option<Vec<RecipeEntry>>, recipe_store::Error> {
