@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use axum::{
     body::{boxed, Full},
-    extract::{Extension, Path},
+    extract::{Extension, Json, Path},
     http::{header, StatusCode},
     response::{IntoResponse, Redirect, Response},
     routing::{get, Router},
@@ -128,6 +128,91 @@ async fn api_categories(
     result
 }
 
+async fn api_save_categories(
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+    categories: String,
+) -> impl IntoResponse {
+    use storage::{UserId, UserIdFromSession::FoundUserId};
+    if let FoundUserId(UserId(id)) = session {
+        if let Err(e) = app_store
+            .store_categories_for_user(id.as_str(), categories.as_str())
+            .await
+        {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", e));
+        }
+        (StatusCode::OK, "Successfully saved categories".to_owned())
+    } else {
+        (
+            StatusCode::UNAUTHORIZED,
+            "You must be authorized to use this API call".to_owned(),
+        )
+    }
+}
+
+async fn api_save_recipe(
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+    Json(recipe): Json<RecipeEntry>,
+) -> impl IntoResponse {
+    use storage::{UserId, UserIdFromSession::FoundUserId};
+    if let FoundUserId(UserId(id)) = session {
+        if let Err(e) = app_store
+            .store_recipes_for_user(id.as_str(), &vec![recipe])
+            .await
+        {
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", e));
+        }
+        (StatusCode::OK, "Successfully saved categories".to_owned())
+    } else {
+        (
+            StatusCode::UNAUTHORIZED,
+            "You must be authorized to use this API call".to_owned(),
+        )
+    }
+}
+
+#[instrument(fields(recipe_dir=?recipe_dir_path,listen=?listen_socket), skip_all)]
+pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socket: SocketAddr) {
+    let store = Arc::new(recipe_store::AsyncFileStore::new(recipe_dir_path.clone()));
+    //let dir_path = (&dir_path).clone();
+    let app_store = Arc::new(
+        storage::SqliteStore::new(store_path)
+            .await
+            .expect("Unable to create app_store"),
+    );
+    let router = Router::new()
+        .route("/", get(|| async { Redirect::temporary("/ui/plan") }))
+        .route("/ui/*path", get(ui_static_assets))
+        // recipes api path route
+        .route("/api/v1/recipes", get(api_recipes).post(api_save_recipe))
+        // categories api path route
+        .route(
+            "/api/v1/categories",
+            get(api_categories).post(api_save_categories),
+        )
+        // All the routes above require a UserId.
+        .route("/api/v1/auth", get(auth::handler).post(auth::handler))
+        // NOTE(jwall): Note that the layers are applied to the preceding routes not
+        // the following routes.
+        .layer(
+            // NOTE(jwall): However service builder will apply the layers from top
+            // to bottom.
+            ServiceBuilder::new()
+                .layer(TraceLayer::new_for_http())
+                .layer(Extension(store))
+                .layer(Extension(app_store)),
+        );
+    info!(
+        http = format!("http://{}", listen_socket),
+        "Starting server"
+    );
+    axum::Server::bind(&listen_socket)
+        .serve(router.into_make_service())
+        .await
+        .expect("Failed to start service");
+}
+
 pub async fn add_user(
     store_path: PathBuf,
     username: String,
@@ -169,42 +254,4 @@ pub async fn add_user(
         }
         // TODO(jwall): Load all the recipes into our sqlite database
     }
-}
-
-#[instrument(fields(recipe_dir=?recipe_dir_path,listen=?listen_socket), skip_all)]
-pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socket: SocketAddr) {
-    let store = Arc::new(recipe_store::AsyncFileStore::new(recipe_dir_path.clone()));
-    //let dir_path = (&dir_path).clone();
-    let app_store = Arc::new(
-        storage::SqliteStore::new(store_path)
-            .await
-            .expect("Unable to create app_store"),
-    );
-    let router = Router::new()
-        .route("/", get(|| async { Redirect::temporary("/ui/plan") }))
-        .route("/ui/*path", get(ui_static_assets))
-        // recipes api path route
-        .route("/api/v1/recipes", get(api_recipes))
-        // categories api path route
-        .route("/api/v1/categories", get(api_categories))
-        // All the routes above require a UserId.
-        .route("/api/v1/auth", get(auth::handler).post(auth::handler))
-        // NOTE(jwall): Note that the layers are applied to the preceding routes not
-        // the following routes.
-        .layer(
-            // NOTE(jwall): However service builder will apply the layers from top
-            // to bottom.
-            ServiceBuilder::new()
-                .layer(TraceLayer::new_for_http())
-                .layer(Extension(store))
-                .layer(Extension(app_store)),
-        );
-    info!(
-        http = format!("http://{}", listen_socket),
-        "Starting server"
-    );
-    axum::Server::bind(&listen_socket)
-        .serve(router.into_make_service())
-        .await
-        .expect("Failed to start service");
 }
