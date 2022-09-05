@@ -32,6 +32,7 @@ pub fn tabbed_view(state: TabState<G>) -> View<G> {
                     }
                 }
                 ul {
+                    li { a(href="/ui/login") { "Login" } " | " }
                     li { a(href="https://github.com/zaphar/kitchen") { "Github" } }
                 }
             }
