@@ -19,14 +19,14 @@
 <head>
     <meta content="text/html;charset=utf-8" http-equiv="Content-Type" name="viewport"
         content="width=device-width, initial-scale=1.0" charset="UTF-8">
-    <link rel="stylesheet" href="static/pico.min.css">
-    <link rel="stylesheet" href="static/app.css">
+    <link rel="stylesheet" href="/ui/static/pico.min.css">
+    <link rel="stylesheet" href="/ui/static/app.css">
 </head>
 
 <body>
     <div id="main"></div>
     <script type="module">
-        import init, { } from './kitchen_wasm.js';
+        import init, { } from '/ui/kitchen_wasm.js';
 
         async function run() {
             await init();

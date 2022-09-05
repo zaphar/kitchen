@@ -38,6 +38,7 @@ features = [
     "History",
     "HtmlAnchorElement",
     "HtmlBaseElement",
+    "HtmlDialogElement",
     "KeyboardEvent",
     "Location",
     "PopStateEvent",

@@ -1,3 +1,4 @@
+use recipe_store::RecipeEntry;
 // Copyright 2022 Jeremy Wall
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,10 +12,71 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use recipes;
 use sycamore::prelude::*;
+use tracing::error;
+use web_sys::HtmlDialogElement;
 
-use crate::service::get_appservice_from_context;
+use crate::{js_lib::get_element_by_id, service::get_appservice_from_context};
+use recipes;
+
+fn get_error_dialog() -> HtmlDialogElement {
+    get_element_by_id::<HtmlDialogElement>("error-dialog")
+        .expect("error-dialog isn't an html dialog element!")
+        .unwrap()
+}
+
+fn check_recipe_parses(text: &str, error_text: Signal<String>) -> bool {
+    if let Err(e) = recipes::parse::as_recipe(text) {
+        error!(?e, "Error parsing recipe");
+        error_text.set(e);
+        let el = get_error_dialog();
+        el.show();
+        false
+    } else {
+        error_text.set(String::new());
+        let el = get_error_dialog();
+        el.close();
+        true
+    }
+}
+
+#[component(Editor<G>)]
+fn editor(recipe: RecipeEntry) -> View<G> {
+    let text = Signal::new(recipe.recipe_text().to_owned());
+    let error_text = Signal::new(String::new());
+
+    let dialog_view = cloned!((error_text) => view! {
+        dialog(id="error-dialog") {
+            article{
+                header {
+                    a(href="#", on:click=|_| {
+                        let el = get_error_dialog();
+                        el.close();
+                    }, class="close")
+                    "Invalid Recipe"
+                }
+                p {
+                    (error_text.get().clone())
+                }
+            }
+        }
+    });
+
+    cloned!((text, error_text) => view! {
+        (dialog_view)
+        textarea(bind:value=text.clone(), rows=20)
+        a(role="button" , href="#", on:click=cloned!((text, error_text) => move |_| {
+            let unparsed = text.get();
+            check_recipe_parses(unparsed.as_str(), error_text.clone());
+        })) { "Check" } " "
+        a(role="button", href="#", on:click=cloned!((text, error_text) => move |_| {
+            let unparsed = text.get();
+            if check_recipe_parses(unparsed.as_str(), error_text.clone()) {
+                // TODO(jwall): Now actually save the recipe?
+            };
+        })) { "Save" }
+    })
+}
 
 #[component(Steps<G>)]
 fn steps(steps: ReadSignal<Vec<recipes::Step>>) -> View<G> {
@@ -50,7 +112,11 @@ fn steps(steps: ReadSignal<Vec<recipes::Step>>) -> View<G> {
 pub fn recipe(idx: ReadSignal<String>) -> View<G> {
     let app_service = get_appservice_from_context();
     let view = Signal::new(View::empty());
-    create_effect(cloned!((app_service, view) => move || {
+    let show_edit = Signal::new(false);
+    create_effect(cloned!((idx, app_service, view, show_edit) => move || {
+        if *show_edit.get() {
+            return;
+        }
         let recipe_id: String = idx.get().as_ref().to_owned();
         if let Some(recipe) = app_service.get_recipes().get().get(&recipe_id) {
             let recipe = recipe.clone();
@@ -61,6 +127,7 @@ pub fn recipe(idx: ReadSignal<String>) -> View<G> {
             let steps = create_memo(cloned!((recipe) => move || recipe.get().steps.clone()));
             view.set(view! {
                 div(class="recipe") {
+                    h1(class="recipe_title") { (title.get()) }
                      div(class="recipe_description") {
                          (desc.get())
                      }
@@ -69,7 +136,20 @@ pub fn recipe(idx: ReadSignal<String>) -> View<G> {
             });
         }
     }));
+    create_effect(cloned!((idx, app_service, view, show_edit) => move || {
+        let recipe_id: String = idx.get().as_ref().to_owned();
+        if !(*show_edit.get()) {
+            return;
+        }
+        if let Some(entry) = app_service.fetch_recipe_text(recipe_id.as_str()).expect("No such recipe") {
+            view.set(view! {
+                Editor(entry)
+            });
+        }
+    }));
     view! {
+        a(role="button", href="#", on:click=cloned!((show_edit) => move |_| { show_edit.set(true); })) { "Edit" } " "
+        a(role="button", href="#", on:click=cloned!((show_edit) => move |_| { show_edit.set(false); })) { "View" }
         (view.get().as_ref())
     }
 }

@@ -13,6 +13,7 @@
 // limitations under the License.
 mod app_state;
 mod components;
+mod js_lib;
 mod pages;
 mod router_integration;
 mod service;

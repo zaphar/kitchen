@@ -16,10 +16,13 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde_json::{from_str, to_string};
 use sycamore::{context::use_context, prelude::*};
 use tracing::{debug, error, info, instrument, warn};
-use web_sys::{window, Storage};
+use wasm_bindgen::JsCast;
+use web_sys::{window, Element, Storage};
 
 use recipe_store::*;
 use recipes::{parse, Ingredient, IngredientAccumulator, Recipe};
+
+use crate::js_lib;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn get_appservice_from_context() -> AppService<AsyncFileStore> {
@@ -57,10 +60,7 @@ where
     }
 
     fn get_storage(&self) -> Result<Option<Storage>, String> {
-        window()
-            .unwrap()
-            .local_storage()
-            .map_err(|e| format!("{:?}", e))
+        js_lib::get_storage().map_err(|e| format!("{:?}", e))
     }
 
     #[instrument(skip(self))]
@@ -154,6 +154,22 @@ where
             }
             None => Ok((None, None)),
         }
+    }
+
+    pub fn fetch_recipe_text(&self, id: &str) -> Result<Option<RecipeEntry>, String> {
+        let storage = self.get_storage()?.unwrap();
+        if let Some(s) = storage
+            .get_item("recipes")
+            .map_err(|e| format!("{:?}", e))?
+        {
+            let parsed = from_str::<Vec<RecipeEntry>>(&s).map_err(|e| format!("{}", e))?;
+            for r in parsed {
+                if r.recipe_id() == id {
+                    return Ok(Some(r));
+                }
+            }
+        }
+        return Ok(None);
     }
 
     async fn fetch_recipes(
