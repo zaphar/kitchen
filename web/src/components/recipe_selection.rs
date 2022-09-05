@@ -38,7 +38,7 @@ pub fn recipe_selection(props: RecipeCheckBoxProps) -> View<G> {
         app_service.get_recipe_count_by_index(id.as_ref())
     ));
     let for_id = id.clone();
-    let href = format!("#recipe/{}", id);
+    let href = format!("/ui/recipe/{}", id);
     let name = format!("recipe_id:{}", id);
     let value = id.clone();
     view! {

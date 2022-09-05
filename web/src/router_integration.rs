@@ -198,11 +198,13 @@ impl DeriveRoute for AppRoutes {
             "/ui/cook" => AppRoutes::Cook,
             "/ui/inventory" => AppRoutes::Inventory,
             h => {
-                // TODO(jwall): Parse the recipe hash
-                let parts: Vec<&str> = h.splitn(2, "/").collect();
-                if let Some(&"#recipe") = parts.get(0) {
-                    if let Some(&idx) = parts.get(1) {
-                        return AppRoutes::Recipe(idx.to_owned());
+                if h.starts_with("/ui/recipe/") {
+                    let parts: Vec<&str> = h.split("/").collect();
+                    debug!(?parts, "found recipe path");
+                    if let Some(&"recipe") = parts.get(2) {
+                        if let Some(&idx) = parts.get(3) {
+                            return AppRoutes::Recipe(idx.to_owned());
+                        }
                     }
                 }
                 error!(origin=%input.0, path=%input.1, hash=%input.2, "Path not found");

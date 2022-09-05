@@ -61,7 +61,6 @@ pub fn recipe(idx: ReadSignal<String>) -> View<G> {
             let steps = create_memo(cloned!((recipe) => move || recipe.get().steps.clone()));
             view.set(view! {
                 div(class="recipe") {
-                    h1(class="recipe_title") { (title.get()) }
                      div(class="recipe_description") {
                          (desc.get())
                      }
