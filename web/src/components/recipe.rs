@@ -1,4 +1,3 @@
-use recipe_store::RecipeEntry;
 // Copyright 2022 Jeremy Wall
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,11 +11,12 @@ use recipe_store::RecipeEntry;
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use sycamore::prelude::*;
-use tracing::error;
+use sycamore::{futures::spawn_local_in_scope, prelude::*};
+use tracing::{debug, error};
 use web_sys::HtmlDialogElement;
 
 use crate::{js_lib::get_element_by_id, service::get_appservice_from_context};
+use recipe_store::RecipeEntry;
 use recipes;
 
 fn get_error_dialog() -> HtmlDialogElement {
@@ -42,8 +42,27 @@ fn check_recipe_parses(text: &str, error_text: Signal<String>) -> bool {
 
 #[component(Editor<G>)]
 fn editor(recipe: RecipeEntry) -> View<G> {
+    let id = Signal::new(recipe.recipe_id().to_owned());
     let text = Signal::new(recipe.recipe_text().to_owned());
     let error_text = Signal::new(String::new());
+    let app_service = get_appservice_from_context();
+    let save_signal = Signal::new(());
+
+    create_effect(
+        cloned!((id, app_service, text, save_signal, error_text) => move || {
+                save_signal.get();
+                spawn_local_in_scope({
+                    cloned!((id, app_service, text, error_text) => async move {
+                        if let Err(e) = app_service
+                            .save_recipes(vec![RecipeEntry(id.get_untracked().as_ref().clone(), text.get_untracked().as_ref().clone())])
+                            .await {
+                                error!(?e, "Failed to save recipe");
+                                error_text.set(format!("{:?}", e));
+                            };
+                    })
+                });
+        }),
+    );
 
     let dialog_view = cloned!((error_text) => view! {
         dialog(id="error-dialog") {
@@ -72,7 +91,8 @@ fn editor(recipe: RecipeEntry) -> View<G> {
         a(role="button", href="#", on:click=cloned!((text, error_text) => move |_| {
             let unparsed = text.get();
             if check_recipe_parses(unparsed.as_str(), error_text.clone()) {
-                // TODO(jwall): Now actually save the recipe?
+                debug!("triggering a save");
+                save_signal.trigger_subscribers();
             };
         })) { "Save" }
     })

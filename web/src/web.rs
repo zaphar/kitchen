@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crate::pages::*;
-use crate::{app_state::*, components::*, router_integration::*, service::AppService};
+use crate::{
+    app_state::*,
+    components::*,
+    router_integration::*,
+    service::{self, AppService},
+};
 use tracing::{debug, error, info, instrument};
 
-use recipe_store::{self, *};
 use sycamore::{
     context::{ContextProvider, ContextProviderProps},
     futures::spawn_local_in_scope,
@@ -56,13 +60,8 @@ fn route_switch<G: Html>(route: ReadSignal<AppRoutes>) -> View<G> {
     })
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-fn get_appservice() -> AppService<AsyncFileStore> {
-    AppService::new(recipe_store::AsyncFileStore::new("/".to_owned()))
-}
-#[cfg(target_arch = "wasm32")]
-fn get_appservice() -> AppService<HttpStore> {
-    AppService::new(recipe_store::HttpStore::new("/api/v1".to_owned()))
+fn get_appservice() -> AppService {
+    AppService::new(service::HttpStore::new("/api/v1".to_owned()))
 }
 
 #[instrument]

@@ -19,8 +19,6 @@ use async_std::{
     stream::StreamExt,
 };
 use async_trait::async_trait;
-#[cfg(target_arch = "wasm32")]
-use reqwasm;
 use serde::{Deserialize, Serialize};
 #[cfg(not(target_arch = "wasm32"))]
 use tracing::warn;
@@ -43,13 +41,6 @@ impl From<String> for Error {
 
 impl From<std::string::FromUtf8Error> for Error {
     fn from(item: std::string::FromUtf8Error) -> Self {
-        Error(format!("{:?}", item))
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-impl From<reqwasm::Error> for Error {
-    fn from(item: reqwasm::Error) -> Self {
         Error(format!("{:?}", item))
     }
 }
@@ -155,52 +146,5 @@ impl RecipeStore for AsyncFileStore {
             }
         }
         Ok(Some(entry_vec))
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-#[derive(Clone, Debug)]
-pub struct HttpStore {
-    root: String,
-}
-
-#[cfg(target_arch = "wasm32")]
-impl HttpStore {
-    pub fn new(root: String) -> Self {
-        Self { root }
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-#[async_trait(?Send)]
-impl RecipeStore for HttpStore {
-    #[instrument]
-    async fn get_categories(&self) -> Result<Option<String>, Error> {
-        let mut path = self.root.clone();
-        path.push_str("/categories");
-        let resp = reqwasm::http::Request::get(&path).send().await?;
-        if resp.status() == 404 {
-            debug!("Categories returned 404");
-            Ok(None)
-        } else if resp.status() != 200 {
-            Err(format!("Status: {}", resp.status()).into())
-        } else {
-            debug!("We got a valid response back!");
-            let resp = resp.text().await;
-            Ok(Some(resp.map_err(|e| format!("{}", e))?))
-        }
-    }
-
-    #[instrument]
-    async fn get_recipes(&self) -> Result<Option<Vec<RecipeEntry>>, Error> {
-        let mut path = self.root.clone();
-        path.push_str("/recipes");
-        let resp = reqwasm::http::Request::get(&path).send().await?;
-        if resp.status() != 200 {
-            Err(format!("Status: {}", resp.status()).into())
-        } else {
-            debug!("We got a valid response back!");
-            Ok(resp.json().await.map_err(|e| format!("{}", e))?)
-        }
     }
 }

@@ -13,43 +13,33 @@
 // limitations under the License.
 use std::collections::{BTreeMap, BTreeSet};
 
+use reqwasm;
+//use serde::{Deserialize, Serialize};
 use serde_json::{from_str, to_string};
 use sycamore::{context::use_context, prelude::*};
 use tracing::{debug, error, info, instrument, warn};
-use wasm_bindgen::JsCast;
-use web_sys::{window, Element, Storage};
+use web_sys::Storage;
 
 use recipe_store::*;
 use recipes::{parse, Ingredient, IngredientAccumulator, Recipe};
 
 use crate::js_lib;
 
-#[cfg(not(target_arch = "wasm32"))]
-pub fn get_appservice_from_context() -> AppService<AsyncFileStore> {
-    use_context::<AppService<AsyncFileStore>>()
-}
-#[cfg(target_arch = "wasm32")]
-pub fn get_appservice_from_context() -> AppService<HttpStore> {
-    use_context::<AppService<HttpStore>>()
+pub fn get_appservice_from_context() -> AppService {
+    use_context::<AppService>()
 }
 
 #[derive(Clone, Debug)]
-pub struct AppService<S>
-where
-    S: RecipeStore,
-{
+pub struct AppService {
     recipes: Signal<BTreeMap<String, Signal<Recipe>>>,
     staples: Signal<Option<Recipe>>,
     category_map: Signal<BTreeMap<String, String>>,
     menu_list: Signal<BTreeMap<String, usize>>,
-    store: S,
+    store: HttpStore,
 }
 
-impl<S> AppService<S>
-where
-    S: RecipeStore,
-{
-    pub fn new(store: S) -> Self {
+impl AppService {
+    pub fn new(store: HttpStore) -> Self {
         Self {
             recipes: Signal::new(BTreeMap::new()),
             staples: Signal::new(None),
@@ -262,6 +252,16 @@ where
             .collect()
     }
 
+    pub async fn save_recipes(&self, recipes: Vec<RecipeEntry>) -> Result<(), String> {
+        self.store.save_recipes(recipes).await?;
+        Ok(())
+    }
+
+    pub async fn save_categories(&self, categories: String) -> Result<(), String> {
+        self.store.save_categories(categories).await?;
+        Ok(())
+    }
+
     pub fn set_recipes(&mut self, recipes: BTreeMap<String, Recipe>) {
         self.recipes.set(
             recipes
@@ -273,5 +273,113 @@ where
 
     pub fn set_categories(&mut self, categories: BTreeMap<String, String>) {
         self.category_map.set(categories);
+    }
+}
+
+#[derive(Debug)]
+pub struct Error(String);
+
+impl From<std::io::Error> for Error {
+    fn from(item: std::io::Error) -> Self {
+        Error(format!("{:?}", item))
+    }
+}
+
+impl From<Error> for String {
+    fn from(item: Error) -> Self {
+        format!("{:?}", item)
+    }
+}
+
+impl From<String> for Error {
+    fn from(item: String) -> Self {
+        Error(item)
+    }
+}
+
+impl From<std::string::FromUtf8Error> for Error {
+    fn from(item: std::string::FromUtf8Error) -> Self {
+        Error(format!("{:?}", item))
+    }
+}
+
+impl From<reqwasm::Error> for Error {
+    fn from(item: reqwasm::Error) -> Self {
+        Error(format!("{:?}", item))
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct HttpStore {
+    root: String,
+}
+
+impl HttpStore {
+    pub fn new(root: String) -> Self {
+        Self { root }
+    }
+
+    #[instrument]
+    async fn get_categories(&self) -> Result<Option<String>, Error> {
+        let mut path = self.root.clone();
+        path.push_str("/categories");
+        let resp = reqwasm::http::Request::get(&path).send().await?;
+        if resp.status() == 404 {
+            debug!("Categories returned 404");
+            Ok(None)
+        } else if resp.status() != 200 {
+            Err(format!("Status: {}", resp.status()).into())
+        } else {
+            debug!("We got a valid response back!");
+            let resp = resp.text().await;
+            Ok(Some(resp.map_err(|e| format!("{}", e))?))
+        }
+    }
+
+    #[instrument]
+    async fn get_recipes(&self) -> Result<Option<Vec<RecipeEntry>>, Error> {
+        let mut path = self.root.clone();
+        path.push_str("/recipes");
+        let resp = reqwasm::http::Request::get(&path).send().await?;
+        if resp.status() != 200 {
+            Err(format!("Status: {}", resp.status()).into())
+        } else {
+            debug!("We got a valid response back!");
+            Ok(resp.json().await.map_err(|e| format!("{}", e))?)
+        }
+    }
+
+    #[instrument(skip(recipes), fields(count=recipes.len()))]
+    async fn save_recipes(&self, recipes: Vec<RecipeEntry>) -> Result<(), Error> {
+        let mut path = self.root.clone();
+        path.push_str("/recipes");
+        let resp = reqwasm::http::Request::post(&path)
+            .body(to_string(&recipes).expect("Unable to serialize recipe entries"))
+            .header("content-type", "application/json")
+            .send()
+            .await?;
+        if resp.status() != 200 {
+            Err(format!("Status: {}", resp.status()).into())
+        } else {
+            debug!("We got a valid response back!");
+            Ok(())
+        }
+    }
+
+    #[instrument(skip(categories))]
+    async fn save_categories(&self, categories: String) -> Result<(), Error> {
+        let mut path = self.root.clone();
+        path.push_str("/recipes");
+        let resp = reqwasm::http::Request::post(&path)
+            .body(to_string(&categories).expect("Unable to encode categories as json"))
+            .header("content-type", "application/json")
+            .send()
+            .await?;
+        if resp.status() != 200 {
+            Err(format!("Status: {}", resp.status()).into())
+        } else {
+            debug!("We got a valid response back!");
+            Ok(())
+        }
     }
 }

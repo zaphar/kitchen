@@ -307,7 +307,8 @@ impl APIStore for SqliteStore {
             let recipe_id = entry.recipe_id().to_owned();
             let recipe_text = entry.recipe_text().to_owned();
             sqlx::query!(
-                "insert into recipes (user_id, recipe_id, recipe_text) values (?, ?, ?)",
+                "insert into recipes (user_id, recipe_id, recipe_text) values (?, ?, ?)
+    on conflict(user_id, recipe_id) do update set recipe_text=excluded.recipe_text",
                 user_id,
                 recipe_id,
                 recipe_text,
@@ -320,7 +321,8 @@ impl APIStore for SqliteStore {
 
     async fn store_categories_for_user(&self, user_id: &str, categories: &str) -> Result<()> {
         sqlx::query!(
-            "insert into categories (user_id, category_text) values (?, ?)",
+            "insert into categories (user_id, category_text) values (?, ?)
+    on conflict(user_id) do update set category_text=excluded.category_text",
             user_id,
             categories,
         )

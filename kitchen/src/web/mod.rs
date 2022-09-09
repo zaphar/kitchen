@@ -137,7 +137,7 @@ async fn api_categories(
 async fn api_save_categories(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
-    categories: String,
+    Json(categories): Json<String>,
 ) -> impl IntoResponse {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
@@ -159,12 +159,12 @@ async fn api_save_categories(
 async fn api_save_recipe(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
-    Json(recipe): Json<RecipeEntry>,
+    Json(recipes): Json<Vec<RecipeEntry>>,
 ) -> impl IntoResponse {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
         if let Err(e) = app_store
-            .store_recipes_for_user(id.as_str(), &vec![recipe])
+            .store_recipes_for_user(id.as_str(), &recipes)
             .await
         {
             return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", e));

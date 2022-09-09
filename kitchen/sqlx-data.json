@@ -18,17 +18,7 @@
     },
     "query": "select password_hashed from users where id = ?"
   },
-  "2519fa6cd665764d0c9a0152e5c8ce20152fc4853c5cd9c34259cec27d8bf47e": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 2
-      }
-    },
-    "query": "insert into categories (user_id, category_text) values (?, ?)"
-  },
-  "3311b1ceb15128dca0a3554f1e0f50c03e6c531919a6be1e7f9f940544236143": {
+  "3fd4017569dca4fe73e97e0e2bd612027a8c1b17b0b10faabd6459f56ca1c0bb": {
     "describe": {
       "columns": [],
       "nullable": [],
@@ -36,7 +26,7 @@
         "Right": 3
       }
     },
-    "query": "insert into recipes (user_id, recipe_id, recipe_text) values (?, ?, ?)"
+    "query": "insert into recipes (user_id, recipe_id, recipe_text) values (?, ?, ?)\n    on conflict(user_id, recipe_id) do update set recipe_text=excluded.recipe_text"
   },
   "5d743897fb0d8fd54c3708f1b1c6e416346201faa9e28823c1ba5a421472b1fa": {
     "describe": {
@@ -57,6 +47,16 @@
       }
     },
     "query": "delete from sessions where id = ?"
+  },
+  "8490e1bb40879caed62ac1c38cb9af48246f3451b6f7f1e1f33850f1dbe25f58": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "insert into categories (user_id, category_text) values (?, ?)\n    on conflict(user_id) do update set category_text=excluded.category_text"
   },
   "928a479ca0f765ec7715bf8784c5490e214486edbf5b78fd501823feb328375b": {
     "describe": {
