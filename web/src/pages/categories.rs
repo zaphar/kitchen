@@ -1,4 +1,4 @@
-// Copyright 2022 Jeremy Wall
+// Copyright 2022 Jeremy Wall (jeremy@marzhillstudios.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,19 +11,20 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::components::{recipe_selector::*, tabs::*};
+use crate::components::categories::*;
+use crate::components::tabs::*;
 
 use sycamore::prelude::*;
+use tracing::instrument;
 
-use super::PageProps;
-
-#[component(PlanPage<G>)]
-pub fn plan_page(props: PageProps) -> View<G> {
+#[instrument]
+#[component(CategoryPage<G>)]
+pub fn category_page() -> View<G> {
     view! {
         TabbedView(TabState {
             inner: view! {
-                RecipeSelector(props.service.clone())
-            },
+                Categories()
+            }
         })
     }
 }

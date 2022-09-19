@@ -29,6 +29,8 @@ pub fn tabbed_view(state: TabState<G>) -> View<G> {
                     li { a(href="/ui/inventory", class="no-print") { "Inventory" } " > "
                     }
                     li { a(href="/ui/cook", class="no-print") { "Cook" }
+                    } " | "
+                    li { a(href="/ui/categories", class="no-print") { "Categories" }
                     }
                 }
                 ul {

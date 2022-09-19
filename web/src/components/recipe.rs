@@ -50,6 +50,7 @@ fn editor(recipe: RecipeEntry) -> View<G> {
 
     create_effect(
         cloned!((id, app_service, text, save_signal, error_text) => move || {
+                // TODO(jwall): This is triggering on load which is not desired.
                 save_signal.get();
                 spawn_local_in_scope({
                     cloned!((id, app_service, text, error_text) => async move {

@@ -70,7 +70,7 @@ async fn ui_static_assets(Path(path): Path<String>) -> impl IntoResponse {
 
     let mut path = path.trim_start_matches("/");
     path = match path {
-        "" | "inventory" | "plan" | "cook" | "login" => "index.html",
+        "" | "inventory" | "plan" | "cook" | "categories" | "login" => "index.html",
         _ => {
             if path.starts_with("recipe") {
                 "index.html"

@@ -11,14 +11,20 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+mod categories;
 mod cook;
 mod inventory;
 mod login;
 mod plan;
 mod recipe;
 
+pub use categories::*;
 pub use cook::*;
 pub use inventory::*;
 pub use login::*;
 pub use plan::*;
 pub use recipe::*;
+
+pub struct PageProps {
+    service: crate::service::AppService,
+}

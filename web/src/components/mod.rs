@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+pub mod categories;
 pub mod header;
 pub mod recipe;
 pub mod recipe_list;
@@ -19,6 +20,7 @@ pub mod recipe_selector;
 pub mod shopping_list;
 pub mod tabs;
 
+pub use categories::*;
 pub use header::*;
 pub use recipe::*;
 pub use recipe_list::*;

@@ -16,12 +16,11 @@ use sycamore::{futures::spawn_local_in_scope, prelude::*};
 use tracing::{error, instrument};
 
 use crate::components::recipe_selection::*;
-use crate::service::get_appservice_from_context;
+use crate::service::AppService;
 
 #[instrument]
 #[component(RecipeSelector<G>)]
-pub fn recipe_selector() -> View<G> {
-    let app_service = get_appservice_from_context();
+pub fn recipe_selector(app_service: AppService) -> View<G> {
     let rows = create_memo(cloned!(app_service => move || {
         let mut rows = Vec::new();
         for row in app_service.get_recipes().get().iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<(String, Signal<Recipe>)>>().chunks(4) {

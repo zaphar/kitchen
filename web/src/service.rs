@@ -86,15 +86,18 @@ impl AppService {
         Ok(())
     }
 
+    pub fn get_category_text(&self) -> Result<Option<String>, String> {
+        let storage = self.get_storage()?.unwrap();
+        storage
+            .get_item("categories")
+            .map_err(|e| format!("{:?}", e))
+    }
+
     #[instrument(skip(self))]
     pub fn fetch_categories_from_storage(
         &self,
     ) -> Result<Option<BTreeMap<String, String>>, String> {
-        let storage = self.get_storage()?.unwrap();
-        match storage
-            .get_item("categories")
-            .map_err(|e| format!("{:?}", e))?
-        {
+        match self.get_category_text()? {
             Some(s) => {
                 let parsed = from_str::<String>(&s).map_err(|e| format!("{}", e))?;
                 if parsed.is_empty() {
@@ -224,7 +227,7 @@ impl AppService {
                 .push((i.clone(), recipes.clone()));
         }
         debug!(?self.category_map);
-        // FIXM(jwall): Sort by categories and names.
+        // FIXME(jwall): Sort by categories and names.
         groups
     }
 
@@ -369,7 +372,7 @@ impl HttpStore {
     #[instrument(skip(categories))]
     async fn save_categories(&self, categories: String) -> Result<(), Error> {
         let mut path = self.root.clone();
-        path.push_str("/recipes");
+        path.push_str("/categories");
         let resp = reqwasm::http::Request::post(&path)
             .body(to_string(&categories).expect("Unable to encode categories as json"))
             .header("content-type", "application/json")

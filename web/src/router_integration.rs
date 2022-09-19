@@ -197,6 +197,7 @@ impl DeriveRoute for AppRoutes {
             "/ui/plan" => AppRoutes::Plan,
             "/ui/cook" => AppRoutes::Cook,
             "/ui/inventory" => AppRoutes::Inventory,
+            "/ui/categories" => AppRoutes::Categories,
             h => {
                 if h.starts_with("/ui/recipe/") {
                     let parts: Vec<&str> = h.split("/").collect();
