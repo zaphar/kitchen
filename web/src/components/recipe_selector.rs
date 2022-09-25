@@ -12,48 +12,57 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use recipes::Recipe;
-use sycamore::{futures::spawn_local_in_scope, prelude::*};
+use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{error, instrument};
 
 use crate::components::recipe_selection::*;
-use crate::service::AppService;
+use crate::service::*;
 
 #[instrument]
-#[component(RecipeSelector<G>)]
-pub fn recipe_selector(app_service: AppService) -> View<G> {
-    let rows = create_memo(cloned!(app_service => move || {
+pub fn RecipeSelector<G: Html>(cx: Scope) -> View<G> {
+    let app_service = get_appservice_from_context(cx).clone();
+    let rows = create_memo(cx, move || {
         let mut rows = Vec::new();
-        for row in app_service.get_recipes().get().iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<(String, Signal<Recipe>)>>().chunks(4) {
-            rows.push(Signal::new(Vec::from(row)));
+        if let (_, Some(bt)) = app_service.fetch_recipes_from_storage().unwrap() {
+            for row in bt
+                .iter()
+                .map(|(k, v)| create_signal(cx, (k.clone(), v.clone())))
+                .collect::<Vec<&Signal<(String, Recipe)>>>()
+                .chunks(4)
+            {
+                rows.push(create_signal(cx, Vec::from(row)));
+            }
         }
         rows
-    }));
-    let clicked = Signal::new(false);
-    create_effect(cloned!((clicked, app_service) => move || {
-        clicked.get();
-        spawn_local_in_scope(cloned!((app_service) => {
+    });
+    let app_service = get_appservice_from_context(cx).clone();
+    let clicked = create_signal(cx, false);
+    create_effect(cx, move || {
+        clicked.track();
+        spawn_local_scoped(cx, {
             let mut app_service = app_service.clone();
             async move {
-                if let Err(err) = app_service.refresh().await {
+                if let Err(err) = app_service.synchronize().await {
                     error!(?err);
                 };
             }
-        }));
-    }));
-    view! {
+        });
+    });
+    view! {cx,
         table(class="recipe_selector no-print") {
             (View::new_fragment(
                 rows.get().iter().cloned().map(|r| {
-                    view ! {
-                        tr { Keyed(KeyedProps{
-                            iterable: r.handle(),
-                            template: |(i, recipe)| {
-                                view! {
-                                    td { RecipeSelection(RecipeCheckBoxProps{i: i, title: create_memo(move || recipe.get().title.clone())}) }
+                    view ! {cx,
+                        tr { Keyed(
+                            iterable=r,
+                            view=|cx, sig| {
+                                let title = create_memo(cx, move || sig.get().1.title.clone());
+                                view! {cx,
+                                    td { RecipeSelection(i=sig.get().0.to_owned(), title=title) }
                                 }
                             },
-                            key: |r| r.0.clone(),
-                        })}
+                            key=|sig| sig.get().0.to_owned(),
+                        )}
                     }
                 }).collect()
             ))

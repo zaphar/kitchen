@@ -33,5 +33,5 @@ pub fn main() {
         // TODO(jwall): use the tracing_subscriber_browser default setup function when it exists.
         tracing_browser_subscriber::configure_as_global_default();
     }
-    sycamore::render(|| view! { UI() });
+    sycamore::render(|cx| view! { cx, UI() });
 }

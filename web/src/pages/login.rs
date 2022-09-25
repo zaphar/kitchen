@@ -15,7 +15,7 @@ use crate::components::tabs::*;
 
 use base64;
 use reqwasm::http;
-use sycamore::{futures::spawn_local_in_scope, prelude::*};
+use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{debug, error, info};
 
 fn token68(user: String, pass: String) -> String {
@@ -46,42 +46,42 @@ async fn authenticate(user: String, pass: String) -> bool {
     return false;
 }
 
-#[component(LoginForm<G>)]
-pub fn login_form() -> View<G> {
-    let username = Signal::new("".to_owned());
-    let password = Signal::new("".to_owned());
-    let clicked = Signal::new(("".to_owned(), "".to_owned()));
-    create_effect(cloned!((clicked) => move || {
+#[component]
+pub fn LoginForm<G: Html>(cx: Scope) -> View<G> {
+    let username = create_signal(cx, "".to_owned());
+    let password = create_signal(cx, "".to_owned());
+    let clicked = create_signal(cx, ("".to_owned(), "".to_owned()));
+    create_effect(cx, move || {
         let (username, password) = (*clicked.get()).clone();
         if username != "" && password != "" {
-            spawn_local_in_scope(async move {
+            spawn_local_scoped(cx, async move {
                 debug!("authenticating against ui");
                 // TODO(jwall): Navigate to plan if the below is successful.
                 authenticate(username, password).await;
             });
         }
-    }));
-    view! {
+    });
+    view! {cx,
         form() {
             label(for="username") { "Username" }
-            input(type="text", id="username", bind:value=username.clone())
+            input(type="text", id="username", bind:value=username)
             label(for="password") { "Password" }
-            input(type="password", bind:value=password.clone())
-            input(type="button", value="Login", on:click=cloned!((clicked) => move |_| {
+            input(type="password", bind:value=password)
+            input(type="button", value="Login", on:click=move |_| {
                 info!("Attempting login request");
                 clicked.set(((*username.get_untracked()).clone(), (*password.get_untracked()).clone()));
                 debug!("triggering login click subscribers");
                 clicked.trigger_subscribers();
-            })) {  }
+            }) {  }
         }
     }
 }
 
-#[component(LoginPage<G>)]
-pub fn login_page() -> View<G> {
-    view! {
+#[component]
+pub fn LoginPage<G: Html>(cx: Scope) -> View<G> {
+    view! {cx,
         TabbedView(TabState {
-            inner: view! { LoginForm() }
+            inner: view! {cx, LoginForm { } }
         })
     }
 }

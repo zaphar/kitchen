@@ -1,2 +1,6 @@
 [workspace]
 members = [ "recipes", "kitchen", "web", "recipe-store"]
+
+[patch.crates-io]
+# TODO(jwall): When the fix for RcSignal Binding is released we can drop this patch.
+sycamore = {git = "https://github.com/sycamore-rs/sycamore/", rev = "20b6069c470a51d2ba6197bb322036e8324ff297" }

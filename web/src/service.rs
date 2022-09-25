@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use reqwasm;
 //use serde::{Deserialize, Serialize};
 use serde_json::{from_str, to_string};
-use sycamore::{context::use_context, prelude::*};
+use sycamore::prelude::*;
 use tracing::{debug, error, info, instrument, warn};
 use web_sys::Storage;
 
@@ -25,26 +25,27 @@ use recipes::{parse, Ingredient, IngredientAccumulator, Recipe};
 
 use crate::js_lib;
 
-pub fn get_appservice_from_context() -> AppService {
-    use_context::<AppService>()
+pub fn get_appservice_from_context(cx: Scope) -> &AppService {
+    use_context::<AppService>(cx)
 }
 
+// TODO(jwall): We should not be cloning this.
 #[derive(Clone, Debug)]
 pub struct AppService {
-    recipes: Signal<BTreeMap<String, Signal<Recipe>>>,
-    staples: Signal<Option<Recipe>>,
-    category_map: Signal<BTreeMap<String, String>>,
-    menu_list: Signal<BTreeMap<String, usize>>,
+    recipe_counts: RcSignal<BTreeMap<String, usize>>,
+    staples: RcSignal<Option<Recipe>>,
+    recipes: RcSignal<BTreeMap<String, Recipe>>,
+    category_map: RcSignal<BTreeMap<String, String>>,
     store: HttpStore,
 }
 
 impl AppService {
     pub fn new(store: HttpStore) -> Self {
         Self {
-            recipes: Signal::new(BTreeMap::new()),
-            staples: Signal::new(None),
-            category_map: Signal::new(BTreeMap::new()),
-            menu_list: Signal::new(BTreeMap::new()),
+            recipe_counts: create_rc_signal(BTreeMap::new()),
+            staples: create_rc_signal(None),
+            recipes: create_rc_signal(BTreeMap::new()),
+            category_map: create_rc_signal(BTreeMap::new()),
             store: store,
         }
     }
@@ -53,9 +54,18 @@ impl AppService {
         js_lib::get_storage().map_err(|e| format!("{:?}", e))
     }
 
+    pub fn get_menu_list(&self) -> Vec<(String, usize)> {
+        self.recipe_counts
+            .get()
+            .iter()
+            .map(|(k, v)| (k.clone(), *v))
+            .collect()
+    }
+
     #[instrument(skip(self))]
-    async fn synchronize(&self) -> Result<(), String> {
+    pub async fn synchronize(&mut self) -> Result<(), String> {
         info!("Synchronizing Recipes");
+        // TODO(jwall): Make our caching logic using storage more robust.
         let storage = self.get_storage()?.unwrap();
         let recipes = self
             .store
@@ -68,6 +78,19 @@ impl AppService {
                 &(to_string(&recipes).map_err(|e| format!("{:?}", e))?),
             )
             .map_err(|e| format!("{:?}", e))?;
+        if let Ok((staples, recipes)) = self.fetch_recipes_from_storage() {
+            self.staples.set(staples);
+            if let Some(recipes) = recipes {
+                self.recipes.set(recipes);
+            }
+        }
+        if let Some(rs) = recipes {
+            for r in rs {
+                if !self.recipe_counts.get().contains_key(r.recipe_id()) {
+                    self.set_recipe_count_by_index(&r.recipe_id().to_owned(), 0);
+                }
+            }
+        }
         info!("Synchronizing categories");
         match self.store.get_categories().await {
             Ok(Some(categories_content)) => {
@@ -84,6 +107,54 @@ impl AppService {
             }
         }
         Ok(())
+    }
+
+    pub fn get_recipe_count_by_index(&self, key: &String) -> Option<usize> {
+        self.recipe_counts.get().get(key).cloned()
+    }
+
+    pub fn set_recipe_count_by_index(&mut self, key: &String, count: usize) -> usize {
+        let mut counts = self.recipe_counts.get().as_ref().clone();
+        counts.insert(key.clone(), count);
+        self.recipe_counts.set(counts);
+        count
+    }
+
+    #[instrument(skip(self))]
+    pub fn get_shopping_list(
+        &self,
+        show_staples: bool,
+    ) -> BTreeMap<String, Vec<(Ingredient, BTreeSet<String>)>> {
+        let mut acc = IngredientAccumulator::new();
+        let recipe_counts = self.get_menu_list();
+        for (idx, count) in recipe_counts.iter() {
+            for _ in 0..*count {
+                acc.accumulate_from(self.recipes.get().get(idx).unwrap());
+            }
+        }
+        if show_staples {
+            if let Some(staples) = self.staples.get().as_ref() {
+                acc.accumulate_from(staples);
+            }
+        }
+        let mut ingredients = acc.ingredients();
+        let mut groups = BTreeMap::new();
+        let cat_map = self.category_map.get().clone();
+        for (_, (i, recipes)) in ingredients.iter_mut() {
+            let category = if let Some(cat) = cat_map.get(&i.name) {
+                cat.clone()
+            } else {
+                "other".to_owned()
+            };
+            i.category = category.clone();
+            groups
+                .entry(category)
+                .or_insert(vec![])
+                .push((i.clone(), recipes.clone()));
+        }
+        debug!(?self.category_map);
+        // FIXME(jwall): Sort by categories and names.
+        groups
     }
 
     pub fn get_category_text(&self) -> Result<Option<String>, String> {
@@ -175,86 +246,6 @@ impl AppService {
         Ok(self.fetch_categories_from_storage()?)
     }
 
-    #[instrument(skip(self))]
-    pub async fn refresh(&mut self) -> Result<(), String> {
-        self.synchronize().await?;
-        debug!("refreshing recipes");
-        if let (staples, Some(r)) = self.fetch_recipes().await? {
-            self.set_recipes(r);
-            self.staples.set(staples);
-        }
-        debug!("refreshing categories");
-        if let Some(categories) = self.fetch_categories().await? {
-            self.set_categories(categories);
-        }
-        Ok(())
-    }
-
-    pub fn get_recipe_by_index(&self, idx: &str) -> Option<Signal<Recipe>> {
-        self.recipes.get().get(idx).map(|r| r.clone())
-    }
-
-    #[instrument(skip(self))]
-    pub fn get_shopping_list(
-        &self,
-        show_staples: bool,
-    ) -> BTreeMap<String, Vec<(Ingredient, BTreeSet<String>)>> {
-        let mut acc = IngredientAccumulator::new();
-        let recipe_counts = self.menu_list.get();
-        for (idx, count) in recipe_counts.iter() {
-            for _ in 0..*count {
-                acc.accumulate_from(self.get_recipe_by_index(idx).unwrap().get().as_ref());
-            }
-        }
-        if show_staples {
-            if let Some(staples) = self.staples.get().as_ref() {
-                acc.accumulate_from(staples);
-            }
-        }
-        let mut ingredients = acc.ingredients();
-        let mut groups = BTreeMap::new();
-        let cat_map = self.category_map.get().clone();
-        for (_, (i, recipes)) in ingredients.iter_mut() {
-            let category = if let Some(cat) = cat_map.get(&i.name) {
-                cat.clone()
-            } else {
-                "other".to_owned()
-            };
-            i.category = category.clone();
-            groups
-                .entry(category)
-                .or_insert(vec![])
-                .push((i.clone(), recipes.clone()));
-        }
-        debug!(?self.category_map);
-        // FIXME(jwall): Sort by categories and names.
-        groups
-    }
-
-    pub fn set_recipe_count_by_index(&mut self, i: String, count: usize) {
-        let mut v = (*self.menu_list.get()).clone();
-        v.insert(i, count);
-        self.menu_list.set(v);
-    }
-
-    pub fn get_recipe_count_by_index(&self, i: &str) -> usize {
-        self.menu_list.get().get(i).map(|i| *i).unwrap_or_default()
-    }
-
-    pub fn get_recipes(&self) -> Signal<BTreeMap<String, Signal<Recipe>>> {
-        self.recipes.clone()
-    }
-
-    pub fn get_menu_list(&self) -> Vec<(String, usize)> {
-        self.menu_list
-            .get()
-            .iter()
-            // We exclude recipes in the menu_list with count 0
-            .filter(|&(_, count)| *count != 0)
-            .map(|(idx, count)| (idx.clone(), *count))
-            .collect()
-    }
-
     pub async fn save_recipes(&self, recipes: Vec<RecipeEntry>) -> Result<(), String> {
         self.store.save_recipes(recipes).await?;
         Ok(())
@@ -263,19 +254,6 @@ impl AppService {
     pub async fn save_categories(&self, categories: String) -> Result<(), String> {
         self.store.save_categories(categories).await?;
         Ok(())
-    }
-
-    pub fn set_recipes(&mut self, recipes: BTreeMap<String, Recipe>) {
-        self.recipes.set(
-            recipes
-                .iter()
-                .map(|(i, r)| (i.clone(), Signal::new(r.clone())))
-                .collect(),
-        );
-    }
-
-    pub fn set_categories(&mut self, categories: BTreeMap<String, String>) {
-        self.category_map.set(categories);
     }
 }
 

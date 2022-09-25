@@ -15,12 +15,12 @@ use crate::components::{shopping_list::*, tabs::*};
 
 use sycamore::prelude::*;
 
-#[component(InventoryPage<G>)]
-pub fn inventory_page() -> View<G> {
-    view! {
+#[component]
+pub fn InventoryPage<G: Html>(cx: Scope) -> View<G> {
+    view! {cx,
         TabbedView(TabState {
-            inner: view! {
-                ShoppingList()
+            inner: view! {cx,
+                ShoppingList {}
             },
         })
     }

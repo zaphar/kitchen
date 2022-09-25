@@ -18,12 +18,12 @@ use sycamore::prelude::*;
 use tracing::instrument;
 
 #[instrument]
-#[component(CategoryPage<G>)]
-pub fn category_page() -> View<G> {
-    view! {
+#[component()]
+pub fn CategoryPage<G: Html>(cx: Scope) -> View<G> {
+    view! {cx,
         TabbedView(TabState {
-            inner: view! {
-                Categories()
+            inner: view! {cx,
+                Categories { }
             }
         })
     }

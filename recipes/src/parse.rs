@@ -181,10 +181,10 @@ make_fn!(
         (
             Duration::from_secs(
                 match u {
-                    "ms" => (cnt / 1000),
+                    "ms" => cnt / 1000,
                     "s" | "sec" => cnt.into(),
-                    "m" | "min" => (dbg!(cnt) * 60),
-                    "h" | "hr" | "hrs" => (cnt * 60 * 60),
+                    "m" | "min" => dbg!(cnt) * 60,
+                    "h" | "hr" | "hrs" => cnt * 60 * 60,
                     _ => unreachable!(),
                 }.into()
             )

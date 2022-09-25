@@ -15,12 +15,12 @@ use crate::components::{recipe_list::*, tabs::*};
 
 use sycamore::prelude::*;
 
-#[component(CookPage<G>)]
-pub fn cook_page() -> View<G> {
-    view! {
+#[component]
+pub fn CookPage<G: Html>(cx: Scope) -> View<G> {
+    view! {cx,
         TabbedView(TabState {
-            inner: view! {
-                RecipeList()
+            inner: view! {cx,
+                RecipeList { }
             },
         })
     }

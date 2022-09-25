@@ -16,18 +16,18 @@ use crate::components::{recipe::Recipe, tabs::*};
 use sycamore::prelude::*;
 use tracing::instrument;
 
-#[derive(Debug)]
+#[derive(Debug, Prop)]
 pub struct RecipePageProps {
-    pub recipe: Signal<String>,
+    pub recipe: String,
 }
 
 #[instrument]
-#[component(RecipePage<G>)]
-pub fn recipe_page(props: RecipePageProps) -> View<G> {
-    view! {
+#[component()]
+pub fn RecipePage<G: Html>(cx: Scope, props: RecipePageProps) -> View<G> {
+    view! {cx,
         TabbedView(TabState {
-            inner: view! {
-                Recipe(props.recipe.handle())
+            inner: view! {cx,
+                Recipe(props.recipe)
             }
         })
     }

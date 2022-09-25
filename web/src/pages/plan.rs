@@ -15,14 +15,12 @@ use crate::components::{recipe_selector::*, tabs::*};
 
 use sycamore::prelude::*;
 
-use super::PageProps;
-
-#[component(PlanPage<G>)]
-pub fn plan_page(props: PageProps) -> View<G> {
-    view! {
+#[component]
+pub fn PlanPage<G: Html>(cx: Scope) -> View<G> {
+    view! {cx,
         TabbedView(TabState {
-            inner: view! {
-                RecipeSelector(props.service.clone())
+            inner: view! {cx,
+                 RecipeSelector()
             },
         })
     }

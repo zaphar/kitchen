@@ -11,32 +11,29 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::components::Recipe;
+use crate::{components::Recipe, service::AppService};
 
 use sycamore::prelude::*;
 use tracing::{debug, instrument};
 
-use crate::service::get_appservice_from_context;
-
 #[instrument]
-#[component(RecipeList<G>)]
-pub fn recipe_list() -> View<G> {
-    let app_service = get_appservice_from_context();
-    let menu_list = create_memo(move || app_service.get_menu_list());
-    view! {
+#[component]
+pub fn RecipeList<G: Html>(cx: Scope) -> View<G> {
+    let app_service = use_context::<AppService>(cx);
+    let menu_list = create_memo(cx, || app_service.get_menu_list());
+    view! {cx,
         h1 { "Recipe List" }
         div() {
-            Indexed(IndexedProps{
-                iterable: menu_list,
-                template: |(idx, _count)| {
+            Indexed(
+                iterable=menu_list,
+                view= |cx, (idx, _count)| {
                     debug!(idx=%idx, "Rendering recipe");
-                    let idx = Signal::new(idx);
-                    view ! {
-                        Recipe(idx.handle())
+                    view ! {cx,
+                        Recipe(idx)
                         hr()
                     }
                 }
-            })
+            )
         }
     }
 }

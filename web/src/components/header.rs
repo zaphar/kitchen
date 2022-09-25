@@ -14,10 +14,10 @@
 
 use sycamore::prelude::*;
 
-#[component(Header<G>)]
-pub fn header() -> View<G> {
-    view! {
-        div(class="menu") {
+#[component]
+pub fn Header<G: Html>(cx: Scope) -> View<G> {
+    view! {cx,
+        div(class="menu no-print") {
             h1 { "Meal Plan" }
         }
     }

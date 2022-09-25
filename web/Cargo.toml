@@ -48,8 +48,8 @@ features = [
 ]
 
 [dependencies.sycamore]
-version = "0.7.1"
-features = ["futures", "serde", "default"]
+version = "0.8.2"
+features = ["suspense", "serde", "default", ]
 
 [profile.release]
 lto = true

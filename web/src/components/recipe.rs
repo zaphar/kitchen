@@ -11,11 +11,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use sycamore::{futures::spawn_local_in_scope, prelude::*};
+use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{debug, error};
 use web_sys::HtmlDialogElement;
 
-use crate::{js_lib::get_element_by_id, service::get_appservice_from_context};
+use crate::{js_lib::get_element_by_id, service::AppService};
 use recipe_store::RecipeEntry;
 use recipes;
 
@@ -25,7 +25,7 @@ fn get_error_dialog() -> HtmlDialogElement {
         .unwrap()
 }
 
-fn check_recipe_parses(text: &str, error_text: Signal<String>) -> bool {
+fn check_recipe_parses(text: &str, error_text: &Signal<String>) -> bool {
     if let Err(e) = recipes::parse::as_recipe(text) {
         error!(?e, "Error parsing recipe");
         error_text.set(e);
@@ -40,32 +40,34 @@ fn check_recipe_parses(text: &str, error_text: Signal<String>) -> bool {
     }
 }
 
-#[component(Editor<G>)]
-fn editor(recipe: RecipeEntry) -> View<G> {
-    let id = Signal::new(recipe.recipe_id().to_owned());
-    let text = Signal::new(recipe.recipe_text().to_owned());
-    let error_text = Signal::new(String::new());
-    let app_service = get_appservice_from_context();
-    let save_signal = Signal::new(());
+#[component]
+fn Editor<G: Html>(cx: Scope, recipe: &RecipeEntry) -> View<G> {
+    let id = create_signal(cx, recipe.recipe_id().to_owned());
+    let text = create_signal(cx, recipe.recipe_text().to_owned());
+    let error_text = create_signal(cx, String::new());
+    let app_service = use_context::<AppService>(cx);
+    let save_signal = create_signal(cx, ());
 
-    create_effect(
-        cloned!((id, app_service, text, save_signal, error_text) => move || {
-                // TODO(jwall): This is triggering on load which is not desired.
-                save_signal.get();
-                spawn_local_in_scope({
-                    cloned!((id, app_service, text, error_text) => async move {
-                        if let Err(e) = app_service
-                            .save_recipes(vec![RecipeEntry(id.get_untracked().as_ref().clone(), text.get_untracked().as_ref().clone())])
-                            .await {
-                                error!(?e, "Failed to save recipe");
-                                error_text.set(format!("{:?}", e));
-                            };
-                    })
-                });
-        }),
-    );
+    create_effect(cx, move || {
+        // TODO(jwall): This is triggering on load which is not desired.
+        save_signal.track();
+        spawn_local_scoped(cx, {
+            async move {
+                if let Err(e) = app_service
+                    .save_recipes(vec![RecipeEntry(
+                        id.get_untracked().as_ref().clone(),
+                        text.get_untracked().as_ref().clone(),
+                    )])
+                    .await
+                {
+                    error!(?e, "Failed to save recipe");
+                    error_text.set(format!("{:?}", e));
+                };
+            }
+        });
+    });
 
-    let dialog_view = cloned!((error_text) => view! {
+    let dialog_view = view! {cx,
         dialog(id="error-dialog") {
             article{
                 header {
@@ -80,73 +82,84 @@ fn editor(recipe: RecipeEntry) -> View<G> {
                 }
             }
         }
-    });
+    };
 
-    cloned!((text, error_text) => view! {
+    view! {cx,
         (dialog_view)
-        textarea(bind:value=text.clone(), rows=20)
-        a(role="button" , href="#", on:click=cloned!((text, error_text) => move |_| {
+        textarea(bind:value=text, rows=20)
+        a(role="button" , href="#", on:click=move |_| {
             let unparsed = text.get();
             check_recipe_parses(unparsed.as_str(), error_text.clone());
-        })) { "Check" } " "
-        a(role="button", href="#", on:click=cloned!((text, error_text) => move |_| {
+        }) { "Check" } " "
+        a(role="button", href="#", on:click=move |_| {
             let unparsed = text.get();
             if check_recipe_parses(unparsed.as_str(), error_text.clone()) {
                 debug!("triggering a save");
                 save_signal.trigger_subscribers();
             };
-        })) { "Save" }
-    })
+        }) { "Save" }
+    }
 }
 
-#[component(Steps<G>)]
-fn steps(steps: ReadSignal<Vec<recipes::Step>>) -> View<G> {
-    view! {
+#[component]
+fn Steps<'ctx, G: Html>(cx: Scope<'ctx>, steps: &'ctx ReadSignal<Vec<recipes::Step>>) -> View<G> {
+    view! {cx,
             h2 { "Steps: " }
             div(class="recipe_steps") {
-                Indexed(IndexedProps{
-                    iterable: steps,
-                    template: |step: recipes::Step| { view! {
+                Indexed(
+                    iterable=steps,
+                    view = |cx, step: recipes::Step| { view! {cx,
                         div {
                             h3 { "Instructions" }
                             ul(class="ingredients") {
-                                Indexed(IndexedProps{
-                                    iterable: Signal::new(step.ingredients).handle(),
-                                    template: |i| { view! {
+                                Indexed(
+                                    iterable = create_signal(cx, step.ingredients),
+                                    view = |cx, i| { view! {cx,
                                         li {
                                             (i.amt) " " (i.name) " " (i.form.as_ref().map(|f| format!("({})", f)).unwrap_or(String::new()))
                                         }
                                     }}
-                                })
+                                )
                             }
                             div(class="instructions") {
                                 (step.instructions)
                             }
                         }}
                     }
-                })
+                )
             }
     }
 }
 
-#[component(Recipe<G>)]
-pub fn recipe(idx: ReadSignal<String>) -> View<G> {
-    let app_service = get_appservice_from_context();
-    let view = Signal::new(View::empty());
-    let show_edit = Signal::new(false);
-    create_effect(cloned!((idx, app_service, view, show_edit) => move || {
-        if *show_edit.get() {
-            return;
-        }
-        let recipe_id: String = idx.get().as_ref().to_owned();
-        if let Some(recipe) = app_service.get_recipes().get().get(&recipe_id) {
-            let recipe = recipe.clone();
-            let title = create_memo(cloned!((recipe) => move || recipe.get().title.clone()));
-            let desc = create_memo(
-                cloned!((recipe) => move || recipe.clone().get().desc.clone().unwrap_or_else(|| String::new())),
-            );
-            let steps = create_memo(cloned!((recipe) => move || recipe.get().steps.clone()));
-            view.set(view! {
+#[component]
+pub fn Recipe<'ctx, G: Html>(cx: Scope<'ctx>, recipe_id: String) -> View<G> {
+    let app_service = use_context::<AppService>(cx).clone();
+    let view = create_signal(cx, View::empty());
+    let show_edit = create_signal(cx, false);
+    // FIXME(jwall): This has too many unwrap() calls
+    if let Some(recipe) = app_service
+        .fetch_recipes_from_storage()
+        .unwrap()
+        .1
+        .unwrap()
+        .get(&recipe_id)
+    {
+        let recipe = create_signal(cx, recipe.clone());
+        let title = create_memo(cx, move || recipe.get().title.clone());
+        let desc = create_memo(cx, move || {
+            recipe
+                .clone()
+                .get()
+                .desc
+                .clone()
+                .unwrap_or_else(|| String::new())
+        });
+        let steps = create_memo(cx, move || recipe.get().steps.clone());
+        create_effect(cx, move || {
+            if *show_edit.get() {
+                return;
+            }
+            view.set(view! {cx,
                 div(class="recipe") {
                     h1(class="recipe_title") { (title.get()) }
                      div(class="recipe_description") {
@@ -155,22 +168,25 @@ pub fn recipe(idx: ReadSignal<String>) -> View<G> {
                     Steps(steps)
                 }
             });
-        }
-    }));
-    create_effect(cloned!((idx, app_service, view, show_edit) => move || {
-        let recipe_id: String = idx.get().as_ref().to_owned();
-        if !(*show_edit.get()) {
-            return;
-        }
-        if let Some(entry) = app_service.fetch_recipe_text(recipe_id.as_str()).expect("No such recipe") {
-            view.set(view! {
-                Editor(entry)
+        });
+        if let Some(entry) = app_service
+            .fetch_recipe_text(recipe_id.as_str())
+            .expect("No such recipe")
+        {
+            let entry_ref = create_ref(cx, entry);
+            create_effect(cx, move || {
+                if !(*show_edit.get()) {
+                    return;
+                }
+                view.set(view! {cx,
+                    Editor(entry_ref)
+                });
             });
         }
-    }));
-    view! {
-        a(role="button", href="#", on:click=cloned!((show_edit) => move |_| { show_edit.set(true); })) { "Edit" } " "
-        a(role="button", href="#", on:click=cloned!((show_edit) => move |_| { show_edit.set(false); })) { "View" }
+    }
+    view! {cx,
+        a(role="button", href="#", on:click=move |_| { show_edit.set(true); }) { "Edit" } " "
+        a(role="button", href="#", on:click=move |_| { show_edit.set(false); }) { "View" }
         (view.get().as_ref())
     }
 }

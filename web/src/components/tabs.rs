@@ -13,15 +13,17 @@
 // limitations under the License.
 use sycamore::prelude::*;
 
-#[derive(Clone)]
+use super::Header;
+
+#[derive(Clone, Prop)]
 pub struct TabState<G: GenericNode> {
     pub inner: View<G>,
 }
 
-#[component(TabbedView<G>)]
-pub fn tabbed_view(state: TabState<G>) -> View<G> {
-    cloned!((state) => view! {
-        header(class="no-print") {
+#[component]
+pub fn TabbedView<G: Html>(cx: Scope, state: TabState<G>) -> View<G> {
+    view! {cx,
+        Header { }
             nav {
                 ul {
                     li { a(href="/ui/plan", class="no-print") { "Plan" } " > "
@@ -38,9 +40,8 @@ pub fn tabbed_view(state: TabState<G>) -> View<G> {
                     li { a(href="https://github.com/zaphar/kitchen") { "Github" } }
                 }
             }
-        }
         main(class=".conatiner-fluid") {
             (state.inner)
         }
-    })
+    }
 }
