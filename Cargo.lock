@@ -1906,6 +1906,7 @@ dependencies = [
 [[package]]
 name = "sqlx"
 version = "0.6.2"
+source = "git+https://github.com/zaphar/sqlx?branch=remove_unstable_async_std_feature#cc8a048bbe9af370c22211d9d95243bfc42a0c14"
 dependencies = [
  "sqlx-core",
  "sqlx-macros",
@@ -1914,6 +1915,7 @@ dependencies = [
 [[package]]
 name = "sqlx-core"
 version = "0.6.2"
+source = "git+https://github.com/zaphar/sqlx?branch=remove_unstable_async_std_feature#cc8a048bbe9af370c22211d9d95243bfc42a0c14"
 dependencies = [
  "ahash",
  "atoi",
@@ -1958,6 +1960,7 @@ dependencies = [
 [[package]]
 name = "sqlx-macros"
 version = "0.6.2"
+source = "git+https://github.com/zaphar/sqlx?branch=remove_unstable_async_std_feature#cc8a048bbe9af370c22211d9d95243bfc42a0c14"
 dependencies = [
  "dotenvy",
  "either",
@@ -1978,6 +1981,7 @@ dependencies = [
 [[package]]
 name = "sqlx-rt"
 version = "0.6.2"
+source = "git+https://github.com/zaphar/sqlx?branch=remove_unstable_async_std_feature#cc8a048bbe9af370c22211d9d95243bfc42a0c14"
 dependencies = [
  "async-std",
  "futures-rustls",

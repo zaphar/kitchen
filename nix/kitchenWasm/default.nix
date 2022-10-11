@@ -9,7 +9,13 @@ let
     lockFile = ./../../Cargo.lock;
     # NOTE(jwall): Because we use wasm-pack directly below we need
     # the cargo dependencies to already be installed.
-     cargoDeps = (pkgs.rustPlatform.importCargoLock { inherit lockFile; });
+     cargoDeps = (pkgs.rustPlatform.importCargoLock { inherit lockFile; outputHashes = {
+            # I'm maintaining some patches for these so the lockfile hashes are a little
+            # incorrect. We override those here.
+            "sycamore-0.8.2" = "sha256-I+NTfT83l8kST//IxJOZmeuhi1xWX070LToWPRU9j2A=";
+            "sqlx-0.6.2" = "sha256-X/LFvtzRfiOIEZJiVzmFvvULPpjhqvI99pSwH7a//GM=";
+        };
+     });
 in
 stdenv.mkDerivation {
     inherit src pname;
