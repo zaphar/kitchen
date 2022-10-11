@@ -18,6 +18,7 @@ use tracing::{error, instrument};
 use crate::components::recipe_selection::*;
 use crate::service::*;
 
+#[allow(non_snake_case)]
 #[instrument]
 pub fn RecipeSelector<G: Html>(cx: Scope) -> View<G> {
     let app_service = get_appservice_from_context(cx).clone();

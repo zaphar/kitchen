@@ -165,28 +165,6 @@ impl AppService {
     }
 
     #[instrument(skip(self))]
-    pub fn fetch_categories_from_storage(
-        &self,
-    ) -> Result<Option<BTreeMap<String, String>>, String> {
-        match self.get_category_text()? {
-            Some(s) => {
-                let parsed = from_str::<String>(&s).map_err(|e| format!("{}", e))?;
-                if parsed.is_empty() {
-                    return Ok(None);
-                }
-                match parse::as_categories(&parsed) {
-                    Ok(categories) => Ok(Some(categories)),
-                    Err(e) => {
-                        debug!("Error parsing categories {}", e);
-                        Err(format!("Error parsing categories {}", e))
-                    }
-                }
-            }
-            None => Ok(None),
-        }
-    }
-
-    #[instrument(skip(self))]
     pub fn fetch_recipes_from_storage(
         &self,
     ) -> Result<(Option<Recipe>, Option<BTreeMap<String, Recipe>>), String> {
@@ -234,16 +212,6 @@ impl AppService {
             }
         }
         return Ok(None);
-    }
-
-    async fn fetch_recipes(
-        &self,
-    ) -> Result<(Option<Recipe>, Option<BTreeMap<String, Recipe>>), String> {
-        Ok(self.fetch_recipes_from_storage()?)
-    }
-
-    async fn fetch_categories(&self) -> Result<Option<BTreeMap<String, String>>, String> {
-        Ok(self.fetch_categories_from_storage()?)
     }
 
     pub async fn save_recipes(&self, recipes: Vec<RecipeEntry>) -> Result<(), String> {

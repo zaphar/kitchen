@@ -20,7 +20,6 @@ pub enum AppRoutes {
     Recipe(String),
     Categories,
     Login,
-    Error(String),
     NotFound,
 }
 

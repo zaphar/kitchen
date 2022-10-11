@@ -50,12 +50,6 @@ fn route_switch<G: Html>(cx: Scope, route: &ReadSignal<AppRoutes>) -> View<G> {
             // TODO(Create a real one)
             PlanPage()
         },
-        AppRoutes::Error(ref e) => {
-            let e = e.clone();
-            view! {cx,
-                "Error: " (e)
-            }
-        }
     }
 }
 
