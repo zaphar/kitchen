@@ -258,7 +258,7 @@ make_fn!(num<StrIter, u32>,
     do_each!(
         _ => peek!(ascii_digit),
         n => consume_all!(ascii_digit),
-        (u32::from_str(n).unwrap())
+        (u32::from_str(n).expect("Invalid u32 number in string"))
     )
 );
 

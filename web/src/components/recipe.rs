@@ -22,7 +22,7 @@ use recipes;
 fn get_error_dialog() -> HtmlDialogElement {
     get_element_by_id::<HtmlDialogElement>("error-dialog")
         .expect("error-dialog isn't an html dialog element!")
-        .unwrap()
+        .expect("error-dialog element isn't present")
 }
 
 fn check_recipe_parses(text: &str, error_text: &Signal<String>) -> bool {
@@ -139,9 +139,9 @@ pub fn Recipe<'ctx, G: Html>(cx: Scope<'ctx>, recipe_id: String) -> View<G> {
     // FIXME(jwall): This has too many unwrap() calls
     if let Some(recipe) = app_service
         .fetch_recipes_from_storage()
-        .unwrap()
+        .expect("Failed to fetch recipes from storage")
         .1
-        .unwrap()
+        .expect(&format!("No recipe counts for recipe id: {}", recipe_id))
         .get(&recipe_id)
     {
         let recipe = create_signal(cx, recipe.clone());

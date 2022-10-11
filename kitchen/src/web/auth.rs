@@ -40,16 +40,28 @@ pub async fn handler(
         debug!("successfully authenticated user");
         // 1. Create a session identifier.
         let mut session = Session::new();
-        session.insert("user_id", auth.user_id()).unwrap();
+        session
+            .insert("user_id", auth.user_id())
+            .expect("Unable to insert user id into session");
         // 2. Store the session in the store.
-        let cookie_value = session_store.store_session(session).await.unwrap().unwrap();
+        let cookie_value = session_store
+            .store_session(session)
+            .await
+            .expect("Unable to store session in session store")
+            .expect("No session cookie created");
         let mut headers = HeaderMap::new();
         // 3. Construct the Session Cookie.
         let cookie = Cookie::build(storage::AXUM_SESSION_COOKIE_NAME, cookie_value)
             .same_site(SameSite::Strict)
             .secure(true)
             .finish();
-        headers.insert(header::SET_COOKIE, cookie.to_string().parse().unwrap());
+        headers.insert(
+            header::SET_COOKIE,
+            cookie
+                .to_string()
+                .parse()
+                .expect("Unable to parse session cookie"),
+        );
         // Respond with 200 OK
         (StatusCode::OK, headers, "Login Successful")
     } else {
@@ -67,7 +79,12 @@ impl From<AuthBasic> for storage::UserCreds {
     fn from(AuthBasic((id, pass)): AuthBasic) -> Self {
         Self {
             id: storage::UserId(id.clone()),
-            pass: Secret::from_str(pass.clone().unwrap().as_str()).unwrap(),
+            pass: Secret::from_str(
+                pass.clone()
+                    .expect("No password provided in BasicAuth")
+                    .as_str(),
+            )
+            .expect("Unable to store pass in secret"),
         }
     }
 }

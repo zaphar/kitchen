@@ -53,7 +53,7 @@ pub fn RecipeSelection<G: Html>(cx: Scope, props: RecipeCheckBoxProps) -> View<G
             input(type="number", class="item-count-sel", min="0", bind:value=count, name=name, on:change=move |_| {
                 let mut app_service = app_service.clone();
                 debug!(idx=%id, count=%(*count.get()), "setting recipe count");
-                app_service.set_recipe_count_by_index(id.as_ref(), count.get().parse().unwrap());
+                app_service.set_recipe_count_by_index(id.as_ref(), count.get().parse().expect("recipe count isn't a valid usize number"));
             })
         }
     }

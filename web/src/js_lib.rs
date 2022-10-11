@@ -18,12 +18,17 @@ pub fn get_element_by_id<E>(id: &str) -> Result<Option<E>, Element>
 where
     E: JsCast,
 {
-    match window().unwrap().document().unwrap().get_element_by_id(id) {
+    match window()
+        .expect("No window present")
+        .document()
+        .expect("No document in window")
+        .get_element_by_id(id)
+    {
         Some(e) => e.dyn_into::<E>().map(|e| Some(e)),
         None => Ok(None),
     }
 }
 
 pub fn get_storage() -> Result<Option<Storage>, JsValue> {
-    window().unwrap().local_storage()
+    window().expect("No Window Present").local_storage()
 }

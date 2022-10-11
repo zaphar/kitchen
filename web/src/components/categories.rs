@@ -23,7 +23,7 @@ use crate::{js_lib::get_element_by_id, service::AppService};
 fn get_error_dialog() -> HtmlDialogElement {
     get_element_by_id::<HtmlDialogElement>("error-dialog")
         .expect("error-dialog isn't an html dialog element!")
-        .unwrap()
+        .expect("No error-dialog element present")
 }
 
 fn check_category_text_parses(unparsed: &str, error_text: &Signal<String>) -> bool {
