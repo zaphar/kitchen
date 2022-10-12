@@ -59,6 +59,7 @@ impl AppService {
             .get()
             .iter()
             .map(|(k, v)| (k.clone(), *v))
+            .filter(|(_, v)| *v != 0)
             .collect()
     }
 
@@ -66,7 +67,9 @@ impl AppService {
     pub async fn synchronize(&mut self) -> Result<(), String> {
         info!("Synchronizing Recipes");
         // TODO(jwall): Make our caching logic using storage more robust.
-        let storage = self.get_storage()?.unwrap();
+        let storage = self
+            .get_storage()?
+            .expect("Unable to get storage for browser session");
         let recipes = self
             .store
             .get_recipes()
@@ -129,7 +132,12 @@ impl AppService {
         let recipe_counts = self.get_menu_list();
         for (idx, count) in recipe_counts.iter() {
             for _ in 0..*count {
-                acc.accumulate_from(self.recipes.get().get(idx).unwrap());
+                acc.accumulate_from(
+                    self.recipes
+                        .get()
+                        .get(idx)
+                        .expect(&format!("No such recipe id exists: {}", idx)),
+                );
             }
         }
         if show_staples {
@@ -158,7 +166,9 @@ impl AppService {
     }
 
     pub fn get_category_text(&self) -> Result<Option<String>, String> {
-        let storage = self.get_storage()?.unwrap();
+        let storage = self
+            .get_storage()?
+            .expect("Unable to get storage for browser session");
         storage
             .get_item("categories")
             .map_err(|e| format!("{:?}", e))
@@ -199,7 +209,9 @@ impl AppService {
     }
 
     pub fn fetch_recipe_text(&self, id: &str) -> Result<Option<RecipeEntry>, String> {
-        let storage = self.get_storage()?.unwrap();
+        let storage = self
+            .get_storage()?
+            .expect("Unable to get storage for browser session");
         if let Some(s) = storage
             .get_item("recipes")
             .map_err(|e| format!("{:?}", e))?

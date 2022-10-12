@@ -24,7 +24,10 @@ pub fn RecipeSelector<G: Html>(cx: Scope) -> View<G> {
     let app_service = get_appservice_from_context(cx).clone();
     let rows = create_memo(cx, move || {
         let mut rows = Vec::new();
-        if let (_, Some(bt)) = app_service.fetch_recipes_from_storage().unwrap() {
+        if let (_, Some(bt)) = app_service
+            .fetch_recipes_from_storage()
+            .expect("Unable to fetch recipes from storage")
+        {
             for row in bt
                 .iter()
                 .map(|(k, v)| create_signal(cx, (k.clone(), v.clone())))
