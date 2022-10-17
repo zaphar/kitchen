@@ -41,7 +41,7 @@ fn check_recipe_parses(text: &str, error_text: &Signal<String>) -> bool {
 }
 
 #[component]
-fn Editor<G: Html>(cx: Scope, recipe: &RecipeEntry) -> View<G> {
+fn Editor<G: Html>(cx: Scope, recipe: RecipeEntry) -> View<G> {
     let id = create_signal(cx, recipe.recipe_id().to_owned());
     let text = create_signal(cx, recipe.recipe_text().to_owned());
     let error_text = create_signal(cx, String::new());
@@ -87,11 +87,11 @@ fn Editor<G: Html>(cx: Scope, recipe: &RecipeEntry) -> View<G> {
     view! {cx,
         (dialog_view)
         textarea(bind:value=text, rows=20)
-        a(role="button" , href="#", on:click=move |_| {
+        span(role="button", on:click=move |_| {
             let unparsed = text.get();
             check_recipe_parses(unparsed.as_str(), error_text.clone());
         }) { "Check" } " "
-        a(role="button", href="#", on:click=move |_| {
+        span(role="button", on:click=move |_| {
             let unparsed = text.get();
             if check_recipe_parses(unparsed.as_str(), error_text.clone()) {
                 debug!("triggering a save");
@@ -144,6 +144,12 @@ pub fn Recipe<'ctx, G: Html>(cx: Scope<'ctx>, recipe_id: String) -> View<G> {
         .expect(&format!("No recipe counts for recipe id: {}", recipe_id))
         .get(&recipe_id)
     {
+        let recipe_text = create_signal(
+            cx,
+            app_service
+                .fetch_recipe_text(recipe_id.as_str())
+                .expect("No such recipe"),
+        );
         let recipe = create_signal(cx, recipe.clone());
         let title = create_memo(cx, move || recipe.get().title.clone());
         let desc = create_memo(cx, move || {
@@ -156,37 +162,31 @@ pub fn Recipe<'ctx, G: Html>(cx: Scope<'ctx>, recipe_id: String) -> View<G> {
         });
         let steps = create_memo(cx, move || recipe.get().steps.clone());
         create_effect(cx, move || {
+            debug!("Choosing edit or view for recipe.");
             if *show_edit.get() {
-                return;
-            }
-            view.set(view! {cx,
-                div(class="recipe") {
-                    h1(class="recipe_title") { (title.get()) }
-                     div(class="recipe_description") {
-                         (desc.get())
-                     }
-                    Steps(steps)
+                {
+                    debug!("Showing editor for recipe.");
+                    view.set(view! {cx,
+                        Editor(recipe_text.get().as_ref().clone().unwrap())
+                    });
                 }
-            });
-        });
-        if let Some(entry) = app_service
-            .fetch_recipe_text(recipe_id.as_str())
-            .expect("No such recipe")
-        {
-            let entry_ref = create_ref(cx, entry);
-            create_effect(cx, move || {
-                if !(*show_edit.get()) {
-                    return;
-                }
+            } else {
+                debug!("Showing text for recipe.");
                 view.set(view! {cx,
-                    Editor(entry_ref)
+                    div(class="recipe") {
+                        h1(class="recipe_title") { (title.get()) }
+                         div(class="recipe_description") {
+                             (desc.get())
+                         }
+                        Steps(steps)
+                    }
                 });
-            });
-        }
+            }
+        });
     }
     view! {cx,
-        a(role="button", href="#", on:click=move |_| { show_edit.set(true); }) { "Edit" } " "
-        a(role="button", href="#", on:click=move |_| { show_edit.set(false); }) { "View" }
+        span(role="button", on:click=move |_| { show_edit.set(true); }) { "Edit" } " "
+        span(role="button", on:click=move |_| { show_edit.set(false); }) { "View" }
         (view.get().as_ref())
     }
 }

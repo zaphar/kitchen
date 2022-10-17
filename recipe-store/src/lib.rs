@@ -52,7 +52,7 @@ where
     fn get_user_store(&self, user: String) -> S;
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct RecipeEntry(pub String, pub String);
 
 impl RecipeEntry {
