@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#[cfg(not(target_arch = "wasm32"))]
 use async_std::{
     fs::{read_dir, read_to_string, DirEntry, File},
     io::{self, ReadExt},
@@ -20,7 +19,6 @@ use async_std::{
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-#[cfg(not(target_arch = "wasm32"))]
 use tracing::warn;
 use tracing::{debug, instrument};
 
@@ -65,7 +63,6 @@ impl RecipeEntry {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
 /// Define the shared interface to use for interacting with a store of recipes.
 pub trait RecipeStore: Clone + Sized {
@@ -75,32 +72,17 @@ pub trait RecipeStore: Clone + Sized {
     async fn get_recipes(&self) -> Result<Option<Vec<RecipeEntry>>, Error>;
 }
 
-// NOTE(jwall): Futures in webassembly can't implement `Send` easily so we define
-// this trait differently based on architecture.
-#[cfg(target_arch = "wasm32")]
-#[async_trait(?Send)]
-/// Define the shared interface to use for interacting with a store of recipes.
-pub trait RecipeStore: Clone + Sized {
-    /// Get categories text unparsed.
-    async fn get_categories(&self) -> Result<Option<String>, Error>;
-    /// Get list of recipe text unparsed.
-    async fn get_recipes(&self) -> Result<Option<Vec<RecipeEntry>>, Error>;
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 #[derive(Clone, Debug)]
 pub struct AsyncFileStore {
     path: PathBuf,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl AsyncFileStore {
     pub fn new<P: Into<PathBuf>>(root: P) -> Self {
         Self { path: root.into() }
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
 // TODO(jwall): We need to model our own set of errors for this.
 impl RecipeStore for AsyncFileStore {
