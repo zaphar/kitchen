@@ -11,12 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+mod api;
 mod app_state;
 mod components;
 mod js_lib;
 mod pages;
 mod router_integration;
-mod service;
 mod web;
 
 use sycamore::prelude::*;

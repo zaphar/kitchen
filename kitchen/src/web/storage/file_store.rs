@@ -17,10 +17,10 @@ use async_std::{
     path::PathBuf,
     stream::StreamExt,
 };
-use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
 use tracing::warn;
 use tracing::{debug, instrument};
+
+use super::RecipeEntry;
 
 #[derive(Debug)]
 pub struct Error(String);
@@ -43,35 +43,6 @@ impl From<std::string::FromUtf8Error> for Error {
     }
 }
 
-pub trait TenantStoreFactory<S>
-where
-    S: RecipeStore,
-{
-    fn get_user_store(&self, user: String) -> S;
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct RecipeEntry(pub String, pub String);
-
-impl RecipeEntry {
-    pub fn recipe_id(&self) -> &str {
-        self.0.as_str()
-    }
-
-    pub fn recipe_text(&self) -> &str {
-        self.1.as_str()
-    }
-}
-
-#[async_trait]
-/// Define the shared interface to use for interacting with a store of recipes.
-pub trait RecipeStore: Clone + Sized {
-    /// Get categories text unparsed.
-    async fn get_categories(&self) -> Result<Option<String>, Error>;
-    /// Get list of recipe text unparsed.
-    async fn get_recipes(&self) -> Result<Option<Vec<RecipeEntry>>, Error>;
-}
-
 #[derive(Clone, Debug)]
 pub struct AsyncFileStore {
     path: PathBuf,
@@ -83,11 +54,19 @@ impl AsyncFileStore {
     }
 }
 
-#[async_trait]
+impl AsyncFileStore {
+    fn get_recipe_path_root(&self) -> PathBuf {
+        let mut recipe_path = PathBuf::new();
+        recipe_path.push(&self.path);
+        recipe_path.push("recipes");
+        recipe_path
+    }
+}
+
 // TODO(jwall): We need to model our own set of errors for this.
-impl RecipeStore for AsyncFileStore {
+impl AsyncFileStore {
     #[instrument(skip_all)]
-    async fn get_categories(&self) -> Result<Option<String>, Error> {
+    pub async fn get_categories(&self) -> Result<Option<String>, Error> {
         let mut category_path = PathBuf::new();
         category_path.push(&self.path);
         category_path.push("categories.txt");
@@ -99,7 +78,7 @@ impl RecipeStore for AsyncFileStore {
         Ok(Some(String::from_utf8(contents)?))
     }
 
-    async fn get_recipes(&self) -> Result<Option<Vec<RecipeEntry>>, Error> {
+    pub async fn get_recipes(&self) -> Result<Option<Vec<RecipeEntry>>, Error> {
         let mut recipe_path = PathBuf::new();
         recipe_path.push(&self.path);
         recipe_path.push("recipes");
@@ -128,5 +107,20 @@ impl RecipeStore for AsyncFileStore {
             }
         }
         Ok(Some(entry_vec))
+    }
+
+    pub async fn get_recipe_entry<S: AsRef<str> + Send>(
+        &self,
+        id: S,
+    ) -> Result<Option<RecipeEntry>, Error> {
+        let mut recipe_path = self.get_recipe_path_root();
+        recipe_path.push(id.as_ref());
+        if recipe_path.exists().await && recipe_path.is_file().await {
+            debug!("Found recipe file {}", recipe_path.to_string_lossy());
+            let recipe_contents = read_to_string(recipe_path).await?;
+            return Ok(Some(RecipeEntry(id.as_ref().to_owned(), recipe_contents)));
+        } else {
+            return Ok(None);
+        }
     }
 }

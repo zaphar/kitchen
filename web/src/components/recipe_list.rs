@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{components::Recipe, service::AppService};
+use crate::{app_state, components::Recipe};
 
 use sycamore::prelude::*;
 use tracing::{debug, instrument};
@@ -19,8 +19,8 @@ use tracing::{debug, instrument};
 #[instrument]
 #[component]
 pub fn RecipeList<G: Html>(cx: Scope) -> View<G> {
-    let app_service = use_context::<AppService>(cx);
-    let menu_list = create_memo(cx, || app_service.get_menu_list());
+    let state = app_state::State::get_from_context(cx);
+    let menu_list = create_memo(cx, move || state.get_menu_list());
     view! {cx,
         h1 { "Recipe List" }
         div() {

@@ -16,37 +16,35 @@ use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{error, instrument};
 
 use crate::components::recipe_selection::*;
-use crate::service::*;
+use crate::{api::*, app_state};
 
 #[allow(non_snake_case)]
 #[instrument]
 pub fn RecipeSelector<G: Html>(cx: Scope) -> View<G> {
-    let app_service = get_appservice_from_context(cx).clone();
     let rows = create_memo(cx, move || {
+        let state = app_state::State::get_from_context(cx);
         let mut rows = Vec::new();
-        if let (_, Some(bt)) = app_service
-            .fetch_recipes_from_storage()
-            .expect("Unable to fetch recipes from storage")
+        for row in state
+            .recipes
+            .get()
+            .as_ref()
+            .iter()
+            .map(|(k, v)| create_signal(cx, (k.clone(), v.clone())))
+            .collect::<Vec<&Signal<(String, Recipe)>>>()
+            .chunks(4)
         {
-            for row in bt
-                .iter()
-                .map(|(k, v)| create_signal(cx, (k.clone(), v.clone())))
-                .collect::<Vec<&Signal<(String, Recipe)>>>()
-                .chunks(4)
-            {
-                rows.push(create_signal(cx, Vec::from(row)));
-            }
+            rows.push(create_signal(cx, Vec::from(row)));
         }
         rows
     });
-    let app_service = get_appservice_from_context(cx).clone();
     let clicked = create_signal(cx, false);
     create_effect(cx, move || {
         clicked.track();
+        let store = HttpStore::get_from_context(cx);
+        let state = app_state::State::get_from_context(cx);
         spawn_local_scoped(cx, {
-            let mut app_service = app_service.clone();
             async move {
-                if let Err(err) = app_service.synchronize().await {
+                if let Err(err) = init_page_state(store.as_ref(), state.as_ref()).await {
                     error!(?err);
                 };
             }

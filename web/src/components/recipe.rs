@@ -15,9 +15,8 @@ use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{debug, error};
 use web_sys::HtmlDialogElement;
 
-use crate::{js_lib::get_element_by_id, service::AppService};
-use recipe_store::RecipeEntry;
-use recipes;
+use crate::{app_state, js_lib::get_element_by_id};
+use recipes::{self, RecipeEntry};
 
 fn get_error_dialog() -> HtmlDialogElement {
     get_element_by_id::<HtmlDialogElement>("error-dialog")
@@ -45,15 +44,15 @@ fn Editor<G: Html>(cx: Scope, recipe: RecipeEntry) -> View<G> {
     let id = create_signal(cx, recipe.recipe_id().to_owned());
     let text = create_signal(cx, recipe.recipe_text().to_owned());
     let error_text = create_signal(cx, String::new());
-    let app_service = use_context::<AppService>(cx);
     let save_signal = create_signal(cx, ());
 
     create_effect(cx, move || {
         // TODO(jwall): This is triggering on load which is not desired.
         save_signal.track();
         spawn_local_scoped(cx, {
+            let store = crate::api::HttpStore::get_from_context(cx);
             async move {
-                if let Err(e) = app_service
+                if let Err(e) = store
                     .save_recipes(vec![RecipeEntry(
                         id.get_untracked().as_ref().clone(),
                         text.get_untracked().as_ref().clone(),
@@ -133,23 +132,23 @@ fn Steps<'ctx, G: Html>(cx: Scope<'ctx>, steps: &'ctx ReadSignal<Vec<recipes::St
 
 #[component]
 pub fn Recipe<'ctx, G: Html>(cx: Scope<'ctx>, recipe_id: String) -> View<G> {
-    let app_service = use_context::<AppService>(cx).clone();
+    let state = app_state::State::get_from_context(cx);
+    let store = crate::api::HttpStore::get_from_context(cx);
     let view = create_signal(cx, View::empty());
     let show_edit = create_signal(cx, false);
-    // FIXME(jwall): This has too many unwrap() calls
-    if let Some(recipe) = app_service
-        .fetch_recipes_from_storage()
-        .expect("Failed to fetch recipes from storage")
-        .1
-        .expect(&format!("No recipe counts for recipe id: {}", recipe_id))
-        .get(&recipe_id)
-    {
-        let recipe_text = create_signal(
-            cx,
-            app_service
-                .fetch_recipe_text(recipe_id.as_str())
-                .expect("No such recipe"),
-        );
+    if let Some(recipe) = state.recipes.get_untracked().get(&recipe_id) {
+        // FIXME(jwall): This should be create_effect rather than create_signal
+        let recipe_text: &Signal<Option<RecipeEntry>> = create_signal(cx, None);
+        spawn_local_scoped(cx, {
+            let store = store.clone();
+            async move {
+                let entry = store
+                    .get_recipe_text(recipe_id.as_str())
+                    .await
+                    .expect("Failure getting recipe");
+                recipe_text.set(entry);
+            }
+        });
         let recipe = create_signal(cx, recipe.clone());
         let title = create_memo(cx, move || recipe.get().title.clone());
         let desc = create_memo(cx, move || {

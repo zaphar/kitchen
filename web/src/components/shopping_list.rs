@@ -17,8 +17,6 @@ use recipes::{Ingredient, IngredientKey};
 use sycamore::prelude::*;
 use tracing::{debug, instrument};
 
-use crate::service::get_appservice_from_context;
-
 fn make_ingredients_rows<'ctx, G: Html>(
     cx: Scope<'ctx>,
     ingredients: &'ctx ReadSignal<Vec<(IngredientKey, (Ingredient, BTreeSet<String>))>>,
@@ -133,7 +131,6 @@ fn make_shopping_table<'ctx, G: Html>(
 #[instrument]
 #[component]
 pub fn ShoppingList<G: Html>(cx: Scope) -> View<G> {
-    let app_service = get_appservice_from_context(cx);
     let filtered_keys: RcSignal<BTreeSet<IngredientKey>> = create_rc_signal(BTreeSet::new());
     let ingredients_map = create_rc_signal(BTreeMap::new());
     let extras = create_signal(
@@ -143,9 +140,10 @@ pub fn ShoppingList<G: Html>(cx: Scope) -> View<G> {
     let modified_amts = create_signal(cx, BTreeMap::new());
     let show_staples = create_signal(cx, true);
     create_effect(cx, {
+        let state = crate::app_state::State::get_from_context(cx);
         let ingredients_map = ingredients_map.clone();
         move || {
-            ingredients_map.set(app_service.get_shopping_list(*show_staples.get()));
+            ingredients_map.set(state.get_shopping_list(*show_staples.get()));
         }
     });
     debug!(ingredients_map=?ingredients_map.get_untracked());
@@ -192,13 +190,16 @@ pub fn ShoppingList<G: Html>(cx: Scope) -> View<G> {
             cloned_extras.push((create_signal(cx, "".to_owned()), create_signal(cx, "".to_owned())));
             extras.set(cloned_extras.drain(0..).enumerate().collect());
         })
-        input(type="button", value="Reset", class="no-print", on:click=move |_| {
-            // TODO(jwall): We should actually pop up a modal here or use a different set of items.
-            ingredients_map.set(app_service.get_shopping_list(*show_staples.get()));
-            // clear the filter_signal
-            filtered_keys.set(BTreeSet::new());
-            modified_amts.set(BTreeMap::new());
-            extras.set(Vec::new());
+        input(type="button", value="Reset", class="no-print", on:click={
+            let state = crate::app_state::State::get_from_context(cx);
+            move |_| {
+                // TODO(jwall): We should actually pop up a modal here or use a different set of items.
+                ingredients_map.set(state.get_shopping_list(*show_staples.get()));
+                // clear the filter_signal
+                filtered_keys.set(BTreeSet::new());
+                modified_amts.set(BTreeMap::new());
+                extras.set(Vec::new());
+            }
         })
     }
 }

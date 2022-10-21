@@ -12,41 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crate::pages::*;
-use crate::{
-    app_state::*,
-    components::*,
-    router_integration::*,
-    service::{self, AppService},
-};
+use crate::{api, app_state::*, components::*, router_integration::*};
 use tracing::{error, info, instrument};
 
 use sycamore::{futures::spawn_local_scoped, prelude::*};
 
 #[instrument]
-fn route_switch<G: Html>(cx: Scope, route: &ReadSignal<AppRoutes>) -> View<G> {
+fn route_switch<G: Html>(cx: Scope, route: &ReadSignal<Routes>) -> View<G> {
     // NOTE(jwall): This needs to not be a dynamic node. The rules around
     // this are somewhat unclear and underdocumented for Sycamore. But basically
     // avoid conditionals in the `view!` macro calls here.
     match route.get().as_ref() {
-        AppRoutes::Plan => view! {cx,
+        Routes::Plan => view! {cx,
             PlanPage()
         },
-        AppRoutes::Inventory => view! {cx,
+        Routes::Inventory => view! {cx,
             InventoryPage()
         },
-        AppRoutes::Login => view! {cx,
+        Routes::Login => view! {cx,
             LoginPage()
         },
-        AppRoutes::Cook => view! {cx,
+        Routes::Cook => view! {cx,
             CookPage()
         },
-        AppRoutes::Recipe(idx) => view! {cx,
+        Routes::Recipe(idx) => view! {cx,
             RecipePage(recipe=idx.clone())
         },
-        AppRoutes::Categories => view! {cx,
+        Routes::Categories => view! {cx,
             CategoryPage()
         },
-        AppRoutes::NotFound => view! {cx,
+        Routes::NotFound => view! {cx,
             // TODO(Create a real one)
             PlanPage()
         },
@@ -56,24 +51,25 @@ fn route_switch<G: Html>(cx: Scope, route: &ReadSignal<AppRoutes>) -> View<G> {
 #[instrument]
 #[component]
 pub fn UI<G: Html>(cx: Scope) -> View<G> {
-    let app_service = AppService::new(service::HttpStore::new("/api/v1".to_owned()));
-    provide_context(cx, app_service.clone());
+    crate::app_state::State::provide_context(cx);
+    api::HttpStore::provide_context(cx, "/api/v1".to_owned());
     info!("Starting UI");
 
     let view = create_signal(cx, View::empty());
     // FIXME(jwall): We need a way to trigger refreshes when required. Turn this
     // into a create_effect with a refresh signal stored as a context.
     spawn_local_scoped(cx, {
-        let mut app_service = crate::service::get_appservice_from_context(cx).clone();
+        let store = api::HttpStore::get_from_context(cx);
+        let state = crate::app_state::State::get_from_context(cx);
         async move {
-            if let Err(err) = app_service.synchronize().await {
+            if let Err(err) = api::init_page_state(store.as_ref(), state.as_ref()).await {
                 error!(?err);
             };
             view.set(view! { cx,
                 div(class="app") {
                     Header()
                     Router(RouterProps {
-                        route: AppRoutes::Plan,
+                        route: Routes::Plan,
                         route_select: route_switch,
                         browser_integration: BrowserIntegration::new(),
                     })

@@ -11,14 +11,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use serde_json::from_str;
 use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{debug, error, instrument};
 use web_sys::HtmlDialogElement;
 
 use recipes::parse;
 
-use crate::{js_lib::get_element_by_id, service::AppService};
+use crate::js_lib::get_element_by_id;
 
 fn get_error_dialog() -> HtmlDialogElement {
     get_element_by_id::<HtmlDialogElement>("error-dialog")
@@ -42,29 +41,30 @@ fn check_category_text_parses(unparsed: &str, error_text: &Signal<String>) -> bo
 #[instrument]
 #[component]
 pub fn Categories<G: Html>(cx: Scope) -> View<G> {
-    let app_service = use_context::<AppService>(cx);
     let save_signal = create_signal(cx, ());
     let error_text = create_signal(cx, String::new());
-    let category_text = create_signal(
-        cx,
-        match app_service
-            .get_category_text()
-            .expect("Failed to get categories.")
-        {
-            Some(js) => from_str::<String>(&js)
-                .map_err(|e| format!("{}", e))
-                .expect("Failed to parse categories as json"),
-            None => String::new(),
-        },
-    );
+    let category_text: &Signal<String> = create_signal(cx, String::new());
+    spawn_local_scoped(cx, {
+        let store = crate::api::HttpStore::get_from_context(cx);
+        async move {
+            if let Some(js) = store
+                .get_categories()
+                .await
+                .expect("Failed to get categories.")
+            {
+                category_text.set(js);
+            };
+        }
+    });
 
     create_effect(cx, move || {
         // TODO(jwall): This is triggering on load which is not desired.
         save_signal.track();
         spawn_local_scoped(cx, {
+            let store = crate::api::HttpStore::get_from_context(cx);
             async move {
                 // TODO(jwall): Save the categories.
-                if let Err(e) = app_service
+                if let Err(e) = store
                     .save_categories(category_text.get_untracked().as_ref().clone())
                     .await
                 {

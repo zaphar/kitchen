@@ -23,7 +23,7 @@ use axum::{
     routing::{get, Router},
 };
 use mime_guess;
-use recipe_store::{self, RecipeEntry, RecipeStore};
+use recipes::RecipeEntry;
 use rust_embed::RustEmbed;
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
@@ -84,8 +84,33 @@ async fn ui_static_assets(Path(path): Path<String>) -> impl IntoResponse {
 }
 
 #[instrument]
+async fn api_recipe_entry(
+    Extension(store): Extension<Arc<storage::file_store::AsyncFileStore>>,
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+    Path(recipe_id): Path<String>,
+) -> impl IntoResponse {
+    use storage::{UserId, UserIdFromSession::*};
+    let result = match session {
+        NoUserId => store
+            .get_recipe_entry(recipe_id)
+            .await
+            .map_err(|e| format!("Error: {:?}", e)),
+        FoundUserId(UserId(id)) => app_store
+            .get_recipe_entry_for_user(id, recipe_id)
+            .await
+            .map_err(|e| format!("Error: {:?}", e)),
+    };
+    match result {
+        Ok(Some(recipes)) => (StatusCode::OK, axum::Json::from(recipes)).into_response(),
+        Ok(None) => (StatusCode::NOT_FOUND, axum::Json::from("")).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, axum::Json::from(e)).into_response(),
+    }
+}
+
+#[instrument]
 async fn api_recipes(
-    Extension(store): Extension<Arc<recipe_store::AsyncFileStore>>,
+    Extension(store): Extension<Arc<storage::file_store::AsyncFileStore>>,
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
 ) -> impl IntoResponse {
@@ -110,7 +135,7 @@ async fn api_recipes(
 
 #[instrument]
 async fn api_categories(
-    Extension(store): Extension<Arc<recipe_store::AsyncFileStore>>,
+    Extension(store): Extension<Arc<storage::file_store::AsyncFileStore>>,
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
 ) -> impl IntoResponse {
@@ -156,7 +181,7 @@ async fn api_save_categories(
     }
 }
 
-async fn api_save_recipe(
+async fn api_save_recipes(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
     Json(recipes): Json<Vec<RecipeEntry>>,
@@ -180,7 +205,9 @@ async fn api_save_recipe(
 
 #[instrument(fields(recipe_dir=?recipe_dir_path,listen=?listen_socket), skip_all)]
 pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socket: SocketAddr) {
-    let store = Arc::new(recipe_store::AsyncFileStore::new(recipe_dir_path.clone()));
+    let store = Arc::new(storage::file_store::AsyncFileStore::new(
+        recipe_dir_path.clone(),
+    ));
     //let dir_path = (&dir_path).clone();
     let app_store = Arc::new(
         storage::SqliteStore::new(store_path)
@@ -191,7 +218,9 @@ pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socke
         .route("/", get(|| async { Redirect::temporary("/ui/plan") }))
         .route("/ui/*path", get(ui_static_assets))
         // recipes api path route
-        .route("/api/v1/recipes", get(api_recipes).post(api_save_recipe))
+        .route("/api/v1/recipes", get(api_recipes).post(api_save_recipes))
+        // recipe entry api path route
+        .route("/api/v1/recipe/:recipe_id", get(api_recipe_entry))
         // categories api path route
         .route(
             "/api/v1/categories",
@@ -237,7 +266,7 @@ pub async fn add_user(
         .await
         .expect("Failed to store user creds");
     if let Some(path) = recipe_dir_path {
-        let store = recipe_store::AsyncFileStore::new(path);
+        let store = storage::file_store::AsyncFileStore::new(path);
         if let Some(recipes) = store
             .get_recipes()
             .await

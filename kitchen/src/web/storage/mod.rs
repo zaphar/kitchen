@@ -27,6 +27,7 @@ use axum::{
     http::StatusCode,
 };
 use ciborium;
+use recipes::RecipeEntry;
 use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
 use sqlx::{
@@ -36,14 +37,14 @@ use sqlx::{
 };
 use tracing::{debug, error, info, instrument};
 
-use recipe_store::RecipeEntry;
-
 mod error;
+pub mod file_store;
 
 pub use error::*;
 
 pub const AXUM_SESSION_COOKIE_NAME: &'static str = "kitchen-session-cookie";
 
+// TODO(jwall): Should this move to the recipe crate?
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserId(pub String);
 
@@ -93,6 +94,12 @@ pub trait APIStore {
         -> Result<()>;
 
     async fn store_categories_for_user(&self, user_id: &str, categories: &str) -> Result<()>;
+
+    async fn get_recipe_entry_for_user<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+        id: S,
+    ) -> Result<Option<RecipeEntry>>;
 }
 
 #[async_trait]
@@ -269,6 +276,40 @@ impl APIStore for SqliteStore {
             Some(result) => Ok(result),
             None => Ok(None),
         }
+    }
+
+    async fn get_recipe_entry_for_user<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+        id: S,
+    ) -> Result<Option<RecipeEntry>> {
+        // NOTE(jwall): We allow dead code becaue Rust can't figure out that
+        // this code is actually constructed but it's done via the query_as
+        // macro.
+        #[allow(dead_code)]
+        struct RecipeRow {
+            pub recipe_id: String,
+            pub recipe_text: Option<String>,
+        }
+        let id = id.as_ref();
+        let user_id = user_id.as_ref();
+        let entry = sqlx::query_as!(
+            RecipeRow,
+            "select recipe_id, recipe_text from recipes where user_id = ? and recipe_id = ?",
+            user_id,
+            id,
+        )
+        .fetch_all(self.pool.as_ref())
+        .await?
+        .iter()
+        .map(|row| {
+            RecipeEntry(
+                row.recipe_id.clone(),
+                row.recipe_text.clone().unwrap_or_else(|| String::new()),
+            )
+        })
+        .nth(0);
+        Ok(entry)
     }
 
     async fn get_recipes_for_user(&self, user_id: &str) -> Result<Option<Vec<RecipeEntry>>> {

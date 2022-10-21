@@ -16,7 +16,7 @@ use std::rc::Rc;
 use sycamore::prelude::*;
 use tracing::{debug, instrument};
 
-use crate::service::get_appservice_from_context;
+use crate::app_state;
 
 #[derive(Prop)]
 pub struct RecipeCheckBoxProps<'ctx> {
@@ -30,7 +30,7 @@ pub struct RecipeCheckBoxProps<'ctx> {
 ))]
 #[component]
 pub fn RecipeSelection<G: Html>(cx: Scope, props: RecipeCheckBoxProps) -> View<G> {
-    let mut app_service = get_appservice_from_context(cx).clone();
+    let state = app_state::State::get_from_context(cx);
     // This is total hack but it works around the borrow issues with
     // the `view!` macro.
     let id = Rc::new(props.i);
@@ -38,9 +38,9 @@ pub fn RecipeSelection<G: Html>(cx: Scope, props: RecipeCheckBoxProps) -> View<G
         cx,
         format!(
             "{}",
-            app_service
+            state
                 .get_recipe_count_by_index(id.as_ref())
-                .unwrap_or_else(|| app_service.set_recipe_count_by_index(id.as_ref(), 0))
+                .unwrap_or_else(|| state.set_recipe_count_by_index(id.as_ref(), 0))
         ),
     );
     let title = props.title.get().clone();
@@ -51,9 +51,8 @@ pub fn RecipeSelection<G: Html>(cx: Scope, props: RecipeCheckBoxProps) -> View<G
         div() {
             label(for=for_id) { a(href=href) { (*title) } }
             input(type="number", class="item-count-sel", min="0", bind:value=count, name=name, on:change=move |_| {
-                let mut app_service = app_service.clone();
                 debug!(idx=%id, count=%(*count.get()), "setting recipe count");
-                app_service.set_recipe_count_by_index(id.as_ref(), count.get().parse().expect("recipe count isn't a valid usize number"));
+                state.set_recipe_count_by_index(id.as_ref(), count.get().parse().expect("recipe count isn't a valid usize number"));
             })
         }
     }

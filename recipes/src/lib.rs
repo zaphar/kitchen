@@ -17,6 +17,7 @@ pub mod unit;
 use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::NaiveDate;
+use serde::{Deserialize, Serialize};
 
 use unit::*;
 use Measure::*;
@@ -45,6 +46,19 @@ impl Mealplan {
         Iter: IntoIterator<Item = Recipe>,
     {
         self.recipes.extend(recipes.into_iter())
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct RecipeEntry(pub String, pub String);
+
+impl RecipeEntry {
+    pub fn recipe_id(&self) -> &str {
+        self.0.as_str()
+    }
+
+    pub fn recipe_text(&self) -> &str {
+        self.1.as_str()
     }
 }
 

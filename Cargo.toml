@@ -1,5 +1,5 @@
 [workspace]
-members = [ "recipes", "kitchen", "web", "recipe-store"]
+members = [ "recipes", "kitchen", "web" ]
 
 [patch.crates-io]
 # TODO(jwall): When the fix for RcSignal Binding is released we can drop this patch.

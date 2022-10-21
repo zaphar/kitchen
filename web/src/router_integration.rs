@@ -21,7 +21,7 @@ use wasm_bindgen::JsCast;
 use web_sys::Event;
 use web_sys::{Element, HtmlAnchorElement};
 
-use crate::app_state::AppRoutes;
+use crate::app_state::Routes;
 
 #[derive(Clone, Debug)]
 pub struct BrowserIntegration(RcSignal<(String, String, String)>);
@@ -182,9 +182,9 @@ pub trait NotFound {
     fn not_found() -> Self;
 }
 
-impl NotFound for AppRoutes {
+impl NotFound for Routes {
     fn not_found() -> Self {
-        AppRoutes::NotFound
+        Routes::NotFound
     }
 }
 
@@ -192,30 +192,30 @@ pub trait DeriveRoute {
     fn from(input: &(String, String, String)) -> Self;
 }
 
-impl DeriveRoute for AppRoutes {
+impl DeriveRoute for Routes {
     #[instrument]
-    fn from(input: &(String, String, String)) -> AppRoutes {
+    fn from(input: &(String, String, String)) -> Routes {
         debug!(origin=%input.0, path=%input.1, hash=%input.2, "routing");
         let (_origin, path, _hash) = input;
         let route = match path.as_str() {
-            "" | "/" | "/ui/" => AppRoutes::default(),
-            "/ui/login" => AppRoutes::Login,
-            "/ui/plan" => AppRoutes::Plan,
-            "/ui/cook" => AppRoutes::Cook,
-            "/ui/inventory" => AppRoutes::Inventory,
-            "/ui/categories" => AppRoutes::Categories,
+            "" | "/" | "/ui/" => Routes::default(),
+            "/ui/login" => Routes::Login,
+            "/ui/plan" => Routes::Plan,
+            "/ui/cook" => Routes::Cook,
+            "/ui/inventory" => Routes::Inventory,
+            "/ui/categories" => Routes::Categories,
             h => {
                 if h.starts_with("/ui/recipe/") {
                     let parts: Vec<&str> = h.split("/").collect();
                     debug!(?parts, "found recipe path");
                     if let Some(&"recipe") = parts.get(2) {
                         if let Some(&idx) = parts.get(3) {
-                            return AppRoutes::Recipe(idx.to_owned());
+                            return Routes::Recipe(idx.to_owned());
                         }
                     }
                 }
                 error!(origin=%input.0, path=%input.1, hash=%input.2, "Path not found");
-                AppRoutes::NotFound
+                Routes::NotFound
             }
         };
         info!(route=?route, "Route identified");

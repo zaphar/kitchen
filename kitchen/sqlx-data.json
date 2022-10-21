@@ -18,6 +18,30 @@
     },
     "query": "select password_hashed from users where id = ?"
   },
+  "196e289cbd65224293c4213552160a0cdf82f924ac597810fe05102e247b809d": {
+    "describe": {
+      "columns": [
+        {
+          "name": "recipe_id",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "recipe_text",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        true
+      ],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "select recipe_id, recipe_text from recipes where user_id = ? and recipe_id = ?"
+  },
   "3fd4017569dca4fe73e97e0e2bd612027a8c1b17b0b10faabd6459f56ca1c0bb": {
     "describe": {
       "columns": [],
