@@ -95,10 +95,10 @@ pub fn Categories<G: Html>(cx: Scope) -> View<G> {
     view! {cx,
         (dialog_view)
         textarea(bind:value=category_text, rows=20)
-        a(role="button", href="#", on:click=move |_| {
+        span(role="button", on:click=move |_| {
             check_category_text_parses(category_text.get().as_str(), error_text);
         }) { "Check" } " "
-        a(role="button", href="#", on:click=move |_| {
+        span(role="button", on:click=move |_| {
             // TODO(jwall): check and then save the categories.
             if check_category_text_parses(category_text.get().as_str(), error_text) {
                 debug!("triggering category save");

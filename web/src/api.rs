@@ -14,8 +14,7 @@
 use std::collections::BTreeMap;
 
 use reqwasm;
-//use serde::{Deserialize, Serialize};
-use serde_json::to_string;
+use serde_json::{from_str, to_string};
 use sycamore::prelude::*;
 use tracing::{debug, error, info, instrument, warn};
 
@@ -149,7 +148,7 @@ impl HttpStore {
             Err(format!("Status: {}", resp.status()).into())
         } else {
             debug!("We got a valid response back!");
-            let resp = resp.text().await;
+            let resp = resp.json().await;
             Ok(Some(resp.map_err(|e| format!("{}", e))?))
         }
     }
