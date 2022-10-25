@@ -71,11 +71,15 @@ fn make_ingredients_rows<'ctx, G: Html>(
 
 fn make_extras_rows<'ctx, G: Html>(
     cx: Scope<'ctx>,
-    extras: &'ctx Signal<Vec<(usize, (&'ctx Signal<String>, &'ctx Signal<String>))>>,
+    extras: RcSignal<Vec<(usize, (RcSignal<String>, RcSignal<String>))>>,
 ) -> View<G> {
+    let extras_read_signal = create_memo(cx, {
+        let extras = extras.clone();
+        move || extras.get().as_ref().clone()
+    });
     view! {cx,
                 Indexed(
-                    iterable=extras,
+                    iterable=extras_read_signal,
                     view= move |cx, (idx, (amt, name))| {
                         view! {cx,
                             tr {
@@ -83,13 +87,15 @@ fn make_extras_rows<'ctx, G: Html>(
                                     input(bind:value=amt, type="text")
                                 }
                                 td {
-                                    input(type="button", class="no-print destructive", value="X", on:click=move |_| {
-                                        extras.set(extras.get().iter()
-                                        .filter(|(i, _)| *i != idx)
-                                        .map(|(_, v)| v.clone())
-                                        .enumerate()
-                                        .collect())
-                                    })
+                                    input(type="button", class="no-print destructive", value="X", on:click={
+                                        let extras = extras.clone();
+                                        move |_| {
+                                            extras.set(extras.get().iter()
+                                                .filter(|(i, _)| *i != idx)
+                                                .map(|(_, v)| v.clone())
+                                                .enumerate()
+                                                .collect())
+                                    }})
                                 }
                                 td {
                                     input(bind:value=name, type="text")
@@ -106,7 +112,7 @@ fn make_shopping_table<'ctx, G: Html>(
     cx: Scope<'ctx>,
     ingredients: &'ctx ReadSignal<Vec<(IngredientKey, (Ingredient, BTreeSet<String>))>>,
     modified_amts: &'ctx Signal<BTreeMap<IngredientKey, RcSignal<String>>>,
-    extras: &'ctx Signal<Vec<(usize, (&'ctx Signal<String>, &'ctx Signal<String>))>>,
+    extras: RcSignal<Vec<(usize, (RcSignal<String>, RcSignal<String>))>>,
     filtered_keys: RcSignal<BTreeSet<IngredientKey>>,
 ) -> View<G> {
     let extra_rows_view = make_extras_rows(cx, extras);
@@ -133,10 +139,6 @@ fn make_shopping_table<'ctx, G: Html>(
 pub fn ShoppingList<G: Html>(cx: Scope) -> View<G> {
     let filtered_keys: RcSignal<BTreeSet<IngredientKey>> = create_rc_signal(BTreeSet::new());
     let ingredients_map = create_rc_signal(BTreeMap::new());
-    let extras = create_signal(
-        cx,
-        Vec::<(usize, (&Signal<String>, &Signal<String>))>::new(),
-    );
     let modified_amts = create_signal(cx, BTreeMap::new());
     let show_staples = create_signal(cx, true);
     create_effect(cx, {
@@ -166,13 +168,14 @@ pub fn ShoppingList<G: Html>(cx: Scope) -> View<G> {
     let table_view = create_signal(cx, View::empty());
     create_effect(cx, {
         let filtered_keys = filtered_keys.clone();
+        let state = crate::app_state::State::get_from_context(cx);
         move || {
-            if (ingredients.get().len() > 0) || (extras.get().len() > 0) {
+            if (ingredients.get().len() > 0) || (state.extras.get().len() > 0) {
                 table_view.set(make_shopping_table(
                     cx,
                     ingredients,
                     modified_amts.clone(),
-                    extras.clone(),
+                    state.extras.clone(),
                     filtered_keys.clone(),
                 ));
             } else {
@@ -180,15 +183,16 @@ pub fn ShoppingList<G: Html>(cx: Scope) -> View<G> {
             }
         }
     });
+    let state = crate::app_state::State::get_from_context(cx);
     view! {cx,
         h1 { "Shopping List " }
         label(for="show_staples_cb") { "Show staples" }
         input(id="show_staples_cb", type="checkbox", bind:checked=show_staples)
         (table_view.get().as_ref().clone())
         input(type="button", value="Add Item", class="no-print", on:click=move |_| {
-            let mut cloned_extras: Vec<(&Signal<String>, &Signal<String>)> = (*extras.get()).iter().map(|(_, tpl)| *tpl).collect();
-            cloned_extras.push((create_signal(cx, "".to_owned()), create_signal(cx, "".to_owned())));
-            extras.set(cloned_extras.drain(0..).enumerate().collect());
+            let mut cloned_extras: Vec<(RcSignal<String>, RcSignal<String>)> = (*state.extras.get()).iter().map(|(_, tpl)| tpl.clone()).collect();
+            cloned_extras.push((create_rc_signal("".to_owned()), create_rc_signal("".to_owned())));
+            state.extras.set(cloned_extras.drain(0..).enumerate().collect());
         })
         input(type="button", value="Reset", class="no-print", on:click={
             let state = crate::app_state::State::get_from_context(cx);
@@ -198,7 +202,7 @@ pub fn ShoppingList<G: Html>(cx: Scope) -> View<G> {
                 // clear the filter_signal
                 filtered_keys.set(BTreeSet::new());
                 modified_amts.set(BTreeMap::new());
-                extras.set(Vec::new());
+                state.extras.set(Vec::new());
             }
         })
     }

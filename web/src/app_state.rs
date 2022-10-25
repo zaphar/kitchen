@@ -37,6 +37,7 @@ impl Default for Routes {
 
 pub struct State {
     pub recipe_counts: RcSignal<BTreeMap<String, usize>>,
+    pub extras: RcSignal<Vec<(usize, (RcSignal<String>, RcSignal<String>))>>,
     pub staples: RcSignal<Option<Recipe>>,
     pub recipes: RcSignal<BTreeMap<String, Recipe>>,
     pub category_map: RcSignal<BTreeMap<String, String>>,
@@ -46,6 +47,7 @@ impl State {
     pub fn new() -> Self {
         Self {
             recipe_counts: create_rc_signal(BTreeMap::new()),
+            extras: create_rc_signal(Vec::new()),
             staples: create_rc_signal(None),
             recipes: create_rc_signal(BTreeMap::new()),
             category_map: create_rc_signal(BTreeMap::new()),
