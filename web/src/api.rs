@@ -172,7 +172,7 @@ impl HttpStore {
         id: S,
     ) -> Result<Option<RecipeEntry>, Error> {
         let mut path = self.root.clone();
-        path.push_str("/recipe");
+        path.push_str("/recipe/");
         path.push_str(id.as_ref());
         let resp = reqwasm::http::Request::get(&path).send().await?;
         if resp.status() != 200 {
