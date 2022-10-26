@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use wasm_bindgen::{JsCast, JsValue};
+use wasm_bindgen::JsCast;
 use web_sys::{window, Element, Storage};
 
 pub fn get_element_by_id<E>(id: &str) -> Result<Option<E>, Element>
@@ -35,4 +35,13 @@ pub fn get_storage() -> Storage {
         .local_storage()
         .expect("Failed to get storage")
         .expect("No storage available")
+}
+
+pub fn get_storage_keys() -> Vec<String> {
+    let storage = get_storage();
+    let mut keys = Vec::new();
+    for idx in 0..storage.length().unwrap() {
+        keys.push(get_storage().key(idx).unwrap().unwrap())
+    }
+    keys
 }

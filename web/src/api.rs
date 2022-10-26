@@ -14,13 +14,12 @@
 use std::collections::BTreeMap;
 
 use reqwasm;
-use serde_json::to_string;
+use serde_json::{from_str, to_string};
 use sycamore::prelude::*;
 use tracing::{debug, error, info, instrument, warn};
 
 use recipes::{parse, Recipe, RecipeEntry};
 use wasm_bindgen::JsValue;
-use web_sys::ResponseType;
 
 use crate::{app_state, js_lib};
 
@@ -126,6 +125,10 @@ impl From<reqwasm::Error> for Error {
     }
 }
 
+fn recipe_key<S: std::fmt::Display>(id: S) -> String {
+    format!("recipe:{}", id)
+}
+
 #[derive(Clone, Debug)]
 pub struct HttpStore {
     root: String,
@@ -148,19 +151,23 @@ impl HttpStore {
     pub async fn get_categories(&self) -> Result<Option<String>, Error> {
         let mut path = self.root.clone();
         path.push_str("/categories");
-        let resp = reqwasm::http::Request::get(&path).send().await?;
         let storage = js_lib::get_storage();
+        let resp = match reqwasm::http::Request::get(&path).send().await {
+            Ok(resp) => resp,
+            Err(reqwasm::Error::JsError(err)) => {
+                error!(path, ?err, "Error hitting api");
+                return Ok(storage.get("categories")?);
+            }
+            Err(err) => {
+                return Err(err)?;
+            }
+        };
         if resp.status() == 404 {
             debug!("Categories returned 404");
             storage.remove_item("categories")?;
             Ok(None)
         } else if resp.status() != 200 {
-            if resp.type_() == ResponseType::Error {
-                let categories = storage.get("categories")?;
-                Ok(categories)
-            } else {
-                Err(format!("Status: {}", resp.status()).into())
-            }
+            Err(format!("Status: {}", resp.status()).into())
         } else {
             debug!("We got a valid response back!");
             let resp: String = resp.json().await?;
@@ -173,28 +180,75 @@ impl HttpStore {
     pub async fn get_recipes(&self) -> Result<Option<Vec<RecipeEntry>>, Error> {
         let mut path = self.root.clone();
         path.push_str("/recipes");
-        let resp = reqwasm::http::Request::get(&path).send().await?;
+        let storage = js_lib::get_storage();
+        let resp = match reqwasm::http::Request::get(&path).send().await {
+            Ok(resp) => resp,
+            Err(reqwasm::Error::JsError(err)) => {
+                error!(path, ?err, "Error hitting api");
+                let mut entries = Vec::new();
+                for key in js_lib::get_storage_keys() {
+                    if key.starts_with("recipe:") {
+                        let entry = from_str(&storage.get_item(&key)?.unwrap())
+                            .map_err(|e| format!("{}", e))?;
+                        entries.push(entry);
+                    }
+                }
+                return Ok(Some(entries));
+            }
+            Err(err) => {
+                return Err(err)?;
+            }
+        };
+        let storage = js_lib::get_storage();
         if resp.status() != 200 {
             Err(format!("Status: {}", resp.status()).into())
         } else {
             debug!("We got a valid response back!");
-            Ok(resp.json().await.map_err(|e| format!("{}", e))?)
+            let entries: Option<Vec<RecipeEntry>> =
+                resp.json().await.map_err(|e| format!("{}", e))?;
+            if let Some(ref entries) = entries {
+                for r in entries.iter() {
+                    storage.set(
+                        &recipe_key(r.recipe_id()),
+                        &to_string(&r).expect("Unable to serialize recipe entries"),
+                    )?;
+                }
+            }
+            Ok(entries)
         }
     }
 
-    pub async fn get_recipe_text<S: AsRef<str>>(
+    pub async fn get_recipe_text<S: AsRef<str> + std::fmt::Display>(
         &self,
         id: S,
     ) -> Result<Option<RecipeEntry>, Error> {
         let mut path = self.root.clone();
         path.push_str("/recipe/");
         path.push_str(id.as_ref());
-        let resp = reqwasm::http::Request::get(&path).send().await?;
+        let storage = js_lib::get_storage();
+        let resp = match reqwasm::http::Request::get(&path).send().await {
+            Ok(resp) => resp,
+            Err(reqwasm::Error::JsError(err)) => {
+                error!(path, ?err, "Error hitting api");
+                return match storage.get(&recipe_key(&id))? {
+                    Some(s) => Ok(Some(from_str(&s).map_err(|e| format!("{}", e))?)),
+                    None => Ok(None),
+                };
+            }
+            Err(err) => {
+                return Err(err)?;
+            }
+        };
         if resp.status() != 200 {
             Err(format!("Status: {}", resp.status()).into())
         } else {
             debug!("We got a valid response back!");
-            Ok(resp.json().await.map_err(|e| format!("{}", e))?)
+            let entry: Option<RecipeEntry> = resp.json().await.map_err(|e| format!("{}", e))?;
+            if let Some(ref entry) = entry {
+                let serialized: String = to_string(entry).map_err(|e| format!("{}", e))?;
+                storage.set(&recipe_key(entry.recipe_id()), &serialized)?
+            }
+            Ok(entry)
         }
     }
 
@@ -202,8 +256,16 @@ impl HttpStore {
     pub async fn save_recipes(&self, recipes: Vec<RecipeEntry>) -> Result<(), Error> {
         let mut path = self.root.clone();
         path.push_str("/recipes");
+        let storage = js_lib::get_storage();
+        for r in recipes.iter() {
+            storage.set(
+                &recipe_key(r.recipe_id()),
+                &to_string(&r).expect("Unable to serialize recipe entries"),
+            )?;
+        }
+        let serialized = to_string(&recipes).expect("Unable to serialize recipe entries");
         let resp = reqwasm::http::Request::post(&path)
-            .body(to_string(&recipes).expect("Unable to serialize recipe entries"))
+            .body(&serialized)
             .header("content-type", "application/json")
             .send()
             .await?;
