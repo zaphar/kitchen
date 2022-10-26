@@ -29,6 +29,10 @@ where
     }
 }
 
-pub fn get_storage() -> Result<Option<Storage>, JsValue> {
-    window().expect("No Window Present").local_storage()
+pub fn get_storage() -> Storage {
+    window()
+        .expect("No Window Present")
+        .local_storage()
+        .expect("Failed to get storage")
+        .expect("No storage available")
 }

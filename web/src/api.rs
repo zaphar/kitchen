@@ -14,11 +14,13 @@
 use std::collections::BTreeMap;
 
 use reqwasm;
-use serde_json::{from_str, to_string};
+use serde_json::to_string;
 use sycamore::prelude::*;
 use tracing::{debug, error, info, instrument, warn};
 
 use recipes::{parse, Recipe, RecipeEntry};
+use wasm_bindgen::JsValue;
+use web_sys::ResponseType;
 
 use crate::{app_state, js_lib};
 
@@ -100,6 +102,12 @@ impl From<Error> for String {
     }
 }
 
+impl From<JsValue> for Error {
+    fn from(item: JsValue) -> Self {
+        Error(format!("{:?}", item))
+    }
+}
+
 impl From<String> for Error {
     fn from(item: String) -> Self {
         Error(item)
@@ -136,20 +144,28 @@ impl HttpStore {
         use_context::<std::rc::Rc<Self>>(cx).clone()
     }
 
-    #[instrument]
+    //#[instrument]
     pub async fn get_categories(&self) -> Result<Option<String>, Error> {
         let mut path = self.root.clone();
         path.push_str("/categories");
         let resp = reqwasm::http::Request::get(&path).send().await?;
+        let storage = js_lib::get_storage();
         if resp.status() == 404 {
             debug!("Categories returned 404");
+            storage.remove_item("categories")?;
             Ok(None)
         } else if resp.status() != 200 {
-            Err(format!("Status: {}", resp.status()).into())
+            if resp.type_() == ResponseType::Error {
+                let categories = storage.get("categories")?;
+                Ok(categories)
+            } else {
+                Err(format!("Status: {}", resp.status()).into())
+            }
         } else {
             debug!("We got a valid response back!");
-            let resp = resp.json().await;
-            Ok(Some(resp.map_err(|e| format!("{}", e))?))
+            let resp: String = resp.json().await?;
+            storage.set("categories", &resp)?;
+            Ok(Some(resp))
         }
     }
 
@@ -203,6 +219,8 @@ impl HttpStore {
     pub async fn save_categories(&self, categories: String) -> Result<(), Error> {
         let mut path = self.root.clone();
         path.push_str("/categories");
+        let storage = js_lib::get_storage();
+        storage.set("categories", &categories)?;
         let resp = reqwasm::http::Request::post(&path)
             .body(to_string(&categories).expect("Unable to encode categories as json"))
             .header("content-type", "application/json")
