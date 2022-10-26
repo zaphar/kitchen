@@ -44,6 +44,8 @@ pub fn Categories<G: Html>(cx: Scope) -> View<G> {
     let save_signal = create_signal(cx, ());
     let error_text = create_signal(cx, String::new());
     let category_text: &Signal<String> = create_signal(cx, String::new());
+    let dirty = create_signal(cx, false);
+
     spawn_local_scoped(cx, {
         let store = crate::api::HttpStore::get_from_context(cx);
         async move {
@@ -58,8 +60,10 @@ pub fn Categories<G: Html>(cx: Scope) -> View<G> {
     });
 
     create_effect(cx, move || {
-        // TODO(jwall): This is triggering on load which is not desired.
         save_signal.track();
+        if !*dirty.get() {
+            return;
+        }
         spawn_local_scoped(cx, {
             let store = crate::api::HttpStore::get_from_context(cx);
             async move {
@@ -70,6 +74,8 @@ pub fn Categories<G: Html>(cx: Scope) -> View<G> {
                 {
                     error!(?e, "Failed to save categories");
                     error_text.set(format!("{:?}", e));
+                } else {
+                    dirty.set(false);
                 }
             }
         });
@@ -94,7 +100,9 @@ pub fn Categories<G: Html>(cx: Scope) -> View<G> {
 
     view! {cx,
         (dialog_view)
-        textarea(bind:value=category_text, rows=20)
+        textarea(bind:value=category_text, rows=20, on:change=move |_| {
+            dirty.set(true);
+        })
         span(role="button", on:click=move |_| {
             check_category_text_parses(category_text.get().as_str(), error_text);
         }) { "Check" } " "
