@@ -67,7 +67,6 @@ pub fn UI<G: Html>(cx: Scope) -> View<G> {
             };
             view.set(view! { cx,
                 div(class="app") {
-                    Header()
                     Router(RouterProps {
                         route: Routes::Plan,
                         route_select: route_switch,
