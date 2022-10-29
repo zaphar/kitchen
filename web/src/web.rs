@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crate::pages::*;
-use crate::{api, app_state::*, components::*, router_integration::*};
+use crate::{api, app_state::*, router_integration::*};
 use tracing::{error, info, instrument};
 
 use sycamore::{futures::spawn_local_scoped, prelude::*};

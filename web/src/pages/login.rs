@@ -81,7 +81,8 @@ pub fn LoginForm<G: Html>(cx: Scope) -> View<G> {
 pub fn LoginPage<G: Html>(cx: Scope) -> View<G> {
     view! {cx,
         TabbedView(TabState {
-            inner: view! {cx, LoginForm { } }
+            inner: view! {cx, LoginForm { } },
+            selected: None,
         })
     }
 }

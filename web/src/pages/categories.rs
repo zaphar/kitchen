@@ -24,7 +24,8 @@ pub fn CategoryPage<G: Html>(cx: Scope) -> View<G> {
         TabbedView(TabState {
             inner: view! {cx,
                 Categories { }
-            }
+            },
+            selected: Some("Categories".to_owned()),
         })
     }
 }

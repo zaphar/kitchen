@@ -12,36 +12,53 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use sycamore::prelude::*;
+use tracing::debug;
 
 use super::Header;
-
 #[derive(Clone, Prop)]
 pub struct TabState<G: GenericNode> {
     pub inner: View<G>,
+    pub selected: Option<String>,
 }
 
 #[component]
 pub fn TabbedView<G: Html>(cx: Scope, state: TabState<G>) -> View<G> {
+    let tablist = create_signal(
+        cx,
+        vec![
+            ("/ui/plan", "Plan"),
+            ("/ui/inventory", "Inventory"),
+            ("/ui/cook", "Cook"),
+            ("/ui/categories", "Categories"),
+        ],
+    );
+    let TabState { inner, selected } = state;
     view! {cx,
         Header { }
-            nav {
-                ul {
-                    li { a(href="/ui/plan", class="no-print") { "Plan" } " > "
+        nav {
+            ul(class="tabs") {
+                Indexed(
+                    iterable=tablist,
+                    view=move |cx, (href, show)| {
+                        debug!(?selected, show, "identifying tab");
+                        let class = if selected.as_ref().map_or(false, |selected| selected == show) {
+                            "no-print selected"
+                        } else {
+                            "no-print"
+                        };
+                        view! {cx,
+                            li(class=class) { a(href=href) { (show) } }
+                        }
                     }
-                    li { a(href="/ui/inventory", class="no-print") { "Inventory" } " > "
-                    }
-                    li { a(href="/ui/cook", class="no-print") { "Cook" }
-                    } " | "
-                    li { a(href="/ui/categories", class="no-print") { "Categories" }
-                    }
-                }
-                ul {
-                    li { a(href="/ui/login") { "Login" } " | " }
-                    li { a(href="https://github.com/zaphar/kitchen") { "Github" } }
-                }
+                )
             }
+            ul {
+                li { a(href="/ui/login") { "Login" } " | " }
+                li { a(href="https://github.com/zaphar/kitchen") { "Github" } }
+            }
+        }
         main(class=".conatiner-fluid") {
-            (state.inner)
+            (inner)
         }
     }
 }

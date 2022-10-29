@@ -22,6 +22,7 @@ pub fn CookPage<G: Html>(cx: Scope) -> View<G> {
             inner: view! {cx,
                 RecipeList { }
             },
+            selected: Some("Cook".to_owned()),
         })
     }
 }

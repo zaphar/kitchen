@@ -22,6 +22,7 @@ pub fn PlanPage<G: Html>(cx: Scope) -> View<G> {
             inner: view! {cx,
                  RecipeSelector()
             },
+            selected: Some("Plan".to_owned()),
         })
     }
 }

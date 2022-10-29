@@ -28,7 +28,8 @@ pub fn RecipePage<G: Html>(cx: Scope, props: RecipePageProps) -> View<G> {
         TabbedView(TabState {
             inner: view! {cx,
                 Recipe(props.recipe)
-            }
+            },
+            selected: None,
         })
     }
 }

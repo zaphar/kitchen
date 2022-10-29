@@ -22,6 +22,7 @@ pub fn InventoryPage<G: Html>(cx: Scope) -> View<G> {
             inner: view! {cx,
                 ShoppingList {}
             },
+            selected: Some("Inventory".to_owned()),
         })
     }
 }

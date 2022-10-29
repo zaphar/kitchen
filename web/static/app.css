@@ -25,12 +25,6 @@
     }
 }
 
-/*
-:not(thead):not(tfoot) > * > td {
-  --font-size: 1.5rem;
-}
-*/
-
 @media (min-width: 768px) {
     :root {
         --font-size: 35px;
@@ -43,4 +37,33 @@
 
 body {
     padding: 8px;
+}
+
+:root {
+    --tab-border-color: black;
+    --tab-border-width: 3px;
+    --tab-border-style: solid;
+    --tab-border-radius: 15px;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --tab-border-color: lightgrey;
+    }
+}
+
+nav>ul.tabs>li {
+    border-style: none;
+    border-bottom-style: var(--tab-border-style);
+    border-bottom-color: var(--tab-border-color);
+    border-bottom-width: var(--tab-border-width);
+}
+
+nav>ul.tabs>li.selected {
+    border-style: var(--tab-border-style);
+    border-color: var(--tab-border-color);
+    border-width: var(--tab-border-width);
+    border-top-left-radius: var(--tab-border-radius);
+    border-top-right-radius: var(--tab-border-radius);
+    border-bottom-style: none;
 }
