@@ -13,6 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+:root {
+    --tab-border-color: black;
+    --tab-border-width: 3px;
+    --tab-border-style: solid;
+    --tab-border-radius: 15px;
+}
+
 @media print {
 
     .no-print,
@@ -31,25 +38,15 @@
     }
 }
 
-.destructive {
-    background-color: firebrick !important;
-}
-
-body {
-    padding: 8px;
-}
-
-:root {
-    --tab-border-color: black;
-    --tab-border-width: 3px;
-    --tab-border-style: solid;
-    --tab-border-radius: 15px;
-}
-
 @media (prefers-color-scheme: dark) {
     :root {
         --tab-border-color: lightgrey;
     }
+}
+
+body {
+    padding: 10px;
+    margin: 10px;
 }
 
 nav>ul.tabs>li {
@@ -66,4 +63,17 @@ nav>ul.tabs>li.selected {
     border-top-left-radius: var(--tab-border-radius);
     border-top-right-radius: var(--tab-border-radius);
     border-bottom-style: none;
+}
+
+nav>h1 {
+    margin: 0px;
+    margin-left: 3px;
+    margin-right: 3px;
+    display: inline;
+    vertical-align: middle;
+    text-align: left;
+}
+
+.destructive {
+    background-color: firebrick !important;
 }

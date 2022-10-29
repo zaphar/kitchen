@@ -17,8 +17,12 @@ use sycamore::prelude::*;
 #[component]
 pub fn Header<G: Html>(cx: Scope) -> View<G> {
     view! {cx,
-        div(class="menu no-print") {
-            h1 { "Meal Plan" }
+        nav(class="no-print") {
+            h1(class="title") { "Meal Plan" }
+            ul {
+                li { a(href="/ui/login") { "Login" } }
+                li { a(href="https://github.com/zaphar/kitchen") { "Github" } }
+            }
         }
     }
 }

@@ -52,10 +52,6 @@ pub fn TabbedView<G: Html>(cx: Scope, state: TabState<G>) -> View<G> {
                     }
                 )
             }
-            ul {
-                li { a(href="/ui/login") { "Login" } " | " }
-                li { a(href="https://github.com/zaphar/kitchen") { "Github" } }
-            }
         }
         main(class=".conatiner-fluid") {
             (inner)
