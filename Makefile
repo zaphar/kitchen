@@ -11,9 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 mkfile_dir := $(dir $(mkfile_path))
+sqlite_url := sqlite://$(mkfile_dir)/.session_store/store.db
 
 kitchen: wasm kitchen/src/*.rs
 	cd kitchen; cargo build
@@ -40,5 +40,8 @@ clean:
 	rm -rf web/dist/*
 	cargo clean
 
+sqlx-migrate:
+	cd kitchen; cargo sqlx migrate run --database-url $(sqlite_url)
+
 sqlx-prepare:
-	cd kitchen; cargo sqlx prepare --database-url sqlite://$(mkfile_dir)/.session_store/store.db
+	cd kitchen; cargo sqlx prepare --database-url $(sqlite_url)
