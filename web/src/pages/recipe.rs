@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::components::{recipe::Recipe, tabs::*};
+use crate::components::recipe::Recipe;
 
 use sycamore::prelude::*;
 use tracing::instrument;
@@ -25,11 +25,6 @@ pub struct RecipePageProps {
 #[component()]
 pub fn RecipePage<G: Html>(cx: Scope, props: RecipePageProps) -> View<G> {
     view! {cx,
-        TabbedView(TabState {
-            inner: view! {cx,
-                Recipe(props.recipe)
-            },
-            selected: None,
-        })
+        Recipe(props.recipe)
     }
 }

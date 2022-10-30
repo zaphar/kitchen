@@ -11,18 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::components::{recipe_selector::*, tabs::*};
-
 use sycamore::prelude::*;
 
+use super::PlanningPage;
+use crate::components::recipe_list::*;
+
 #[component]
-pub fn PlanPage<G: Html>(cx: Scope) -> View<G> {
+pub fn CookPage<G: Html>(cx: Scope) -> View<G> {
     view! {cx,
-        TabbedView(TabState {
-            inner: view! {cx,
-                 RecipeSelector()
-            },
-            selected: Some("Plan".to_owned()),
-        })
+        PlanningPage(
+            selected=Some("Cook".to_owned()),
+        ) { RecipeList() }
     }
 }

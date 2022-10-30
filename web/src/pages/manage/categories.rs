@@ -1,4 +1,4 @@
-// Copyright 2022 Jeremy Wall
+// Copyright 2022 Jeremy Wall (jeremy@marzhillstudios.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,20 +11,18 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use super::ManagePage;
+use crate::components::categories::*;
 
 use sycamore::prelude::*;
+use tracing::instrument;
 
-#[component]
-pub fn Header<G: Html>(cx: Scope) -> View<G> {
+#[instrument]
+#[component()]
+pub fn CategoryPage<G: Html>(cx: Scope) -> View<G> {
     view! {cx,
-        nav(class="no-print") {
-            h1(class="title") { "Kitchen" }
-            ul {
-                li { a(href="/ui/plan") { "MealPlan" } }
-                li { a(href="/ui/categories") { "Manage" } }
-                li { a(href="/ui/login") { "Login" } }
-                li { a(href="https://github.com/zaphar/kitchen") { "Github" } }
-            }
-        }
+        ManagePage(
+            selected=Some("Categories".to_owned()),
+        ) { Categories() }
     }
 }

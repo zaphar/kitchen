@@ -11,18 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::components::{shopping_list::*, tabs::*};
-
 use sycamore::prelude::*;
+
+use super::PlanningPage;
+use crate::components::shopping_list::*;
 
 #[component]
 pub fn InventoryPage<G: Html>(cx: Scope) -> View<G> {
     view! {cx,
-        TabbedView(TabState {
-            inner: view! {cx,
-                ShoppingList {}
-            },
-            selected: Some("Inventory".to_owned()),
-        })
+        PlanningPage(
+            selected=Some("Inventory".to_owned()),
+        ) { ShoppingList() }
     }
 }

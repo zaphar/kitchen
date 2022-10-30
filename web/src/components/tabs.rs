@@ -14,27 +14,23 @@
 use sycamore::prelude::*;
 use tracing::debug;
 
-use super::Header;
-#[derive(Clone, Prop)]
-pub struct TabState<G: GenericNode> {
-    pub inner: View<G>,
+#[derive(Prop)]
+pub struct TabState<'a, G: Html> {
+    pub children: Children<'a, G>,
     pub selected: Option<String>,
+    tablist: Vec<(&'static str, &'static str)>,
 }
 
 #[component]
-pub fn TabbedView<G: Html>(cx: Scope, state: TabState<G>) -> View<G> {
-    let tablist = create_signal(
-        cx,
-        vec![
-            ("/ui/plan", "Plan"),
-            ("/ui/inventory", "Inventory"),
-            ("/ui/cook", "Cook"),
-            ("/ui/categories", "Categories"),
-        ],
-    );
-    let TabState { inner, selected } = state;
+pub fn TabbedView<'a, G: Html>(cx: Scope<'a>, state: TabState<'a, G>) -> View<G> {
+    let TabState {
+        children,
+        selected,
+        tablist,
+    } = state;
+    let tablist = create_signal(cx, tablist.clone());
+    let children = children.call(cx);
     view! {cx,
-        Header { }
         nav {
             ul(class="tabs") {
                 Indexed(
@@ -54,7 +50,7 @@ pub fn TabbedView<G: Html>(cx: Scope, state: TabState<G>) -> View<G> {
             }
         }
         main(class=".conatiner-fluid") {
-            (inner)
+            (children)
         }
     }
 }

@@ -11,11 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::pages::*;
-use crate::{api, app_state::*, router_integration::*};
+use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{error, info, instrument};
 
-use sycamore::{futures::spawn_local_scoped, prelude::*};
+use crate::components::Header;
+use crate::pages::*;
+use crate::{api, app_state::*, router_integration::*};
 
 #[instrument]
 fn route_switch<G: Html>(cx: Scope, route: &ReadSignal<Routes>) -> View<G> {
@@ -67,6 +68,7 @@ pub fn UI<G: Html>(cx: Scope) -> View<G> {
             };
             view.set(view! { cx,
                 div(class="app") {
+                    Header { }
                     Router(RouterProps {
                         route: Routes::Plan,
                         route_select: route_switch,

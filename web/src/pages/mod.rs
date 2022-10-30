@@ -11,16 +11,14 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-mod categories;
-mod cook;
-mod inventory;
 mod login;
-mod plan;
+mod manage;
+mod planning;
 mod recipe;
 
-pub use categories::*;
-pub use cook::*;
-pub use inventory::*;
 pub use login::*;
-pub use plan::*;
+pub use manage::categories::*;
+pub use planning::cook::*;
+pub use planning::inventory::*;
+pub use planning::plan::*;
 pub use recipe::*;

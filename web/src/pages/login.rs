@@ -11,8 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::components::tabs::*;
-
 use base64;
 use reqwasm::http;
 use sycamore::{futures::spawn_local_scoped, prelude::*};
@@ -80,9 +78,6 @@ pub fn LoginForm<G: Html>(cx: Scope) -> View<G> {
 #[component]
 pub fn LoginPage<G: Html>(cx: Scope) -> View<G> {
     view! {cx,
-        TabbedView(TabState {
-            inner: view! {cx, LoginForm { } },
-            selected: None,
-        })
+            LoginForm()
     }
 }

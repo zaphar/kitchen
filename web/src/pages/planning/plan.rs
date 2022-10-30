@@ -1,4 +1,4 @@
-// Copyright 2022 Jeremy Wall (jeremy@marzhillstudios.com)
+// Copyright 2022 Jeremy Wall
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,21 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::components::categories::*;
-use crate::components::tabs::*;
+use super::PlanningPage;
+use crate::components::recipe_selector::*;
 
 use sycamore::prelude::*;
-use tracing::instrument;
 
-#[instrument]
-#[component()]
-pub fn CategoryPage<G: Html>(cx: Scope) -> View<G> {
+#[component]
+pub fn PlanPage<G: Html>(cx: Scope) -> View<G> {
     view! {cx,
-        TabbedView(TabState {
-            inner: view! {cx,
-                Categories { }
-            },
-            selected: Some("Categories".to_owned()),
-        })
+        PlanningPage(
+            selected=Some("Plan".to_owned()),
+        ) { RecipeSelector() }
     }
 }
