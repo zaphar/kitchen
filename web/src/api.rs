@@ -113,6 +113,12 @@ impl From<String> for Error {
     }
 }
 
+impl From<&'static str> for Error {
+    fn from(item: &'static str) -> Self {
+        Error(item.to_owned())
+    }
+}
+
 impl From<std::string::FromUtf8Error> for Error {
     fn from(item: std::string::FromUtf8Error) -> Self {
         Error(format!("{:?}", item))
@@ -258,6 +264,9 @@ impl HttpStore {
         path.push_str("/recipes");
         let storage = js_lib::get_storage();
         for r in recipes.iter() {
+            if r.recipe_id().is_empty() {
+                return Err("Recipe Ids can not be empty".into());
+            }
             storage.set(
                 &recipe_key(r.recipe_id()),
                 &to_string(&r).expect("Unable to serialize recipe entries"),

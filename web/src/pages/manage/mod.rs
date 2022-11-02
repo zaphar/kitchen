@@ -14,9 +14,10 @@
 use crate::components::tabs::*;
 use sycamore::prelude::*;
 
+pub mod add_recipe;
 pub mod categories;
 
-#[derive(Prop)]
+#[derive(Props)]
 pub struct PageState<'a, G: Html> {
     pub children: Children<'a, G>,
     pub selected: Option<String>,
@@ -26,7 +27,10 @@ pub struct PageState<'a, G: Html> {
 pub fn ManagePage<'a, G: Html>(cx: Scope<'a>, state: PageState<'a, G>) -> View<G> {
     let PageState { children, selected } = state;
     let children = children.call(cx);
-    let manage_tabs: Vec<(&'static str, &'static str)> = vec![("/ui/categories", "Categories")];
+    let manage_tabs: Vec<(&'static str, &'static str)> = vec![
+        ("/ui/categories", "Categories"),
+        ("/ui/new_recipe", "New Recipe"),
+    ];
 
     view! {cx,
         TabbedView(

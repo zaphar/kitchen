@@ -15,39 +15,7 @@ use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{error, info, instrument};
 
 use crate::components::Header;
-use crate::pages::*;
-use crate::{api, app_state::*, router_integration::*};
-
-#[instrument]
-fn route_switch<G: Html>(cx: Scope, route: &ReadSignal<Routes>) -> View<G> {
-    // NOTE(jwall): This needs to not be a dynamic node. The rules around
-    // this are somewhat unclear and underdocumented for Sycamore. But basically
-    // avoid conditionals in the `view!` macro calls here.
-    match route.get().as_ref() {
-        Routes::Plan => view! {cx,
-            PlanPage()
-        },
-        Routes::Inventory => view! {cx,
-            InventoryPage()
-        },
-        Routes::Login => view! {cx,
-            LoginPage()
-        },
-        Routes::Cook => view! {cx,
-            CookPage()
-        },
-        Routes::Recipe(idx) => view! {cx,
-            RecipePage(recipe=idx.clone())
-        },
-        Routes::Categories => view! {cx,
-            CategoryPage()
-        },
-        Routes::NotFound => view! {cx,
-            // TODO(Create a real one)
-            PlanPage()
-        },
-    }
-}
+use crate::{api, routing::Handler as RouteHandler};
 
 #[instrument]
 #[component]
@@ -66,14 +34,11 @@ pub fn UI<G: Html>(cx: Scope) -> View<G> {
             if let Err(err) = api::init_page_state(store.as_ref(), state.as_ref()).await {
                 error!(?err);
             };
+            // TODO(jwall): This needs to be moved into the RouteHandler
             view.set(view! { cx,
                 div(class="app") {
                     Header { }
-                    Router(RouterProps {
-                        route: Routes::Plan,
-                        route_select: route_switch,
-                        browser_integration: BrowserIntegration::new(),
-                    })
+                    RouteHandler()
                 }
             });
         }

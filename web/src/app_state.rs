@@ -18,23 +18,6 @@ use tracing::{debug, instrument, warn};
 
 use recipes::{Ingredient, IngredientAccumulator, Recipe};
 
-#[derive(Debug, Clone)]
-pub enum Routes {
-    Plan,
-    Inventory,
-    Cook,
-    Recipe(String),
-    Categories,
-    Login,
-    NotFound,
-}
-
-impl Default for Routes {
-    fn default() -> Self {
-        Self::Plan
-    }
-}
-
 pub struct State {
     pub recipe_counts: RcSignal<BTreeMap<String, usize>>,
     pub extras: RcSignal<Vec<(usize, (RcSignal<String>, RcSignal<String>))>>,

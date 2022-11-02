@@ -3,7 +3,8 @@ members = [ "recipes", "kitchen", "web" ]
 
 [patch.crates-io]
 # TODO(jwall): When the fix for RcSignal Binding is released we can drop this patch.
-sycamore = { git = "https://github.com/sycamore-rs/sycamore/", rev = "20b6069c470a51d2ba6197bb322036e8324ff297" }
+sycamore = { git = "https://github.com/sycamore-rs/sycamore/", rev = "5d49777b4a66fb5730c40898fd2ee8cde15bcdc3" }
+sycamore-router = { git = "https://github.com/sycamore-rs/sycamore/", rev = "5d49777b4a66fb5730c40898fd2ee8cde15bcdc3" }
 # NOTE(jwall): We are maintaining a patch to remove the unstable async_std_feature. It breaks in our project on
 # Rust v1.64
 sqlx = { git = "https://github.com/zaphar/sqlx", branch = "remove_unstable_async_std_feature" }

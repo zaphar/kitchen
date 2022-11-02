@@ -40,21 +40,25 @@ fn check_recipe_parses(text: &str, error_text: &Signal<String>) -> bool {
 }
 
 #[component]
-fn Editor<G: Html>(cx: Scope, recipe: RecipeEntry) -> View<G> {
+pub fn Editor<G: Html>(cx: Scope, recipe: RecipeEntry) -> View<G> {
     let id = create_signal(cx, recipe.recipe_id().to_owned());
     let text = create_signal(cx, recipe.recipe_text().to_owned());
     let error_text = create_signal(cx, String::new());
     let save_signal = create_signal(cx, ());
     let dirty = create_signal(cx, false);
 
+    debug!("Creating effect");
     create_effect(cx, move || {
         save_signal.track();
-        if !*dirty.get() {
+        if !*dirty.get_untracked() {
+            debug!("Recipe text is unchanged");
             return;
         }
+        debug!("Recipe text is changed");
         spawn_local_scoped(cx, {
             let store = crate::api::HttpStore::get_from_context(cx);
             async move {
+                debug!("Attempting to save recipe");
                 if let Err(e) = store
                     .save_recipes(vec![RecipeEntry(
                         id.get_untracked().as_ref().clone(),
@@ -71,6 +75,7 @@ fn Editor<G: Html>(cx: Scope, recipe: RecipeEntry) -> View<G> {
         });
     });
 
+    debug!("creating dialog_view");
     let dialog_view = view! {cx,
         dialog(id="error-dialog") {
             article{
@@ -88,6 +93,7 @@ fn Editor<G: Html>(cx: Scope, recipe: RecipeEntry) -> View<G> {
         }
     };
 
+    debug!("creating editor view");
     view! {cx,
         (dialog_view)
         textarea(bind:value=text, rows=20, on:change=move |_| {

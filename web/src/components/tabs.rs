@@ -14,7 +14,7 @@
 use sycamore::prelude::*;
 use tracing::debug;
 
-#[derive(Prop)]
+#[derive(Props)]
 pub struct TabState<'a, G: Html> {
     pub children: Children<'a, G>,
     pub selected: Option<String>,
@@ -28,25 +28,28 @@ pub fn TabbedView<'a, G: Html>(cx: Scope<'a>, state: TabState<'a, G>) -> View<G>
         selected,
         tablist,
     } = state;
-    let tablist = create_signal(cx, tablist.clone());
     let children = children.call(cx);
+    let menu = View::new_fragment(
+        tablist
+            .iter()
+            .map(|&(href, show)| {
+                debug!(?selected, show, "identifying tab");
+                let class = if selected.as_ref().map_or(false, |selected| selected == show) {
+                    "no-print selected"
+                } else {
+                    "no-print"
+                };
+                view! {cx,
+                    li(class=class) { a(href=href) { (show) } }
+                }
+                // TODO
+            })
+            .collect(),
+    );
     view! {cx,
         nav {
             ul(class="tabs") {
-                Indexed(
-                    iterable=tablist,
-                    view=move |cx, (href, show)| {
-                        debug!(?selected, show, "identifying tab");
-                        let class = if selected.as_ref().map_or(false, |selected| selected == show) {
-                            "no-print selected"
-                        } else {
-                            "no-print"
-                        };
-                        view! {cx,
-                            li(class=class) { a(href=href) { (show) } }
-                        }
-                    }
-                )
+                (menu)
             }
         }
         main(class=".conatiner-fluid") {

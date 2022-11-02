@@ -53,8 +53,16 @@ impl Mealplan {
 pub struct RecipeEntry(pub String, pub String);
 
 impl RecipeEntry {
+    pub fn set_recipe_id<S: Into<String>>(&mut self, id: S) {
+        self.0 = id.into();
+    }
+
     pub fn recipe_id(&self) -> &str {
         self.0.as_str()
+    }
+
+    pub fn set_recipe_text<S: Into<String>>(&mut self, text: S) {
+        self.1 = text.into();
     }
 
     pub fn recipe_text(&self) -> &str {

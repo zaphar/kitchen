@@ -16,7 +16,7 @@ use crate::components::recipe::Recipe;
 use sycamore::prelude::*;
 use tracing::instrument;
 
-#[derive(Debug, Prop)]
+#[derive(Debug, Props)]
 pub struct RecipePageProps {
     pub recipe: String,
 }

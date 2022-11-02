@@ -16,7 +16,7 @@ mod app_state;
 mod components;
 mod js_lib;
 mod pages;
-mod router_integration;
+mod routing;
 mod web;
 
 use sycamore::prelude::*;

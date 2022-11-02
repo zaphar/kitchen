@@ -18,7 +18,7 @@ use tracing::{debug, instrument};
 
 use crate::app_state;
 
-#[derive(Prop)]
+#[derive(Props)]
 pub struct RecipeCheckBoxProps<'ctx> {
     pub i: String,
     pub title: &'ctx ReadSignal<String>,
