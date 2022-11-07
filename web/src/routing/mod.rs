@@ -68,7 +68,7 @@ pub enum Routes {
     Cook,
     #[to("/ui/recipe/<id>")]
     Recipe(String),
-    #[to("/ui/add_recipe")]
+    #[to("/ui/new_recipe")]
     NewRecipe,
     #[to("/ui/categories")]
     Categories,
