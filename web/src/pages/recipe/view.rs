@@ -1,4 +1,4 @@
-// Copyright 2022 Jeremy Wall
+// Copyright 2022 Jeremy Wall (Jeremy@marzhilsltudios.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,20 +11,20 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use crate::components::recipe::Viewer;
 
 use sycamore::prelude::*;
+use tracing::instrument;
 
-#[component]
-pub fn Header<G: Html>(cx: Scope) -> View<G> {
+use super::{RecipePage, RecipePageProps};
+
+#[instrument]
+#[component()]
+pub fn RecipeViewPage<G: Html>(cx: Scope, props: RecipePageProps) -> View<G> {
     view! {cx,
-        nav(class="no-print") {
-            h1(class="title") { "Kitchen" }
-            ul {
-                li { a(href="/ui/planning/plan") { "MealPlan" } }
-                li { a(href="/ui/manage/categories") { "Manage" } }
-                li { a(href="/ui/login") { "Login" } }
-                li { a(href="https://github.com/zaphar/kitchen") { "Github" } }
-            }
-        }
+        RecipePage(
+            selected=Some("View".to_owned()),
+            recipe=props.recipe.clone(),
+        ) { Viewer(props.recipe) }
     }
 }

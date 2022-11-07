@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{app_state, components::Recipe};
+use crate::{app_state, components::recipe::Viewer};
 
 use sycamore::prelude::*;
 use tracing::{debug, instrument};
@@ -26,10 +26,10 @@ pub fn RecipeList<G: Html>(cx: Scope) -> View<G> {
         div() {
             Indexed(
                 iterable=menu_list,
-                view= |cx, (idx, _count)| {
-                    debug!(idx=%idx, "Rendering recipe");
+                view= |cx, (id, _count)| {
+                    debug!(id=%id, "Rendering recipe");
                     view ! {cx,
-                        Recipe(idx)
+                        Viewer(id)
                         hr()
                     }
                 }

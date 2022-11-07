@@ -45,7 +45,7 @@ pub fn RecipeSelection<G: Html>(cx: Scope, props: RecipeCheckBoxProps) -> View<G
     );
     let title = props.title.get().clone();
     let for_id = id.clone();
-    let href = format!("/ui/recipe/{}", id);
+    let href = format!("/ui/recipe/view/{}", id);
     let name = format!("recipe_id:{}", id);
     view! {cx,
         div() {

@@ -13,67 +13,101 @@
 // limitations under the License.
 
 use sycamore::prelude::*;
-//use sycamore_router::{HistoryIntegration, Route, Router};
 use sycamore_router::{HistoryIntegration, Route, Router};
-use tracing::instrument;
+use tracing::{debug, instrument};
 
 use crate::pages::*;
-
-//mod router;
-//use router::{HistoryIntegration, Router};
 
 #[instrument]
 fn route_switch<'a, G: Html>(cx: Scope<'a>, route: &'a ReadSignal<Routes>) -> View<G> {
     // NOTE(jwall): This needs to not be a dynamic node. The rules around
     // this are somewhat unclear and underdocumented for Sycamore. But basically
     // avoid conditionals in the `view!` macro calls here.
-    view! {cx,
-        (match route.get().as_ref() {
-            Routes::Plan => view! {cx,
+
+    let switcher = |cx: Scope, route: &Routes| {
+        debug!(?route, "Dispatching for route");
+        match route {
+            Routes::Planning(Plan) => view! {cx,
                 PlanPage()
             },
-            Routes::Inventory => view! {cx,
+            Routes::Planning(Inventory) => view! {cx,
                 InventoryPage()
+            },
+            Routes::Planning(Cook) => view! {cx,
+                CookPage()
             },
             Routes::Login => view! {cx,
                 LoginPage()
             },
-            Routes::Cook => view! {cx,
-                CookPage()
+            Routes::Recipe(RecipeRoutes::View(id)) => view! {cx,
+                RecipeViewPage(recipe=id.clone())
             },
-            Routes::Recipe(idx) => view! {cx,
-                RecipePage(recipe=idx.clone())
+            Routes::Recipe(RecipeRoutes::Edit(id)) => view! {cx,
+                RecipeEditPage(recipe=id.clone())
             },
-            Routes::Categories => view! {cx,
+            Routes::Manage(ManageRoutes::Categories) => view! {cx,
                 CategoryPage()
             },
-            Routes::NewRecipe => view! {cx,
+            Routes::Manage(ManageRoutes::NewRecipe) => view! {cx,
                 AddRecipePage()
             },
-            Routes::NotFound => view! {cx,
+            Routes::NotFound
+            | Routes::Manage(ManageRoutes::NotFound)
+            | Routes::Planning(PlanningRoutes::NotFound)
+            | Routes::Recipe(RecipeRoutes::NotFound) => view! {cx,
                 // TODO(Create a real one)
                 PlanPage()
             },
-        })
+        }
+    };
+    use PlanningRoutes::*;
+    view! {cx,
+        (switcher(cx, route.get().as_ref()))
     }
 }
 
 #[derive(Route, Debug)]
 pub enum Routes {
-    #[to("/ui/plan")]
-    Plan,
-    #[to("/ui/inventory")]
-    Inventory,
-    #[to("/ui/cook")]
-    Cook,
-    #[to("/ui/recipe/<id>")]
-    Recipe(String),
-    #[to("/ui/new_recipe")]
-    NewRecipe,
-    #[to("/ui/categories")]
-    Categories,
+    #[to("/ui/planning/<_..>")]
+    Planning(PlanningRoutes),
+    #[to("/ui/recipe/<_..>")]
+    Recipe(RecipeRoutes),
+    #[to("/ui/manage/<_..>")]
+    Manage(ManageRoutes),
     #[to("/ui/login")]
     Login,
+    #[not_found]
+    NotFound,
+}
+
+#[derive(Route, Debug)]
+pub enum RecipeRoutes {
+    #[to("/edit/<id>")]
+    Edit(String),
+    #[to("/view/<id>")]
+    View(String),
+    #[not_found]
+    NotFound,
+}
+
+#[derive(Route, Debug)]
+pub enum ManageRoutes {
+    #[to("/new_recipe")]
+    NewRecipe,
+    #[to("/categories")]
+    Categories,
+    #[not_found]
+    NotFound,
+}
+
+#[derive(Route, Debug)]
+pub enum PlanningRoutes {
+    #[to("/plan")]
+    Plan,
+    #[to("/inventory")]
+    Inventory,
+    #[to("/cook")]
+    Cook,
     #[not_found]
     NotFound,
 }

@@ -18,7 +18,7 @@ use tracing::debug;
 pub struct TabState<'a, G: Html> {
     pub children: Children<'a, G>,
     pub selected: Option<String>,
-    tablist: Vec<(&'static str, &'static str)>,
+    tablist: Vec<(String, &'static str)>,
 }
 
 #[component]
@@ -32,7 +32,8 @@ pub fn TabbedView<'a, G: Html>(cx: Scope<'a>, state: TabState<'a, G>) -> View<G>
     let menu = View::new_fragment(
         tablist
             .iter()
-            .map(|&(href, show)| {
+            .map(|&(ref href, show)| {
+                let href = href.clone();
                 debug!(?selected, show, "identifying tab");
                 let class = if selected.as_ref().map_or(false, |selected| selected == show) {
                     "no-print selected"

@@ -28,10 +28,10 @@ pub struct PageState<'a, G: Html> {
 pub fn PlanningPage<'a, G: Html>(cx: Scope<'a>, state: PageState<'a, G>) -> View<G> {
     let PageState { children, selected } = state;
     let children = children.call(cx);
-    let planning_tabs: Vec<(&'static str, &'static str)> = vec![
-        ("/ui/plan", "Plan"),
-        ("/ui/inventory", "Inventory"),
-        ("/ui/cook", "Cook"),
+    let planning_tabs: Vec<(String, &'static str)> = vec![
+        ("/ui/planning/plan".to_owned(), "Plan"),
+        ("/ui/planning/inventory".to_owned(), "Inventory"),
+        ("/ui/planning/cook".to_owned(), "Cook"),
     ];
 
     view! {cx,

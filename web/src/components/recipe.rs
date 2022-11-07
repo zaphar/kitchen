@@ -40,9 +40,28 @@ fn check_recipe_parses(text: &str, error_text: &Signal<String>) -> bool {
 }
 
 #[component]
-pub fn Editor<G: Html>(cx: Scope, recipe: RecipeEntry) -> View<G> {
-    let id = create_signal(cx, recipe.recipe_id().to_owned());
-    let text = create_signal(cx, recipe.recipe_text().to_owned());
+pub fn Editor<G: Html>(cx: Scope, recipe_id: String) -> View<G> {
+    let store = crate::api::HttpStore::get_from_context(cx);
+    let recipe: &Signal<RecipeEntry> =
+        create_signal(cx, RecipeEntry::new(&recipe_id, String::new()));
+    let text = create_signal(cx, String::new());
+    spawn_local_scoped(cx, {
+        let store = store.clone();
+        async move {
+            let entry = store
+                .get_recipe_text(recipe_id.as_str())
+                .await
+                .expect("Failure getting recipe");
+            if let Some(entry) = entry {
+                text.set(entry.recipe_text().to_owned());
+                recipe.set(entry);
+            } else {
+                // FIXME(jwall): Show error message for missing recipe
+            }
+        }
+    });
+
+    let id = create_memo(cx, || recipe.get().recipe_id().to_owned());
     let error_text = create_signal(cx, String::new());
     let save_signal = create_signal(cx, ());
     let dirty = create_signal(cx, false);
@@ -57,6 +76,7 @@ pub fn Editor<G: Html>(cx: Scope, recipe: RecipeEntry) -> View<G> {
         debug!("Recipe text is changed");
         spawn_local_scoped(cx, {
             let store = crate::api::HttpStore::get_from_context(cx);
+            let state = app_state::State::get_from_context(cx);
             async move {
                 debug!("Attempting to save recipe");
                 if let Err(e) = store
@@ -69,7 +89,14 @@ pub fn Editor<G: Html>(cx: Scope, recipe: RecipeEntry) -> View<G> {
                     error!(?e, "Failed to save recipe");
                     error_text.set(format!("{:?}", e));
                 } else {
+                    // We also need to set recipe in our state
                     dirty.set(false);
+                    if let Ok(recipe) = recipes::parse::as_recipe(text.get_untracked().as_ref()) {
+                        state
+                            .recipes
+                            .modify()
+                            .insert(id.get_untracked().as_ref().to_owned(), recipe);
+                    }
                 };
             }
         });
@@ -114,91 +141,114 @@ pub fn Editor<G: Html>(cx: Scope, recipe: RecipeEntry) -> View<G> {
 }
 
 #[component]
-fn Steps<'ctx, G: Html>(cx: Scope<'ctx>, steps: &'ctx ReadSignal<Vec<recipes::Step>>) -> View<G> {
+fn Steps<G: Html>(cx: Scope, steps: Vec<recipes::Step>) -> View<G> {
+    let step_fragments = View::new_fragment(steps.iter().map(|step| {
+        let mut step = step.clone();
+        let ingredient_fragments = View::new_fragment(step.ingredients.drain(0..).map(|i| {
+            view! {cx,
+                li {
+                    (i.amt) " " (i.name) " " (i.form.as_ref().map(|f| format!("({})", f)).unwrap_or(String::new()))
+                }
+            }
+        }).collect());
+        view! {cx,
+            div {
+                h3 { "Instructions" }
+                ul(class="ingredients") {
+                    (ingredient_fragments)
+                }
+                div(class="instructions") {
+                    (step.instructions)
+                }
+            }
+        }
+    }).collect());
     view! {cx,
             h2 { "Steps: " }
             div(class="recipe_steps") {
-                Indexed(
-                    iterable=steps,
-                    view = |cx, step: recipes::Step| { view! {cx,
-                        div {
-                            h3 { "Instructions" }
-                            ul(class="ingredients") {
-                                Indexed(
-                                    iterable = create_signal(cx, step.ingredients),
-                                    view = |cx, i| { view! {cx,
-                                        li {
-                                            (i.amt) " " (i.name) " " (i.form.as_ref().map(|f| format!("({})", f)).unwrap_or(String::new()))
-                                        }
-                                    }}
-                                )
-                            }
-                            div(class="instructions") {
-                                (step.instructions)
-                            }
-                        }}
-                    }
-                )
+                (step_fragments)
             }
     }
 }
 
 #[component]
-pub fn Recipe<'ctx, G: Html>(cx: Scope<'ctx>, recipe_id: String) -> View<G> {
+pub fn Viewer<G: Html>(cx: Scope, recipe_id: String) -> View<G> {
     let state = app_state::State::get_from_context(cx);
-    let store = crate::api::HttpStore::get_from_context(cx);
     let view = create_signal(cx, View::empty());
-    let show_edit = create_signal(cx, false);
     if let Some(recipe) = state.recipes.get_untracked().get(&recipe_id) {
-        // FIXME(jwall): This should be create_effect rather than create_signal
-        let recipe_text: &Signal<Option<RecipeEntry>> = create_signal(cx, None);
-        spawn_local_scoped(cx, {
-            let store = store.clone();
-            async move {
-                let entry = store
-                    .get_recipe_text(recipe_id.as_str())
-                    .await
-                    .expect("Failure getting recipe");
-                recipe_text.set(entry);
-            }
-        });
-        let recipe = create_signal(cx, recipe.clone());
-        let title = create_memo(cx, move || recipe.get().title.clone());
-        let desc = create_memo(cx, move || {
-            recipe
-                .clone()
-                .get()
-                .desc
-                .clone()
-                .unwrap_or_else(|| String::new())
-        });
-        let steps = create_memo(cx, move || recipe.get().steps.clone());
-        create_effect(cx, move || {
-            debug!("Choosing edit or view for recipe.");
-            if *show_edit.get() {
-                {
-                    debug!("Showing editor for recipe.");
-                    view.set(view! {cx,
-                        Editor(recipe_text.get().as_ref().clone().unwrap())
-                    });
-                }
-            } else {
-                debug!("Showing text for recipe.");
-                view.set(view! {cx,
-                    div(class="recipe") {
-                        h1(class="recipe_title") { (title.get()) }
-                         div(class="recipe_description") {
-                             (desc.get())
-                         }
-                        Steps(steps)
-                    }
-                });
+        let title = recipe.title.clone();
+        let desc = recipe.desc.clone().unwrap_or_else(|| String::new());
+        let steps = recipe.steps.clone();
+        debug!("Viewing recipe.");
+        view.set(view! {cx,
+            div(class="recipe") {
+                h1(class="recipe_title") { (title) }
+                 div(class="recipe_description") {
+                     (desc)
+                 }
+                Steps(steps)
             }
         });
     }
-    view! {cx,
-        span(role="button", on:click=move |_| { show_edit.set(true); }) { "Edit" } " "
-        span(role="button", on:click=move |_| { show_edit.set(false); }) { "View" }
-        (view.get().as_ref())
-    }
+    view! {cx, (view.get().as_ref()) }
 }
+
+//#[component]
+//pub fn Recipe<'ctx, G: Html>(cx: Scope<'ctx>, recipe_id: String) -> View<G> {
+//    let state = app_state::State::get_from_context(cx);
+//    let store = crate::api::HttpStore::get_from_context(cx);
+//    let view = create_signal(cx, View::empty());
+//    let show_edit = create_signal(cx, false);
+//    if let Some(recipe) = state.recipes.get_untracked().get(&recipe_id) {
+//        // FIXME(jwall): This should be create_effect rather than create_signal
+//        let recipe_text: &Signal<Option<RecipeEntry>> = create_signal(cx, None);
+//        spawn_local_scoped(cx, {
+//            let store = store.clone();
+//            async move {
+//                let entry = store
+//                    .get_recipe_text(recipe_id.as_str())
+//                    .await
+//                    .expect("Failure getting recipe");
+//                recipe_text.set(entry);
+//            }
+//        });
+//        let recipe = create_signal(cx, recipe.clone());
+//        let title = create_memo(cx, move || recipe.get().title.clone());
+//        let desc = create_memo(cx, move || {
+//            recipe
+//                .clone()
+//                .get()
+//                .desc
+//                .clone()
+//                .unwrap_or_else(|| String::new())
+//        });
+//        let steps = create_memo(cx, move || recipe.get().steps.clone());
+//        create_effect(cx, move || {
+//            debug!("Choosing edit or view for recipe.");
+//            if *show_edit.get() {
+//                {
+//                    debug!("Showing editor for recipe.");
+//                    view.set(view! {cx,
+//                        Editor(recipe_text.get().as_ref().clone().unwrap())
+//                    });
+//                }
+//            } else {
+//                debug!("Showing text for recipe.");
+//                view.set(view! {cx,
+//                    div(class="recipe") {
+//                        h1(class="recipe_title") { (title.get()) }
+//                         div(class="recipe_description") {
+//                             (desc.get())
+//                         }
+//                        Steps(steps)
+//                    }
+//                });
+//            }
+//        });
+//    }
+//    view! {cx,
+//        span(role="button", on:click=move |_| { show_edit.set(true); }) { "Edit" } " "
+//        span(role="button", on:click=move |_| { show_edit.set(false); }) { "View" }
+//        (view.get().as_ref())
+//    }
+//}

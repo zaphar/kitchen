@@ -1,4 +1,4 @@
-// Copyright 2022 Jeremy Wall (Jeremy@marzhilsltudios.com)
+// Copyright 2022 Jeremy Wall (jeremy@marzhillstudios.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,31 +11,43 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::components::tabs::*;
 use sycamore::prelude::*;
 
-pub mod add_recipe;
-pub mod categories;
+use crate::components::tabs::*;
+
+mod edit;
+mod view;
+pub use edit::*;
+pub use view::*;
+
+#[derive(Debug, Props)]
+pub struct RecipePageProps {
+    pub recipe: String,
+}
 
 #[derive(Props)]
 pub struct PageState<'a, G: Html> {
+    pub recipe: String,
     pub children: Children<'a, G>,
     pub selected: Option<String>,
 }
 
 #[component]
-pub fn ManagePage<'a, G: Html>(cx: Scope<'a>, state: PageState<'a, G>) -> View<G> {
-    let PageState { children, selected } = state;
+pub fn RecipePage<'ctx, G: Html>(cx: Scope<'ctx>, state: PageState<'ctx, G>) -> View<G> {
+    let PageState {
+        children,
+        selected,
+        recipe,
+    } = state;
     let children = children.call(cx);
-    let manage_tabs: Vec<(String, &'static str)> = vec![
-        ("/ui/manage/categories".to_owned(), "Categories"),
-        ("/ui/manage/new_recipe".to_owned(), "New Recipe"),
+    let recipe_tabs: Vec<(String, &'static str)> = vec![
+        (format!("/ui/recipe/view/{}", recipe), "View"),
+        (format!("/ui/recipe/edit/{}", recipe), "Edit"),
     ];
-
     view! {cx,
         TabbedView(
-            selected=selected,
-            tablist=manage_tabs,
+            selected= selected,
+            tablist=recipe_tabs,
         ) { (children) }
     }
 }
