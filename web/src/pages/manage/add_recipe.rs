@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use sycamore::{futures::spawn_local_scoped, prelude::*};
+use tracing::{error, info};
 
 use recipes::RecipeEntry;
 
-const STARTER_RECIPE: &'static str = "title: Title Here
+const STARTER_RECIPE: &'static str = "title: TITLE_PLACEHOLDER
 
 Description here.
 
@@ -28,22 +29,22 @@ Instructions here
 
 #[component]
 pub fn AddRecipePage<G: Html>(cx: Scope) -> View<G> {
-    let entry = create_signal(cx, RecipeEntry(String::new(), String::from(STARTER_RECIPE)));
-    let recipe_id = create_signal(cx, String::new());
+    let recipe_title = create_signal(cx, String::new());
     let create_recipe_signal = create_signal(cx, ());
     let dirty = create_signal(cx, false);
 
-    create_effect(cx, || {
-        let mut entry_for_edit = entry.get_untracked().as_ref().clone();
-        // TODO(jwall): This can probably be done more efficiently.
-        let id = recipe_id
-            .get()
-            .as_ref()
-            .replace(" ", "_")
-            .replace("\n", "")
-            .replace("\r", "");
-        entry_for_edit.set_recipe_id(id);
-        entry.set(entry_for_edit);
+    let entry = create_memo(cx, || {
+        RecipeEntry(
+            recipe_title
+                .get()
+                .as_ref()
+                .to_lowercase()
+                .replace(" ", "_")
+                .replace("\n", ""),
+            STARTER_RECIPE
+                .replace("TITLE_PLACEHOLDER", recipe_title.get().as_str())
+                .replace("\r", ""),
+        )
     });
 
     create_effect(cx, move || {
@@ -56,7 +57,20 @@ pub fn AddRecipePage<G: Html>(cx: Scope) -> View<G> {
             async move {
                 let entry = entry.get_untracked();
                 // TODO(jwall): Better error reporting here.
-                // TODO(jwall): Ensure that this id doesn't already exist.
+                match store.get_recipe_text(entry.recipe_id()).await {
+                    Ok(Some(_)) => {
+                        // TODO(jwall): We should tell the user that this id already exists
+                        info!(recipe_id = entry.recipe_id(), "Recipe already exists");
+                        return;
+                    }
+                    Ok(None) => {
+                        // noop
+                    }
+                    Err(err) => {
+                        // TODO(jwall): We should tell the user that this is failing
+                        error!(?err)
+                    }
+                }
                 store
                     .save_recipes(vec![entry.as_ref().clone()])
                     .await
@@ -67,8 +81,8 @@ pub fn AddRecipePage<G: Html>(cx: Scope) -> View<G> {
         });
     });
     view! {cx,
-        label(for="recipe_id") { "Recipe Id" }
-        input(bind:value=recipe_id, type="text", name="recipe_id", id="recipe_id", on:change=move |_| {
+        label(for="recipe_title") { "Recipe Title" }
+        input(bind:value=recipe_title, type="text", name="recipe_title", id="recipe_title", on:change=move |_| {
             dirty.set(true);
         })
         button(on:click=move |_| {

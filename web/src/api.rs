@@ -247,6 +247,9 @@ impl HttpStore {
         };
         if resp.status() != 200 {
             Err(format!("Status: {}", resp.status()).into())
+        } else if resp.status() == 404 {
+            debug!("Recipe doesn't exist");
+            Ok(None)
         } else {
             debug!("We got a valid response back!");
             let entry: Option<RecipeEntry> = resp.json().await.map_err(|e| format!("{}", e))?;
