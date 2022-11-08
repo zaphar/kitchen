@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use abortable_parser::{
     ascii_digit, consume_all, discard, do_each, either, eoi, make_fn, must, not, optional, peek,
-    repeat, separated, text_token, trap, until, with_err, Result, StrIter,
+    repeat, separated, text_token, trap, until, with_err, Error, Positioned, Result, StrIter,
 };
 use inflector::Inflector;
 use num_rational::Ratio;
@@ -27,9 +27,16 @@ use crate::{
     Ingredient, Recipe, Step,
 };
 
+fn format_err(err: Error<StrIter>) -> String {
+    let msg = err.get_msg();
+    let context = err.get_context();
+    let (line, column) = (context.line(), context.column());
+    format!("{} at line {} column {}", msg, line, column)
+}
+
 pub fn as_recipe(i: &str) -> std::result::Result<Recipe, String> {
     match recipe(StrIter::new(i)) {
-        Result::Abort(e) | Result::Fail(e) => Err(format!("Parse Failure: {:?}", e)),
+        Result::Abort(e) | Result::Fail(e) => Err(format_err(e)),
         Result::Incomplete(_) => Err(format!("Incomplete recipe can not parse")),
         Result::Complete(_, r) => Ok(r),
     }
@@ -37,7 +44,7 @@ pub fn as_recipe(i: &str) -> std::result::Result<Recipe, String> {
 
 pub fn as_categories(i: &str) -> std::result::Result<BTreeMap<String, String>, String> {
     match categories(StrIter::new(i)) {
-        Result::Abort(e) | Result::Fail(e) => Err(format!("Parse Failure: {:?}", e)),
+        Result::Abort(e) | Result::Fail(e) => Err(format_err(e)),
         Result::Incomplete(_) => Err(format!("Incomplete categories list can not parse")),
         Result::Complete(_, c) => Ok(c),
     }
