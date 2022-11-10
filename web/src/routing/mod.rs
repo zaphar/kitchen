@@ -51,6 +51,9 @@ fn route_switch<'a, G: Html>(cx: Scope<'a>, route: &'a ReadSignal<Routes>) -> Vi
             Routes::Manage(ManageRoutes::NewRecipe) => view! {cx,
                 AddRecipePage()
             },
+            Routes::Manage(ManageRoutes::Staples) => view! {cx,
+                StaplesPage()
+            },
             Routes::NotFound
             | Routes::Manage(ManageRoutes::NotFound)
             | Routes::Planning(PlanningRoutes::NotFound)
@@ -96,6 +99,8 @@ pub enum ManageRoutes {
     NewRecipe,
     #[to("/categories")]
     Categories,
+    #[to("/staples")]
+    Staples,
     #[not_found]
     NotFound,
 }

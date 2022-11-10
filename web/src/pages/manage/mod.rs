@@ -16,6 +16,11 @@ use sycamore::prelude::*;
 
 pub mod add_recipe;
 pub mod categories;
+pub mod staples;
+
+pub use add_recipe::*;
+pub use categories::*;
+pub use staples::*;
 
 #[derive(Props)]
 pub struct PageState<'a, G: Html> {
@@ -29,6 +34,7 @@ pub fn ManagePage<'a, G: Html>(cx: Scope<'a>, state: PageState<'a, G>) -> View<G
     let children = children.call(cx);
     let manage_tabs: Vec<(String, &'static str)> = vec![
         ("/ui/manage/categories".to_owned(), "Categories"),
+        ("/ui/manage/staples".to_owned(), "Staples"),
         ("/ui/manage/new_recipe".to_owned(), "New Recipe"),
     ];
 

@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use super::{RecipePage, RecipePageProps};
+use super::ManagePage;
 use crate::components::recipe::Editor;
 
 use sycamore::prelude::*;
@@ -19,11 +19,10 @@ use tracing::instrument;
 
 #[instrument]
 #[component()]
-pub fn RecipeEditPage<G: Html>(cx: Scope, props: RecipePageProps) -> View<G> {
+pub fn StaplesPage<G: Html>(cx: Scope) -> View<G> {
     view! {cx,
-        RecipePage(
-            selected=Some("Edit".to_owned()),
-            recipe=props.recipe.clone(),
-        ) { Editor(props.recipe) }
+        ManagePage(
+            selected=Some("Staples".to_owned()),
+        ) { Editor("staples.txt".to_owned()) }
     }
 }
