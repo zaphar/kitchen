@@ -15,9 +15,7 @@ use super::ManagePage;
 use crate::components::categories::*;
 
 use sycamore::prelude::*;
-use tracing::instrument;
 
-#[instrument]
 #[component()]
 pub fn CategoryPage<G: Html>(cx: Scope) -> View<G> {
     view! {cx,

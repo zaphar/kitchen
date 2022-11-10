@@ -31,6 +31,7 @@ fn format_err(err: Error<StrIter>) -> String {
     let msg = err.get_msg();
     let context = err.get_context();
     let (line, column) = (context.line(), context.column());
+    // TODO(jwall): It would be nice if we can display out the context line as well here.
     format!("{} at line {} column {}", msg, line, column)
 }
 

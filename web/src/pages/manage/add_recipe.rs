@@ -11,82 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use sycamore::{futures::spawn_local_scoped, prelude::*};
-use tracing::{error, info};
+use super::ManagePage;
+use crate::components::add_recipe::AddRecipe;
 
-use recipes::RecipeEntry;
-
-const STARTER_RECIPE: &'static str = "title: TITLE_PLACEHOLDER
-
-Description here.
-
-step:
-
-1 ingredient
-
-Instructions here
-";
+use sycamore::prelude::*;
 
 #[component]
 pub fn AddRecipePage<G: Html>(cx: Scope) -> View<G> {
-    let recipe_title = create_signal(cx, String::new());
-    let create_recipe_signal = create_signal(cx, ());
-    let dirty = create_signal(cx, false);
-
-    let entry = create_memo(cx, || {
-        RecipeEntry(
-            recipe_title
-                .get()
-                .as_ref()
-                .to_lowercase()
-                .replace(" ", "_")
-                .replace("\n", ""),
-            STARTER_RECIPE
-                .replace("TITLE_PLACEHOLDER", recipe_title.get().as_str())
-                .replace("\r", ""),
-        )
-    });
-
-    create_effect(cx, move || {
-        create_recipe_signal.track();
-        if !*dirty.get_untracked() {
-            return;
-        }
-        spawn_local_scoped(cx, {
-            let store = crate::api::HttpStore::get_from_context(cx);
-            async move {
-                let entry = entry.get_untracked();
-                // TODO(jwall): Better error reporting here.
-                match store.get_recipe_text(entry.recipe_id()).await {
-                    Ok(Some(_)) => {
-                        // TODO(jwall): We should tell the user that this id already exists
-                        info!(recipe_id = entry.recipe_id(), "Recipe already exists");
-                        return;
-                    }
-                    Ok(None) => {
-                        // noop
-                    }
-                    Err(err) => {
-                        // TODO(jwall): We should tell the user that this is failing
-                        error!(?err)
-                    }
-                }
-                store
-                    .save_recipes(vec![entry.as_ref().clone()])
-                    .await
-                    .expect("Unable to save New Recipe");
-                crate::js_lib::navigate_to_path(&format!("/ui/recipe/{}", entry.recipe_id()))
-                    .expect("Unable to navigate to recipe");
-            }
-        });
-    });
     view! {cx,
-        label(for="recipe_title") { "Recipe Title" }
-        input(bind:value=recipe_title, type="text", name="recipe_title", id="recipe_title", on:change=move |_| {
-            dirty.set(true);
-        })
-        button(on:click=move |_| {
-            create_recipe_signal.trigger_subscribers();
-        }) { "Create" }
+        ManagePage(
+            selected=Some("New Recipe".to_owned()),
+        ) { AddRecipe() }
     }
 }
