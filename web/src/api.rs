@@ -62,10 +62,19 @@ pub async fn init_page_state(store: &HttpStore, state: &app_state::State) -> Res
             state.recipes.set(recipes);
         }
     }
-    if let Some(rs) = recipes {
-        for r in rs {
-            if !state.recipe_counts.get().contains_key(r.recipe_id()) {
-                state.set_recipe_count_by_index(&r.recipe_id().to_owned(), 0);
+
+    if let Ok(Some(plan)) = store.get_plan().await {
+        // set the counts.
+        for (id, count) in plan {
+            state.set_recipe_count_by_index(&id, count as usize);
+        }
+    } else {
+        // Initialize things to zero
+        if let Some(rs) = recipes {
+            for r in rs {
+                if !state.recipe_counts.get().contains_key(r.recipe_id()) {
+                    state.set_recipe_count_by_index(&r.recipe_id().to_owned(), 0);
+                }
             }
         }
     }
@@ -305,6 +314,61 @@ impl HttpStore {
         } else {
             debug!("We got a valid response back!");
             Ok(())
+        }
+    }
+
+    pub async fn save_plan(&self, plan: Vec<(String, i32)>) -> Result<(), Error> {
+        let mut path = self.root.clone();
+        path.push_str("/plan");
+        let storage = js_lib::get_storage();
+        let serialized_plan = to_string(&plan).expect("Unable to encode plan as json");
+        storage.set("plan", &serialized_plan)?;
+        let resp = reqwasm::http::Request::post(&path)
+            .body(to_string(&plan).expect("Unable to encode plan as json"))
+            .header("content-type", "application/json")
+            .send()
+            .await?;
+        if resp.status() != 200 {
+            Err(format!("Status: {}", resp.status()).into())
+        } else {
+            debug!("We got a valid response back!");
+            Ok(())
+        }
+    }
+
+    pub async fn get_plan(&self) -> Result<Option<Vec<(String, i32)>>, Error> {
+        let mut path = self.root.clone();
+        path.push_str("/plan");
+        let resp = reqwasm::http::Request::get(&path).send().await?;
+        let storage = js_lib::get_storage();
+        if resp.status() != 200 {
+            Err(format!("Status: {}", resp.status()).into())
+        } else {
+            debug!("We got a valid response back");
+            let plan: Option<Vec<(String, i32)>> =
+                resp.json().await.map_err(|e| format!("{}", e))?;
+            if let Some(ref entry) = plan {
+                let serialized: String = to_string(entry).map_err(|e| format!("{}", e))?;
+                storage.set("plan", &serialized)?
+            }
+            Ok(plan)
+        }
+    }
+
+    pub async fn get_plans_since(
+        &self,
+        date: chrono::NaiveDate,
+    ) -> Result<BTreeMap<chrono::NaiveDate, Vec<(String, i32)>>, Error> {
+        let mut path = self.root.clone();
+        path.push_str("/plan");
+        path.push_str(&format!("/{}", date));
+        // TODO(jwall): How does this play with the cache?
+        let resp = reqwasm::http::Request::get(&path).send().await?;
+        if resp.status() != 200 {
+            Err(format!("Status: {}", resp.status()).into())
+        } else {
+            debug!("We got a valid response back");
+            Ok(resp.json().await?)
         }
     }
 }

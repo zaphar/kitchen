@@ -19,6 +19,7 @@ ciborium = "0.2.0"
 tower = "0.4.13"
 serde = "1.0.144"
 cookie = "0.16.0"
+chrono = "0.4.22"
 
 [dependencies.argon2]
 version = "0.4.1"
@@ -53,4 +54,4 @@ features = ["tokio1"]
 
 [dependencies.sqlx]
 version = "0.6.2"
-features = ["sqlite", "runtime-async-std-rustls", "offline"]
+features = ["sqlite", "runtime-async-std-rustls", "offline", "chrono"]

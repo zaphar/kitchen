@@ -43,5 +43,8 @@ clean:
 sqlx-migrate:
 	cd kitchen; cargo sqlx migrate run --database-url $(sqlite_url)
 
+sqlx-revert:
+	cd kitchen; cargo sqlx migrate revert --database-url $(sqlite_url)
+
 sqlx-prepare:
 	cd kitchen; cargo sqlx prepare --database-url $(sqlite_url)

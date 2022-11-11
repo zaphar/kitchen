@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use async_std::sync::Arc;
-use std::path::Path;
 use std::str::FromStr;
+use std::{collections::BTreeMap, path::Path};
 
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
@@ -26,6 +26,7 @@ use axum::{
     headers::Cookie,
     http::StatusCode,
 };
+use chrono::NaiveDate;
 use ciborium;
 use recipes::RecipeEntry;
 use secrecy::{ExposeSecret, Secret};
@@ -100,6 +101,24 @@ pub trait APIStore {
         user_id: S,
         id: S,
     ) -> Result<Option<RecipeEntry>>;
+
+    async fn fetch_latest_meal_plan<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+    ) -> Result<Option<Vec<(String, i32)>>>;
+
+    async fn fetch_meal_plans_since<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+        date: NaiveDate,
+    ) -> Result<Option<BTreeMap<NaiveDate, Vec<(String, i32)>>>>;
+
+    async fn save_meal_plan<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+        recipe_counts: &Vec<(String, i32)>,
+        date: NaiveDate,
+    ) -> Result<()>;
 }
 
 #[async_trait]
@@ -370,5 +389,94 @@ impl APIStore for SqliteStore {
         .execute(self.pool.as_ref())
         .await?;
         Ok(())
+    }
+
+    async fn save_meal_plan<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+        recipe_counts: &Vec<(String, i32)>,
+        date: NaiveDate,
+    ) -> Result<()> {
+        let user_id = user_id.as_ref();
+        let mut transaction = self.pool.as_ref().begin().await?;
+        for (id, count) in recipe_counts {
+            sqlx::query_file!(
+                "src/web/storage/save_meal_plan.sql",
+                user_id,
+                date,
+                id,
+                count
+            )
+            .execute(&mut transaction)
+            .await?;
+        }
+        transaction.commit().await?;
+        Ok(())
+    }
+
+    async fn fetch_meal_plans_since<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+        date: NaiveDate,
+    ) -> Result<Option<BTreeMap<NaiveDate, Vec<(String, i32)>>>> {
+        let user_id = user_id.as_ref();
+        struct Row {
+            pub plan_date: NaiveDate,
+            pub recipe_id: String,
+            pub count: i64,
+        }
+        // NOTE(jwall): It feels like I shouldn't have to use an override here
+        // but I do because of the way sqlite does types and how that interacts
+        // with sqlx's type inference machinery.
+        let rows = sqlx::query_file_as!(
+            Row,
+            r#"src/web/storage/fetch_meal_plans_since.sql"#,
+            user_id,
+            date
+        )
+        .fetch_all(self.pool.as_ref())
+        .await?;
+        if rows.is_empty() {
+            return Ok(None);
+        }
+        let mut result = BTreeMap::new();
+        for row in rows {
+            let (date, recipe_id, count): (NaiveDate, String, i64) =
+                (row.plan_date, row.recipe_id, row.count);
+            result
+                .entry(date.clone())
+                .or_insert_with(|| Vec::new())
+                .push((recipe_id, count as i32));
+        }
+        Ok(Some(result))
+    }
+
+    async fn fetch_latest_meal_plan<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+    ) -> Result<Option<Vec<(String, i32)>>> {
+        let user_id = user_id.as_ref();
+        struct Row {
+            pub plan_date: NaiveDate,
+            pub recipe_id: String,
+            pub count: i64,
+        }
+        // NOTE(jwall): It feels like I shouldn't have to use an override here
+        // but I do because of the way sqlite does types and how that interacts
+        // with sqlx's type inference machinery.
+        let rows =
+            sqlx::query_file_as!(Row, "src/web/storage/fetch_latest_meal_plan.sql", user_id,)
+                .fetch_all(self.pool.as_ref())
+                .await?;
+        if rows.is_empty() {
+            return Ok(None);
+        }
+        let mut result = Vec::new();
+        for row in rows {
+            let (_, recipe_id, count): (NaiveDate, String, i64) =
+                (row.plan_date, row.recipe_id, row.count);
+            result.push((recipe_id, count as i32));
+        }
+        Ok(Some(result))
     }
 }

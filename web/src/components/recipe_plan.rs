@@ -20,7 +20,7 @@ use crate::{api::*, app_state};
 
 #[allow(non_snake_case)]
 #[instrument]
-pub fn RecipeSelector<G: Html>(cx: Scope) -> View<G> {
+pub fn RecipePlan<G: Html>(cx: Scope) -> View<G> {
     let rows = create_memo(cx, move || {
         let state = app_state::State::get_from_context(cx);
         let mut rows = Vec::new();
@@ -37,9 +37,10 @@ pub fn RecipeSelector<G: Html>(cx: Scope) -> View<G> {
         }
         rows
     });
-    let clicked = create_signal(cx, false);
+    let refresh_click = create_signal(cx, false);
+    let save_click = create_signal(cx, false);
     create_effect(cx, move || {
-        clicked.track();
+        refresh_click.track();
         let store = HttpStore::get_from_context(cx);
         let state = app_state::State::get_from_context(cx);
         spawn_local_scoped(cx, {
@@ -47,8 +48,23 @@ pub fn RecipeSelector<G: Html>(cx: Scope) -> View<G> {
                 if let Err(err) = init_page_state(store.as_ref(), state.as_ref()).await {
                     error!(?err);
                 };
+                state.reset_recipe_counts();
             }
         });
+    });
+    create_effect(cx, move || {
+        save_click.track();
+        let store = HttpStore::get_from_context(cx);
+        let state = app_state::State::get_from_context(cx);
+        spawn_local_scoped(cx, {
+            let mut plan = Vec::new();
+            for (key, count) in state.recipe_counts.get_untracked().iter() {
+                plan.push((key.clone(), *count.get_untracked() as i32));
+            }
+            async move {
+                store.save_plan(plan).await.expect("Failed to save plan");
+            }
+        })
     });
     view! {cx,
         table(class="recipe_selector no-print") {
@@ -69,10 +85,15 @@ pub fn RecipeSelector<G: Html>(cx: Scope) -> View<G> {
                 }).collect()
             ))
         }
-        input(type="button", value="Refresh Recipes", on:click=move |_| {
+        input(type="button", value="Reset Recipes", on:click=move |_| {
             // Poor man's click event signaling.
-            let toggle = !*clicked.get();
-            clicked.set(toggle);
+            let toggle = !*refresh_click.get();
+            refresh_click.set(toggle);
+        })
+        input(type="button", value="Save Plan", on:click=move |_| {
+            // Poor man's click event signaling.
+            let toggle = !*save_click.get();
+            save_click.set(toggle);
         })
     }
 }

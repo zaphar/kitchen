@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use super::PlanningPage;
-use crate::components::recipe_selector::*;
+use crate::components::recipe_plan::*;
 
 use sycamore::prelude::*;
 
@@ -21,6 +21,6 @@ pub fn PlanPage<G: Html>(cx: Scope) -> View<G> {
     view! {cx,
         PlanningPage(
             selected=Some("Plan".to_owned()),
-        ) { RecipeSelector() }
+        ) { RecipePlan() }
     }
 }

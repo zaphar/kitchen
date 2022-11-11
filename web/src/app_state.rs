@@ -19,7 +19,7 @@ use tracing::{debug, instrument, warn};
 use recipes::{Ingredient, IngredientAccumulator, Recipe};
 
 pub struct State {
-    pub recipe_counts: RcSignal<BTreeMap<String, usize>>,
+    pub recipe_counts: RcSignal<BTreeMap<String, RcSignal<usize>>>,
     pub extras: RcSignal<Vec<(usize, (RcSignal<String>, RcSignal<String>))>>,
     pub staples: RcSignal<Option<Recipe>>,
     pub recipes: RcSignal<BTreeMap<String, Recipe>>,
@@ -45,12 +45,12 @@ impl State {
         use_context::<std::rc::Rc<Self>>(cx).clone()
     }
 
-    pub fn get_menu_list(&self) -> Vec<(String, usize)> {
+    pub fn get_menu_list(&self) -> Vec<(String, RcSignal<usize>)> {
         self.recipe_counts
             .get()
             .iter()
-            .map(|(k, v)| (k.clone(), *v))
-            .filter(|(_, v)| *v != 0)
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .filter(|(_, v)| *(v.get_untracked()) != 0)
             .collect()
     }
 
@@ -62,7 +62,7 @@ impl State {
         let mut acc = IngredientAccumulator::new();
         let recipe_counts = self.get_menu_list();
         for (idx, count) in recipe_counts.iter() {
-            for _ in 0..*count {
+            for _ in 0..*count.get_untracked() {
                 acc.accumulate_from(
                     self.recipes
                         .get()
@@ -96,14 +96,27 @@ impl State {
         groups
     }
 
-    pub fn get_recipe_count_by_index(&self, key: &String) -> Option<usize> {
-        self.recipe_counts.get().get(key).cloned()
+    /// Retrieves the count for a recipe without triggering subscribers to the entire
+    /// recipe count set.
+    pub fn get_recipe_count_by_index(&self, key: &String) -> Option<RcSignal<usize>> {
+        self.recipe_counts.get_untracked().get(key).cloned()
     }
 
-    pub fn set_recipe_count_by_index(&self, key: &String, count: usize) -> usize {
-        let mut counts = self.recipe_counts.get().as_ref().clone();
-        counts.insert(key.clone(), count);
+    pub fn reset_recipe_counts(&self) {
+        for (key, count) in self.recipe_counts.get_untracked().iter() {
+            count.set(0);
+        }
+    }
+
+    /// Set the recipe_count by index. Does not trigger subscribers to the entire set of recipe_counts.
+    /// This does trigger subscribers of the specific recipe you are updating though.
+    pub fn set_recipe_count_by_index(&self, key: &String, count: usize) -> RcSignal<usize> {
+        let mut counts = self.recipe_counts.get_untracked().as_ref().clone();
+        counts
+            .entry(key.clone())
+            .and_modify(|e| e.set(count))
+            .or_insert_with(|| create_rc_signal(count));
         self.recipe_counts.set(counts);
-        count
+        self.recipe_counts.get_untracked().get(key).unwrap().clone()
     }
 }

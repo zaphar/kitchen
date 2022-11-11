@@ -43,6 +43,15 @@ pub fn RecipeSelection<G: Html>(cx: Scope, props: RecipeCheckBoxProps) -> View<G
                 .unwrap_or_else(|| state.set_recipe_count_by_index(id.as_ref(), 0))
         ),
     );
+    create_effect(cx, {
+        let id = id.clone();
+        let state = app_state::State::get_from_context(cx);
+        move || {
+            if let Some(usize_count) = state.get_recipe_count_by_index(id.as_ref()) {
+                count.set(format!("{}", *usize_count.get()));
+            }
+        }
+    });
     let title = props.title.get().clone();
     let for_id = id.clone();
     let href = format!("/ui/recipe/view/{}", id);
@@ -51,6 +60,7 @@ pub fn RecipeSelection<G: Html>(cx: Scope, props: RecipeCheckBoxProps) -> View<G
         div() {
             label(for=for_id) { a(href=href) { (*title) } }
             input(type="number", class="item-count-sel", min="0", bind:value=count, name=name, on:change=move |_| {
+                let state = app_state::State::get_from_context(cx);
                 debug!(idx=%id, count=%(*count.get()), "setting recipe count");
                 state.set_recipe_count_by_index(id.as_ref(), count.get().parse().expect("recipe count isn't a valid usize number"));
             })

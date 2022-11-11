@@ -181,13 +181,80 @@ async fn api_save_recipes(
 ) -> impl IntoResponse {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
-        if let Err(e) = app_store
+        let result = app_store
             .store_recipes_for_user(id.as_str(), &recipes)
+            .await;
+        match result.map_err(|e| format!("Error: {:?}", e)) {
+            Ok(val) => Ok(axum::Json::from(val)),
+            Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e)),
+        }
+    } else {
+        Err((
+            StatusCode::UNAUTHORIZED,
+            "You must be authorized to use this API call".to_owned(),
+        ))
+    }
+}
+
+async fn api_plan(
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+) -> impl IntoResponse {
+    use storage::{UserId, UserIdFromSession::FoundUserId};
+    if let FoundUserId(UserId(id)) = session {
+        match app_store
+            .fetch_latest_meal_plan(&id)
+            .await
+            .map_err(|e| format!("Error: {:?}", e))
+        {
+            Ok(val) => Ok(axum::Json::from(val)),
+            Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e)),
+        }
+    } else {
+        Err((
+            StatusCode::UNAUTHORIZED,
+            "You must be authorized to use this API call".to_owned(),
+        ))
+    }
+}
+
+async fn api_plan_since(
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+    Path(date): Path<chrono::NaiveDate>,
+) -> impl IntoResponse {
+    use storage::{UserId, UserIdFromSession::FoundUserId};
+    if let FoundUserId(UserId(id)) = session {
+        match app_store
+            .fetch_meal_plans_since(&id, date)
+            .await
+            .map_err(|e| format!("Error: {:?}", e))
+        {
+            Ok(val) => Ok(axum::Json::from(val)),
+            Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e)),
+        }
+    } else {
+        Err((
+            StatusCode::UNAUTHORIZED,
+            "You must be authorized to use this API call".to_owned(),
+        ))
+    }
+}
+
+async fn api_save_plan(
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+    Json(meal_plan): Json<Vec<(String, i32)>>,
+) -> impl IntoResponse {
+    use storage::{UserId, UserIdFromSession::FoundUserId};
+    if let FoundUserId(UserId(id)) = session {
+        if let Err(e) = app_store
+            .save_meal_plan(id.as_str(), &meal_plan, chrono::Local::now().date_naive())
             .await
         {
             return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", e));
         }
-        (StatusCode::OK, "Successfully saved categories".to_owned())
+        (StatusCode::OK, "Successfully saved mealPlan".to_owned())
     } else {
         (
             StatusCode::UNAUTHORIZED,
@@ -214,6 +281,9 @@ pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socke
         .route("/api/v1/recipes", get(api_recipes).post(api_save_recipes))
         // recipe entry api path route
         .route("/api/v1/recipe/:recipe_id", get(api_recipe_entry))
+        // mealplan api path routes
+        .route("/api/v1/plan", get(api_plan).post(api_save_plan))
+        .route("/api/v1/plan/:date", get(api_plan_since))
         // categories api path route
         .route(
             "/api/v1/categories",
