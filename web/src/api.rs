@@ -11,14 +11,14 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use reqwasm;
 use serde_json::{from_str, to_string};
 use sycamore::prelude::*;
 use tracing::{debug, error, info, instrument, warn};
 
-use recipes::{parse, Recipe, RecipeEntry};
+use recipes::{parse, IngredientKey, Recipe, RecipeEntry};
 use wasm_bindgen::JsValue;
 
 use crate::{app_state, js_lib};
@@ -87,6 +87,16 @@ pub async fn init_page_state(store: &HttpStore, state: &app_state::State) -> Res
         }
         Ok(None) => {
             warn!("There is no category file");
+        }
+        Err(e) => {
+            error!("{:?}", e);
+        }
+    }
+    info!("Synchronizing inventory data");
+    match store.get_inventory_data().await {
+        Ok((filtered_ingredients, modified_amts)) => {
+            state.reset_modified_amts(modified_amts);
+            state.filtered_ingredients.set(filtered_ingredients);
         }
         Err(e) => {
             error!("{:?}", e);
@@ -369,6 +379,43 @@ impl HttpStore {
         } else {
             debug!("We got a valid response back");
             Ok(resp.json().await?)
+        }
+    }
+
+    pub async fn get_inventory_data(
+        &self,
+    ) -> Result<(BTreeSet<IngredientKey>, BTreeMap<IngredientKey, String>), Error> {
+        let mut path = self.root.clone();
+        path.push_str("/inventory");
+        let resp = reqwasm::http::Request::get(&path).send().await?;
+        if resp.status() != 200 {
+            Err(format!("Status: {}", resp.status()).into())
+        } else {
+            debug!("We got a valid response back");
+            let inventory = resp.json().await.map_err(|e| format!("{}", e))?;
+            Ok(inventory)
+        }
+    }
+
+    pub async fn save_inventory_data(
+        &self,
+        filtered_ingredients: BTreeSet<IngredientKey>,
+        modified_amts: BTreeMap<IngredientKey, String>,
+    ) -> Result<(), Error> {
+        let mut path = self.root.clone();
+        let serialized_inventory = to_string(&(filtered_ingredients, modified_amts))
+            .expect("Unable to encode plan as json");
+        path.push_str("/inventory");
+        let resp = reqwasm::http::Request::post(&path)
+            .body(&serialized_inventory)
+            .header("content-type", "application/json")
+            .send()
+            .await?;
+        if resp.status() != 200 {
+            Err(format!("Status: {}", resp.status()).into())
+        } else {
+            debug!("We got a valid response back!");
+            Ok(())
         }
     }
 }

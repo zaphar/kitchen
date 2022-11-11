@@ -14,13 +14,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use recipes::{Ingredient, IngredientKey};
-use sycamore::prelude::*;
+use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{debug, instrument};
 
 fn make_ingredients_rows<'ctx, G: Html>(
     cx: Scope<'ctx>,
     ingredients: &'ctx ReadSignal<Vec<(IngredientKey, (Ingredient, BTreeSet<String>))>>,
-    modified_amts: &'ctx Signal<BTreeMap<IngredientKey, RcSignal<String>>>,
+    modified_amts: RcSignal<BTreeMap<IngredientKey, RcSignal<String>>>,
     filtered_keys: RcSignal<BTreeSet<IngredientKey>>,
 ) -> View<G> {
     view!(
@@ -111,7 +111,7 @@ fn make_extras_rows<'ctx, G: Html>(
 fn make_shopping_table<'ctx, G: Html>(
     cx: Scope<'ctx>,
     ingredients: &'ctx ReadSignal<Vec<(IngredientKey, (Ingredient, BTreeSet<String>))>>,
-    modified_amts: &'ctx Signal<BTreeMap<IngredientKey, RcSignal<String>>>,
+    modified_amts: RcSignal<BTreeMap<IngredientKey, RcSignal<String>>>,
     extras: RcSignal<Vec<(usize, (RcSignal<String>, RcSignal<String>))>>,
     filtered_keys: RcSignal<BTreeSet<IngredientKey>>,
 ) -> View<G> {
@@ -137,10 +137,12 @@ fn make_shopping_table<'ctx, G: Html>(
 #[instrument]
 #[component]
 pub fn ShoppingList<G: Html>(cx: Scope) -> View<G> {
-    let filtered_keys: RcSignal<BTreeSet<IngredientKey>> = create_rc_signal(BTreeSet::new());
+    let state = crate::app_state::State::get_from_context(cx);
+    // FIXME(jwall): We need to init this state for the page at some point.
+    let filtered_keys: RcSignal<BTreeSet<IngredientKey>> = state.filtered_ingredients.clone();
     let ingredients_map = create_rc_signal(BTreeMap::new());
-    let modified_amts = create_signal(cx, BTreeMap::new());
     let show_staples = create_signal(cx, true);
+    let save_click = create_signal(cx, ());
     create_effect(cx, {
         let state = crate::app_state::State::get_from_context(cx);
         let ingredients_map = ingredients_map.clone();
@@ -174,7 +176,7 @@ pub fn ShoppingList<G: Html>(cx: Scope) -> View<G> {
                 table_view.set(make_shopping_table(
                     cx,
                     ingredients,
-                    modified_amts.clone(),
+                    state.modified_amts.clone(),
                     state.extras.clone(),
                     filtered_keys.clone(),
                 ));
@@ -182,6 +184,22 @@ pub fn ShoppingList<G: Html>(cx: Scope) -> View<G> {
                 table_view.set(View::empty());
             }
         }
+    });
+    create_effect(cx, move || {
+        save_click.track();
+        spawn_local_scoped(cx, {
+            let state = crate::app_state::State::get_from_context(cx);
+            let store = crate::api::HttpStore::get_from_context(cx);
+            async move {
+                store
+                    .save_inventory_data(
+                        state.filtered_ingredients.get_untracked().as_ref().clone(),
+                        state.get_current_modified_amts(),
+                    )
+                    .await
+                    .expect("Unable to save inventory data");
+            }
+        })
     });
     let state = crate::app_state::State::get_from_context(cx);
     view! {cx,
@@ -201,9 +219,12 @@ pub fn ShoppingList<G: Html>(cx: Scope) -> View<G> {
                 ingredients_map.set(state.get_shopping_list(*show_staples.get()));
                 // clear the filter_signal
                 filtered_keys.set(BTreeSet::new());
-                modified_amts.set(BTreeMap::new());
+                state.modified_amts.set(BTreeMap::new());
                 state.extras.set(Vec::new());
             }
+        })
+        input(type="button", value="Save", class="no-print", on:click=|_| {
+            save_click.trigger_subscribers();
         })
     }
 }

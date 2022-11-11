@@ -1,0 +1,1 @@
+select name, form, measure_type, amt from modified_amts where user_id = ?;

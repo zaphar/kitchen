@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use sycamore::prelude::*;
 use tracing::{debug, instrument, warn};
 
-use recipes::{Ingredient, IngredientAccumulator, Recipe};
+use recipes::{Ingredient, IngredientAccumulator, IngredientKey, Recipe};
 
 pub struct State {
     pub recipe_counts: RcSignal<BTreeMap<String, RcSignal<usize>>>,
@@ -24,6 +24,8 @@ pub struct State {
     pub staples: RcSignal<Option<Recipe>>,
     pub recipes: RcSignal<BTreeMap<String, Recipe>>,
     pub category_map: RcSignal<BTreeMap<String, String>>,
+    pub filtered_ingredients: RcSignal<BTreeSet<IngredientKey>>,
+    pub modified_amts: RcSignal<BTreeMap<IngredientKey, RcSignal<String>>>,
 }
 
 impl State {
@@ -34,6 +36,8 @@ impl State {
             staples: create_rc_signal(None),
             recipes: create_rc_signal(BTreeMap::new()),
             category_map: create_rc_signal(BTreeMap::new()),
+            filtered_ingredients: create_rc_signal(BTreeSet::new()),
+            modified_amts: create_rc_signal(BTreeMap::new()),
         }
     }
 
@@ -103,7 +107,7 @@ impl State {
     }
 
     pub fn reset_recipe_counts(&self) {
-        for (key, count) in self.recipe_counts.get_untracked().iter() {
+        for (_, count) in self.recipe_counts.get_untracked().iter() {
             count.set(0);
         }
     }
@@ -118,5 +122,24 @@ impl State {
             .or_insert_with(|| create_rc_signal(count));
         self.recipe_counts.set(counts);
         self.recipe_counts.get_untracked().get(key).unwrap().clone()
+    }
+
+    pub fn get_current_modified_amts(&self) -> BTreeMap<IngredientKey, String> {
+        let mut modified_amts = BTreeMap::new();
+        for (key, amt) in self.modified_amts.get_untracked().iter() {
+            modified_amts.insert(key.clone(), amt.get_untracked().as_ref().clone());
+        }
+        modified_amts
+    }
+
+    pub fn reset_modified_amts(&self, modified_amts: BTreeMap<IngredientKey, String>) {
+        let mut modified_amts_copy = self.modified_amts.get().as_ref().clone();
+        for (key, amt) in modified_amts {
+            modified_amts_copy
+                .entry(key)
+                .and_modify(|amt_signal| amt_signal.set(amt.clone()))
+                .or_insert_with(|| create_rc_signal(amt));
+        }
+        self.modified_amts.set(modified_amts_copy);
     }
 }

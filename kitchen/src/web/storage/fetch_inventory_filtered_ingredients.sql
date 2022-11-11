@@ -1,0 +1,1 @@
+select name, form, measure_type from filtered_ingredients where user_id = ?

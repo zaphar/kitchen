@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 // Copyright 2022 Jeremy Wall
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,9 +12,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::{collections::BTreeSet, net::SocketAddr};
 
 use axum::{
     body::{boxed, Full},
@@ -23,11 +24,11 @@ use axum::{
     routing::{get, Router},
 };
 use mime_guess;
-use recipes::RecipeEntry;
+use recipes::{IngredientKey, RecipeEntry};
 use rust_embed::RustEmbed;
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
-use tracing::{debug, info, instrument};
+use tracing::{debug, error, info, instrument};
 
 use storage::{APIStore, AuthStore};
 
@@ -263,6 +264,56 @@ async fn api_save_plan(
     }
 }
 
+async fn api_inventory(
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+) -> impl IntoResponse {
+    use storage::{UserId, UserIdFromSession::FoundUserId};
+    if let FoundUserId(UserId(id)) = session {
+        match app_store.fetch_inventory_data(id).await {
+            Ok(tpl) => Ok(axum::Json::from(tpl)),
+            Err(e) => {
+                error!(err=?e);
+                Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", e)))
+            }
+        }
+    } else {
+        Err((
+            StatusCode::UNAUTHORIZED,
+            "You must be authorized to use this API call".to_owned(),
+        ))
+    }
+}
+
+async fn api_save_inventory(
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+    Json((filtered_ingredients, modified_amts)): Json<(
+        BTreeSet<IngredientKey>,
+        BTreeMap<IngredientKey, String>,
+    )>,
+) -> impl IntoResponse {
+    use storage::{UserId, UserIdFromSession::FoundUserId};
+    if let FoundUserId(UserId(id)) = session {
+        if let Err(e) = app_store
+            .save_inventory_data(id, filtered_ingredients, modified_amts)
+            .await
+        {
+            error!(err=?e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", e));
+        }
+        (
+            StatusCode::OK,
+            "Successfully saved inventory data".to_owned(),
+        )
+    } else {
+        (
+            StatusCode::UNAUTHORIZED,
+            "You must be authorized to use this API call".to_owned(),
+        )
+    }
+}
+
 #[instrument(fields(recipe_dir=?recipe_dir_path,listen=?listen_socket), skip_all)]
 pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socket: SocketAddr) {
     let store = Arc::new(storage::file_store::AsyncFileStore::new(
@@ -281,9 +332,16 @@ pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socke
         .route("/api/v1/recipes", get(api_recipes).post(api_save_recipes))
         // recipe entry api path route
         .route("/api/v1/recipe/:recipe_id", get(api_recipe_entry))
+        // TODO(jwall): We should use route_layer to enforce the authorization
+        // requirements here.
         // mealplan api path routes
         .route("/api/v1/plan", get(api_plan).post(api_save_plan))
         .route("/api/v1/plan/:date", get(api_plan_since))
+        // Inventory api path route
+        .route(
+            "/api/v1/inventory",
+            get(api_inventory).post(api_save_inventory),
+        )
         // categories api path route
         .route(
             "/api/v1/categories",

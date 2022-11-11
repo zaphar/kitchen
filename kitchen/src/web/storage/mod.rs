@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use async_std::sync::Arc;
+use std::collections::BTreeSet;
 use std::str::FromStr;
 use std::{collections::BTreeMap, path::Path};
 
@@ -28,7 +29,7 @@ use axum::{
 };
 use chrono::NaiveDate;
 use ciborium;
-use recipes::RecipeEntry;
+use recipes::{IngredientKey, RecipeEntry};
 use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
 use sqlx::{
@@ -118,6 +119,18 @@ pub trait APIStore {
         user_id: S,
         recipe_counts: &Vec<(String, i32)>,
         date: NaiveDate,
+    ) -> Result<()>;
+
+    async fn fetch_inventory_data<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+    ) -> Result<(BTreeSet<IngredientKey>, BTreeMap<IngredientKey, String>)>;
+
+    async fn save_inventory_data<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+        filtered_ingredients: BTreeSet<IngredientKey>,
+        modified_amts: BTreeMap<IngredientKey, String>,
     ) -> Result<()>;
 }
 
@@ -478,5 +491,107 @@ impl APIStore for SqliteStore {
             result.push((recipe_id, count as i32));
         }
         Ok(Some(result))
+    }
+
+    async fn fetch_inventory_data<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+    ) -> Result<(BTreeSet<IngredientKey>, BTreeMap<IngredientKey, String>)> {
+        let user_id = user_id.as_ref();
+        struct FilteredIngredientRow {
+            name: String,
+            form: String,
+            measure_type: String,
+        }
+        let filtered_ingredient_rows: Vec<FilteredIngredientRow> = sqlx::query_file_as!(
+            FilteredIngredientRow,
+            "src/web/storage/fetch_inventory_filtered_ingredients.sql",
+            user_id
+        )
+        .fetch_all(self.pool.as_ref())
+        .await?;
+        let mut filtered_ingredients = BTreeSet::new();
+        for row in filtered_ingredient_rows {
+            filtered_ingredients.insert(IngredientKey::new(
+                row.name,
+                if row.form.is_empty() {
+                    None
+                } else {
+                    Some(row.form)
+                },
+                row.measure_type,
+            ));
+        }
+        struct ModifiedAmtRow {
+            name: String,
+            form: String,
+            measure_type: String,
+            amt: String,
+        }
+        let modified_amt_rows = sqlx::query_file_as!(
+            ModifiedAmtRow,
+            "src/web/storage/fetch_inventory_modified_amts.sql",
+            user_id,
+        )
+        .fetch_all(self.pool.as_ref())
+        .await?;
+        let mut modified_amts = BTreeMap::new();
+        for row in modified_amt_rows {
+            modified_amts.insert(
+                IngredientKey::new(
+                    row.name,
+                    if row.form.is_empty() {
+                        None
+                    } else {
+                        Some(row.form)
+                    },
+                    row.measure_type,
+                ),
+                row.amt,
+            );
+        }
+        Ok((filtered_ingredients, modified_amts))
+    }
+
+    async fn save_inventory_data<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+        filtered_ingredients: BTreeSet<IngredientKey>,
+        modified_amts: BTreeMap<IngredientKey, String>,
+    ) -> Result<()> {
+        let user_id = user_id.as_ref();
+        let mut transaction = self.pool.as_ref().begin().await?;
+        for key in filtered_ingredients {
+            let name = key.name();
+            let form = key.form();
+            let measure_type = key.measure_type();
+            sqlx::query_file!(
+                "src/web/storage/save_inventory_filtered_ingredients.sql",
+                user_id,
+                name,
+                form,
+                measure_type,
+            )
+            .execute(&mut transaction)
+            .await?;
+        }
+        for (key, amt) in modified_amts {
+            let name = key.name();
+            let form = key.form();
+            let measure_type = key.measure_type();
+            let amt = &amt;
+            sqlx::query_file!(
+                "src/web/storage/save_inventory_modified_amts.sql",
+                user_id,
+                name,
+                form,
+                measure_type,
+                amt,
+            )
+            .execute(&mut transaction)
+            .await?;
+        }
+        transaction.commit().await?;
+        Ok(())
     }
 }

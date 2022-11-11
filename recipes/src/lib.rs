@@ -202,8 +202,26 @@ impl Step {
 
 /// Unique identifier for an Ingredient. Ingredients are identified by name, form,
 /// and measurement type. (Volume, Count, Weight)
-#[derive(PartialEq, PartialOrd, Eq, Ord, Clone, Hash, Debug)]
+#[derive(PartialEq, PartialOrd, Eq, Ord, Clone, Hash, Debug, Deserialize, Serialize)]
 pub struct IngredientKey(String, Option<String>, String);
+
+impl IngredientKey {
+    pub fn new(name: String, form: Option<String>, measure_type: String) -> Self {
+        Self(name, form, measure_type)
+    }
+
+    pub fn name(&self) -> &String {
+        &self.0
+    }
+
+    pub fn form(&self) -> String {
+        self.1.clone().unwrap_or_else(|| String::new())
+    }
+
+    pub fn measure_type(&self) -> &String {
+        &self.2
+    }
+}
 
 /// Ingredient in a recipe. The `name` and `form` fields with the measurement type
 /// uniquely identify an ingredient.

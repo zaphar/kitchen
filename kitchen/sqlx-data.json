@@ -1,5 +1,15 @@
 {
   "db": "SQLite",
+  "0e06f6e072e2c55769feda0d5f998509139097fee640caf8fb38c7087669bee4": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 4
+      }
+    },
+    "query": "insert into filtered_ingredients(user_id, name, form, measure_type)\n    values (?, ?, ?, ?)"
+  },
   "104f07472670436d3eee1733578bbf0c92dc4f965d3d13f9bf4bfbc92958c5b6": {
     "describe": {
       "columns": [
@@ -48,7 +58,7 @@
         {
           "name": "plan_date: NaiveDate",
           "ordinal": 0,
-          "type_info": "Text"
+          "type_info": "Date"
         },
         {
           "name": "recipe_id",
@@ -81,6 +91,16 @@
       }
     },
     "query": "insert into recipes (user_id, recipe_id, recipe_text) values (?, ?, ?)\n    on conflict(user_id, recipe_id) do update set recipe_text=excluded.recipe_text"
+  },
+  "512003bd6ef47567b243bbcaefcbd220acf36efab4cbd43b1a8debe59593577c": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 5
+      }
+    },
+    "query": "insert into modified_amts(user_id, name, form, measure_type, amt)\n    values (?, ?, ?, ?, ?)"
   },
   "5d743897fb0d8fd54c3708f1b1c6e416346201faa9e28823c1ba5a421472b1fa": {
     "describe": {
@@ -170,7 +190,7 @@
         {
           "name": "plan_date: NaiveDate",
           "ordinal": 0,
-          "type_info": "Text"
+          "type_info": "Date"
         },
         {
           "name": "recipe_id",
@@ -222,6 +242,36 @@
     },
     "query": "select category_text from categories where user_id = ?"
   },
+  "d7d94a87b0153d1436eac0f6db820f25594e94decc8d740037c10802aa49157f": {
+    "describe": {
+      "columns": [
+        {
+          "name": "name",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "form",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "measure_type",
+          "ordinal": 2,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select name, form, measure_type from filtered_ingredients where user_id = ?"
+  },
   "d84685a82585c5e4ae72c86ba1fe6e4a7241c4c3c9e948213e5849d956132bad": {
     "describe": {
       "columns": [],
@@ -231,5 +281,41 @@
       }
     },
     "query": "delete from sessions"
+  },
+  "fc294739374d2a791214f747095e0bf9378989d1ff07d96a5431dbb208f21951": {
+    "describe": {
+      "columns": [
+        {
+          "name": "name",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "form",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "measure_type",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "amt",
+          "ordinal": 3,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select name, form, measure_type, amt from modified_amts where user_id = ?;"
   }
 }
