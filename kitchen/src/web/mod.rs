@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 // Copyright 2022 Jeremy Wall
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,9 +11,9 @@ use std::collections::BTreeMap;
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::{collections::BTreeSet, net::SocketAddr};
 
 use axum::{
     body::{boxed, Full},
@@ -289,12 +288,14 @@ async fn api_save_inventory(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
     Json((filtered_ingredients, modified_amts)): Json<(
-        BTreeSet<IngredientKey>,
-        BTreeMap<IngredientKey, String>,
+        Vec<IngredientKey>,
+        Vec<(IngredientKey, String)>,
     )>,
 ) -> impl IntoResponse {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
+        let filtered_ingredients = filtered_ingredients.into_iter().collect();
+        let modified_amts = modified_amts.into_iter().collect();
         if let Err(e) = app_store
             .save_inventory_data(id, filtered_ingredients, modified_amts)
             .await

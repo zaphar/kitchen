@@ -15,7 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use recipes::{Ingredient, IngredientKey};
 use sycamore::{futures::spawn_local_scoped, prelude::*};
-use tracing::{debug, instrument};
+use tracing::{debug, info, instrument};
 
 fn make_ingredients_rows<'ctx, G: Html>(
     cx: Scope<'ctx>,
@@ -187,15 +187,20 @@ pub fn ShoppingList<G: Html>(cx: Scope) -> View<G> {
     });
     create_effect(cx, move || {
         save_click.track();
+        info!("Registering save request for inventory");
         spawn_local_scoped(cx, {
             let state = crate::app_state::State::get_from_context(cx);
             let store = crate::api::HttpStore::get_from_context(cx);
+            let filtered_ingredients = state.filtered_ingredients.get_untracked().as_ref().clone();
+            let modified_amts = state.get_current_modified_amts();
             async move {
+                debug!(
+                    ?filtered_ingredients,
+                    ?modified_amts,
+                    "Attempting save for inventory"
+                );
                 store
-                    .save_inventory_data(
-                        state.filtered_ingredients.get_untracked().as_ref().clone(),
-                        state.get_current_modified_amts(),
-                    )
+                    .save_inventory_data(filtered_ingredients, modified_amts)
                     .await
                     .expect("Unable to save inventory data");
             }

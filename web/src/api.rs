@@ -392,8 +392,14 @@ impl HttpStore {
             Err(format!("Status: {}", resp.status()).into())
         } else {
             debug!("We got a valid response back");
-            let inventory = resp.json().await.map_err(|e| format!("{}", e))?;
-            Ok(inventory)
+            let (filtered_ingredients, modified_amts): (
+                Vec<IngredientKey>,
+                Vec<(IngredientKey, String)>,
+            ) = resp.json().await.map_err(|e| format!("{}", e))?;
+            Ok((
+                filtered_ingredients.into_iter().collect(),
+                modified_amts.into_iter().collect(),
+            ))
         }
     }
 
@@ -403,6 +409,8 @@ impl HttpStore {
         modified_amts: BTreeMap<IngredientKey, String>,
     ) -> Result<(), Error> {
         let mut path = self.root.clone();
+        let filtered_ingredients: Vec<IngredientKey> = filtered_ingredients.into_iter().collect();
+        let modified_amts: Vec<(IngredientKey, String)> = modified_amts.into_iter().collect();
         let serialized_inventory = to_string(&(filtered_ingredients, modified_amts))
             .expect("Unable to encode plan as json");
         path.push_str("/inventory");

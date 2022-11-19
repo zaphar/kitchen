@@ -124,7 +124,7 @@ pub trait APIStore {
     async fn fetch_inventory_data<S: AsRef<str> + Send>(
         &self,
         user_id: S,
-    ) -> Result<(BTreeSet<IngredientKey>, BTreeMap<IngredientKey, String>)>;
+    ) -> Result<(Vec<IngredientKey>, Vec<(IngredientKey, String)>)>;
 
     async fn save_inventory_data<S: AsRef<str> + Send>(
         &self,
@@ -496,7 +496,7 @@ impl APIStore for SqliteStore {
     async fn fetch_inventory_data<S: AsRef<str> + Send>(
         &self,
         user_id: S,
-    ) -> Result<(BTreeSet<IngredientKey>, BTreeMap<IngredientKey, String>)> {
+    ) -> Result<(Vec<IngredientKey>, Vec<(IngredientKey, String)>)> {
         let user_id = user_id.as_ref();
         struct FilteredIngredientRow {
             name: String,
@@ -510,9 +510,9 @@ impl APIStore for SqliteStore {
         )
         .fetch_all(self.pool.as_ref())
         .await?;
-        let mut filtered_ingredients = BTreeSet::new();
+        let mut filtered_ingredients = Vec::new();
         for row in filtered_ingredient_rows {
-            filtered_ingredients.insert(IngredientKey::new(
+            filtered_ingredients.push(IngredientKey::new(
                 row.name,
                 if row.form.is_empty() {
                     None
@@ -535,9 +535,9 @@ impl APIStore for SqliteStore {
         )
         .fetch_all(self.pool.as_ref())
         .await?;
-        let mut modified_amts = BTreeMap::new();
+        let mut modified_amts = Vec::new();
         for row in modified_amt_rows {
-            modified_amts.insert(
+            modified_amts.push((
                 IngredientKey::new(
                     row.name,
                     if row.form.is_empty() {
@@ -548,7 +548,7 @@ impl APIStore for SqliteStore {
                     row.measure_type,
                 ),
                 row.amt,
-            );
+            ));
         }
         Ok((filtered_ingredients, modified_amts))
     }
@@ -561,6 +561,15 @@ impl APIStore for SqliteStore {
     ) -> Result<()> {
         let user_id = user_id.as_ref();
         let mut transaction = self.pool.as_ref().begin().await?;
+        sqlx::query!(
+            "delete from filtered_ingredients where user_id = ?",
+            user_id
+        )
+        .execute(&mut transaction)
+        .await?;
+        sqlx::query!("delete from modified_amts where user_id = ?", user_id)
+            .execute(&mut transaction)
+            .await?;
         for key in filtered_ingredients {
             let name = key.name();
             let form = key.form();

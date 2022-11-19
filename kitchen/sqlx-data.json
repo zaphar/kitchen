@@ -1,14 +1,14 @@
 {
   "db": "SQLite",
-  "0e06f6e072e2c55769feda0d5f998509139097fee640caf8fb38c7087669bee4": {
+  "07f619ff4474e9eb5f4d56497abb724e6952b4e43d681ba5ecd61490cf990ae9": {
     "describe": {
       "columns": [],
       "nullable": [],
       "parameters": {
-        "Right": 4
+        "Right": 1
       }
     },
-    "query": "insert into filtered_ingredients(user_id, name, form, measure_type)\n    values (?, ?, ?, ?)"
+    "query": "delete from filtered_ingredients where user_id = ?"
   },
   "104f07472670436d3eee1733578bbf0c92dc4f965d3d13f9bf4bfbc92958c5b6": {
     "describe": {
@@ -92,16 +92,6 @@
     },
     "query": "insert into recipes (user_id, recipe_id, recipe_text) values (?, ?, ?)\n    on conflict(user_id, recipe_id) do update set recipe_text=excluded.recipe_text"
   },
-  "512003bd6ef47567b243bbcaefcbd220acf36efab4cbd43b1a8debe59593577c": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 5
-      }
-    },
-    "query": "insert into modified_amts(user_id, name, form, measure_type, amt)\n    values (?, ?, ?, ?, ?)"
-  },
   "5d743897fb0d8fd54c3708f1b1c6e416346201faa9e28823c1ba5a421472b1fa": {
     "describe": {
       "columns": [],
@@ -183,6 +173,16 @@
       }
     },
     "query": "insert into sessions (id, session_value) values (?, ?)"
+  },
+  "9e24ed2ea4d235e3a036025a0a0b5ea685546a81d7f2469a59a2fc1fc88798dc": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "delete from modified_amts where user_id = ?"
   },
   "ad3408cd773dd8f9308255ec2800171638a1aeda9817c57fb8360f97115f8e97": {
     "describe": {
@@ -282,6 +282,16 @@
     },
     "query": "delete from sessions"
   },
+  "f510d7f8dcb79907abd8b17bd52127af1699b3b79d2737c7729972d6bd5a0693": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 4
+      }
+    },
+    "query": "insert into filtered_ingredients(user_id, name, form, measure_type)\n    values (?, ?, ?, ?) on conflict(user_id, name, form, measure_type) DO NOTHING"
+  },
   "fc294739374d2a791214f747095e0bf9378989d1ff07d96a5431dbb208f21951": {
     "describe": {
       "columns": [
@@ -317,5 +327,15 @@
       }
     },
     "query": "select name, form, measure_type, amt from modified_amts where user_id = ?;"
+  },
+  "fc9d3f8ce9d0b42f34307aeb31c128cc3267e77613d6f2e170c95e83d6e361df": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 5
+      }
+    },
+    "query": "insert into modified_amts(user_id, name, form, measure_type, amt)\n    values (?, ?, ?, ?, ?) on conflict (user_id, name, form, measure_type) do update set amt=excluded.amt"
   }
 }
