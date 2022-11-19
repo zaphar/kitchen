@@ -48,7 +48,6 @@ pub fn RecipePlan<G: Html>(cx: Scope) -> View<G> {
                 if let Err(err) = init_page_state(store.as_ref(), state.as_ref()).await {
                     error!(?err);
                 };
-                state.reset_recipe_counts();
             }
         });
     });
@@ -85,10 +84,14 @@ pub fn RecipePlan<G: Html>(cx: Scope) -> View<G> {
                 }).collect()
             ))
         }
-        input(type="button", value="Reset Recipes", on:click=move |_| {
+        input(type="button", value="Reset", on:click=move |_| {
             // Poor man's click event signaling.
             let toggle = !*refresh_click.get();
             refresh_click.set(toggle);
+        })
+        input(type="button", value="Clear All", on:click=move |_| {
+            let state = app_state::State::get_from_context(cx);
+            state.reset_recipe_counts();
         })
         input(type="button", value="Save Plan", on:click=move |_| {
             // Poor man's click event signaling.
