@@ -20,7 +20,7 @@ in
 stdenv.mkDerivation {
     inherit src pname;
     version = version;
-    # we need wasmb-bindgen v0.2.81 exactly
+    # we need wasmb-bindgen v0.2.83 exactly
     buildInputs = [ rust-wasm wasm-bindgen-cli wasm-pack binaryen];
     propagatedBuildInputs = [ rust-wasm wasm-bindgen-cli wasm-pack binaryen];
     phases = [ "postUnpackPhase" "buildPhase"];

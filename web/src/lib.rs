@@ -20,18 +20,18 @@ mod routing;
 mod web;
 
 use sycamore::prelude::*;
-#[cfg(feature = "web")]
-use tracing_browser_subscriber;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 use web::UI;
 
+fn configure_tracing() {
+    use tracing_browser_subscriber;
+    console_error_panic_hook::set_once();
+    tracing_browser_subscriber::configure_as_global_default();
+}
+
 #[wasm_bindgen(start)]
 pub fn main() {
-    if cfg!(feature = "web") {
-        console_error_panic_hook::set_once();
-        // TODO(jwall): use the tracing_subscriber_browser default setup function when it exists.
-        tracing_browser_subscriber::configure_as_global_default();
-    }
+    configure_tracing();
     sycamore::render(|cx| view! { cx, UI() });
 }
