@@ -326,6 +326,10 @@ pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socke
             .await
             .expect("Unable to create app_store"),
     );
+    app_store
+        .run_migrations()
+        .await
+        .expect("Failed to run database migrations");
     let router = Router::new()
         .route("/", get(|| async { Redirect::temporary("/ui/plan") }))
         .route("/ui/*path", get(ui_static_assets))

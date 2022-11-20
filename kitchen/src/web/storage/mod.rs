@@ -204,6 +204,15 @@ impl SqliteStore {
         let pool = Arc::new(sqlx::SqlitePool::connect_with(options).await?);
         Ok(Self { pool, url })
     }
+
+    #[instrument(fields(conn_string=self.url), skip_all)]
+    pub async fn run_migrations(&self) -> sqlx::Result<()> {
+        info!("Running databse migrations");
+        sqlx::migrate!("./migrations")
+            .run(self.pool.as_ref())
+            .await?;
+        Ok(())
+    }
 }
 
 #[async_trait]
