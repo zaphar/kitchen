@@ -25,9 +25,21 @@ use wasm_bindgen::prelude::wasm_bindgen;
 use web::UI;
 
 fn configure_tracing() {
-    use tracing_browser_subscriber;
     console_error_panic_hook::set_once();
-    tracing_browser_subscriber::configure_as_global_default();
+    use tracing_subscriber::fmt::format::Pretty;
+    use tracing_subscriber::prelude::*;
+    use tracing_web::{performance_layer, MakeConsoleWriter};
+    let fmt_layer = tracing_subscriber::fmt::layer()
+        .with_ansi(false)
+        .without_time()
+        //.with_timer(UtcTime::rfc_3339()) // std::time is not available in browsers
+        .with_writer(MakeConsoleWriter); // write events to the console
+    let perf_layer = performance_layer().with_details_from_fields(Pretty::default());
+
+    tracing_subscriber::registry()
+        .with(fmt_layer)
+        .with(perf_layer)
+        .init();
 }
 
 #[wasm_bindgen(start)]
