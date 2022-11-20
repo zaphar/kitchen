@@ -365,23 +365,6 @@ impl HttpStore {
         }
     }
 
-    pub async fn get_plans_since(
-        &self,
-        date: chrono::NaiveDate,
-    ) -> Result<BTreeMap<chrono::NaiveDate, Vec<(String, i32)>>, Error> {
-        let mut path = self.root.clone();
-        path.push_str("/plan");
-        path.push_str(&format!("/{}", date));
-        // TODO(jwall): How does this play with the cache?
-        let resp = reqwasm::http::Request::get(&path).send().await?;
-        if resp.status() != 200 {
-            Err(format!("Status: {}", resp.status()).into())
-        } else {
-            debug!("We got a valid response back");
-            Ok(resp.json().await?)
-        }
-    }
-
     pub async fn get_inventory_data(
         &self,
     ) -> Result<(BTreeSet<IngredientKey>, BTreeMap<IngredientKey, String>), Error> {
