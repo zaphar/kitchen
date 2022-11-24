@@ -370,15 +370,25 @@ impl HttpStore {
     ) -> Result<(BTreeSet<IngredientKey>, BTreeMap<IngredientKey, String>), Error> {
         let mut path = self.root.clone();
         path.push_str("/inventory");
+        let storage = js_lib::get_storage();
         let resp = reqwasm::http::Request::get(&path).send().await?;
         if resp.status() != 200 {
-            Err(format!("Status: {}", resp.status()).into())
+            let err = Err(format!("Status: {}", resp.status()).into());
+            Ok(match storage.get("inventory") {
+                Ok(Some(val)) => from_str(&val).expect("Failed to deserialize cached val"),
+                Ok(None) | Err(_) => return err,
+            })
         } else {
             debug!("We got a valid response back");
             let (filtered_ingredients, modified_amts): (
                 Vec<IngredientKey>,
                 Vec<(IngredientKey, String)>,
             ) = resp.json().await.map_err(|e| format!("{}", e))?;
+            let _ = storage.set(
+                "inventory",
+                &to_string(&(&filtered_ingredients, &modified_amts))
+                    .expect("Failed to serialize inventory data"),
+            );
             Ok((
                 filtered_ingredients.into_iter().collect(),
                 modified_amts.into_iter().collect(),
@@ -396,6 +406,8 @@ impl HttpStore {
         let modified_amts: Vec<(IngredientKey, String)> = modified_amts.into_iter().collect();
         let serialized_inventory = to_string(&(filtered_ingredients, modified_amts))
             .expect("Unable to encode plan as json");
+        let storage = js_lib::get_storage();
+        let _ = storage.set("inventory", &serialized_inventory);
         path.push_str("/inventory");
         let resp = reqwasm::http::Request::post(&path)
             .body(&serialized_inventory)
