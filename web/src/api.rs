@@ -327,6 +327,19 @@ impl HttpStore {
         }
     }
 
+    pub async fn save_state(&self, state: std::rc::Rc<app_state::State>) -> Result<(), Error> {
+        let mut plan = Vec::new();
+        for (key, count) in state.recipe_counts.get_untracked().iter() {
+            plan.push((key.clone(), *count.get_untracked() as i32));
+        }
+        self.save_plan(plan).await?;
+        self.save_inventory_data(
+            state.filtered_ingredients.get_untracked().as_ref().clone(),
+            state.get_current_modified_amts(),
+        )
+        .await
+    }
+
     pub async fn save_plan(&self, plan: Vec<(String, i32)>) -> Result<(), Error> {
         let mut path = self.root.clone();
         path.push_str("/plan");

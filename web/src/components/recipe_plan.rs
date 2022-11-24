@@ -56,12 +56,8 @@ pub fn RecipePlan<G: Html>(cx: Scope) -> View<G> {
         let store = HttpStore::get_from_context(cx);
         let state = app_state::State::get_from_context(cx);
         spawn_local_scoped(cx, {
-            let mut plan = Vec::new();
-            for (key, count) in state.recipe_counts.get_untracked().iter() {
-                plan.push((key.clone(), *count.get_untracked() as i32));
-            }
             async move {
-                store.save_plan(plan).await.expect("Failed to save plan");
+                store.save_state(state).await.expect("Failed to save plan");
             }
         })
     });

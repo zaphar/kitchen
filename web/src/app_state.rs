@@ -18,6 +18,7 @@ use tracing::{debug, instrument, warn};
 
 use recipes::{Ingredient, IngredientAccumulator, IngredientKey, Recipe};
 
+#[derive(Debug)]
 pub struct State {
     pub recipe_counts: RcSignal<BTreeMap<String, RcSignal<usize>>>,
     pub extras: RcSignal<Vec<(usize, (RcSignal<String>, RcSignal<String>))>>,
