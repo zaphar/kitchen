@@ -199,7 +199,9 @@ pub struct SqliteStore {
 impl SqliteStore {
     pub async fn new<P: AsRef<Path>>(path: P) -> sqlx::Result<Self> {
         let url = format!("sqlite://{}/store.db", path.as_ref().to_string_lossy());
-        let options = SqliteConnectOptions::from_str(&url)?.journal_mode(SqliteJournalMode::Wal);
+        let options = SqliteConnectOptions::from_str(&url)?
+            .journal_mode(SqliteJournalMode::Wal)
+            .create_if_missing(true);
         info!(?options, "Connecting to sqlite db");
         let pool = Arc::new(sqlx::SqlitePool::connect_with(options).await?);
         Ok(Self { pool, url })

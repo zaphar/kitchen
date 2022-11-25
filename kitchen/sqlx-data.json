@@ -112,6 +112,16 @@
     },
     "query": "delete from sessions where id = ?"
   },
+  "83824ea638cb64c524f5c8984ef6ef28dfe781f0abf168abc4ae9a51e6e0ae88": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 4
+      }
+    },
+    "query": "insert into plan_recipes (user_id, plan_date, recipe_id, count) values (?, ?, ?, ?)\n    on conflict (user_id, plan_date, recipe_id) do update set count=excluded.count;"
+  },
   "8490e1bb40879caed62ac1c38cb9af48246f3451b6f7f1e1f33850f1dbe25f58": {
     "describe": {
       "columns": [],
@@ -213,16 +223,6 @@
       }
     },
     "query": "with max_date as (\n    select user_id, max(date(plan_date)) as plan_date from plan_recipes group by user_id\n)\n\nselect plan_recipes.plan_date as \"plan_date: NaiveDate\", plan_recipes.recipe_id, plan_recipes.count\n    from plan_recipes\n    inner join max_date on plan_recipes.user_id = max_date.user_id\nwhere\n    plan_recipes.user_id = ?\n    and plan_recipes.plan_date = max_date.plan_date"
-  },
-  "c889e3621cb2977204b847c03930cde394cc16eaa63741f8ca07484a41f1aa87": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 4
-      }
-    },
-    "query": "insert into plan_recipes (user_id, plan_date, recipe_id, count) values (?, ?, ?, ?)"
   },
   "c988364f9f83f4fa8bd0e594bab432ee7c9ec47ca40f4d16e5e2a8763653f377": {
     "describe": {
