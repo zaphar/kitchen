@@ -383,12 +383,33 @@ async fn api_save_inventory(
     }
 }
 
+fn mk_v1_routes() -> Router {
+    Router::new()
+        .route("/recipes", get(api_recipes).post(api_save_recipes))
+        // recipe entry api path route
+        .route("/recipe/:recipe_id", get(api_recipe_entry))
+        // mealplan api path routes
+        .route("/plan", get(api_plan).post(api_save_plan))
+        .route("/plan/:date", get(api_plan_since))
+        // Inventory api path route
+        .route("/inventory", get(api_inventory).post(api_save_inventory))
+        .route("/categories", get(api_categories).post(api_save_categories))
+        // All the routes above require a UserId.
+        .route("/auth", get(auth::handler).post(auth::handler))
+}
+
+fn mk_v2_routes() -> Router {
+    Router::new().route(
+        "/inventory",
+        get(api_inventory_v2).post(api_save_inventory_v2),
+    )
+}
+
 #[instrument(fields(recipe_dir=?recipe_dir_path,listen=?listen_socket), skip_all)]
 pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socket: SocketAddr) {
     let store = Arc::new(storage::file_store::AsyncFileStore::new(
         recipe_dir_path.clone(),
     ));
-    //let dir_path = (&dir_path).clone();
     let app_store = Arc::new(
         storage::SqliteStore::new(store_path)
             .await
@@ -401,32 +422,14 @@ pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socke
     let router = Router::new()
         .route("/", get(|| async { Redirect::temporary("/ui/plan") }))
         .route("/ui/*path", get(ui_static_assets))
-        // TODO(jwall): Cleanup the routing using nested routes
         // TODO(jwall): We should use route_layer to enforce the authorization
         // requirements here.
-        // recipes api path route
-        .route("/api/v1/recipes", get(api_recipes).post(api_save_recipes))
-        // recipe entry api path route
-        .route("/api/v1/recipe/:recipe_id", get(api_recipe_entry))
-        // mealplan api path routes
-        .route("/api/v1/plan", get(api_plan).post(api_save_plan))
-        .route("/api/v1/plan/:date", get(api_plan_since))
-        // Inventory api path route
-        .route(
-            "/api/v1/inventory",
-            get(api_inventory).post(api_save_inventory),
+        .nest(
+            "/api",
+            Router::new()
+                .nest("/v1", mk_v1_routes())
+                .nest("/v2", mk_v2_routes()),
         )
-        .route(
-            "/api/v2/inventory",
-            get(api_inventory_v2).post(api_save_inventory_v2),
-        )
-        // categories api path route
-        .route(
-            "/api/v1/categories",
-            get(api_categories).post(api_save_categories),
-        )
-        // All the routes above require a UserId.
-        .route("/api/v1/auth", get(auth::handler).post(auth::handler))
         // NOTE(jwall): Note that the layers are applied to the preceding routes not
         // the following routes.
         .layer(
