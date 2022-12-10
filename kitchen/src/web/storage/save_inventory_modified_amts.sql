@@ -1,2 +1,2 @@
-insert into modified_amts(user_id, name, form, measure_type, amt)
-    values (?, ?, ?, ?, ?) on conflict (user_id, name, form, measure_type) do update set amt=excluded.amt
+insert into modified_amts(user_id, name, form, measure_type, amt, plan_date)
+    values (?, ?, ?, ?, ?, date()) on conflict (user_id, name, form, measure_type, plan_date) do update set amt=excluded.amt

@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 // Copyright 2022 Jeremy Wall
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,9 +12,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::{collections::BTreeSet, net::SocketAddr};
 
 use axum::{
     body::{boxed, Full},
@@ -263,13 +264,13 @@ async fn api_save_plan(
     }
 }
 
-async fn api_inventory(
+async fn api_inventory_v2(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
 ) -> impl IntoResponse {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
-        match app_store.fetch_inventory_data(id).await {
+        match app_store.fetch_latest_inventory_data(id).await {
             Ok(tpl) => Ok(axum::Json::from(tpl)),
             Err(e) => {
                 error!(err=?e);
@@ -281,6 +282,76 @@ async fn api_inventory(
             StatusCode::UNAUTHORIZED,
             "You must be authorized to use this API call".to_owned(),
         ))
+    }
+}
+
+async fn api_inventory(
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+) -> impl IntoResponse {
+    use storage::{UserId, UserIdFromSession::FoundUserId};
+    if let FoundUserId(UserId(id)) = session {
+        match app_store.fetch_latest_inventory_data(id).await {
+            Ok((item1, item2, _)) => Ok(axum::Json::from((item1, item2))),
+            Err(e) => {
+                error!(err=?e);
+                Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", e)))
+            }
+        }
+    } else {
+        Err((
+            StatusCode::UNAUTHORIZED,
+            "You must be authorized to use this API call".to_owned(),
+        ))
+    }
+}
+
+async fn save_inventory_data(
+    app_store: Arc<storage::SqliteStore>,
+    id: String,
+    filtered_ingredients: BTreeSet<IngredientKey>,
+    modified_amts: BTreeMap<IngredientKey, String>,
+    extra_items: Vec<(String, String)>,
+) -> (StatusCode, String) {
+    if let Err(e) = app_store
+        .save_inventory_data(id, filtered_ingredients, modified_amts, extra_items)
+        .await
+    {
+        error!(err=?e);
+        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", e));
+    }
+    (
+        StatusCode::OK,
+        "Successfully saved inventory data".to_owned(),
+    )
+}
+
+async fn api_save_inventory_v2(
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+    Json((filtered_ingredients, modified_amts, extra_items)): Json<(
+        Vec<IngredientKey>,
+        Vec<(IngredientKey, String)>,
+        Vec<(String, String)>,
+    )>,
+) -> impl IntoResponse {
+    use storage::{UserId, UserIdFromSession::FoundUserId};
+    if let FoundUserId(UserId(id)) = session {
+        let filtered_ingredients = filtered_ingredients.into_iter().collect();
+        let modified_amts = modified_amts.into_iter().collect();
+        save_inventory_data(
+            app_store,
+            id,
+            filtered_ingredients,
+            modified_amts,
+            extra_items,
+        )
+        .await
+    } else {
+        (
+            StatusCode::UNAUTHORIZED,
+            "You must be authorized to use this API call".to_owned(),
+        )
     }
 }
 
@@ -296,17 +367,14 @@ async fn api_save_inventory(
     if let FoundUserId(UserId(id)) = session {
         let filtered_ingredients = filtered_ingredients.into_iter().collect();
         let modified_amts = modified_amts.into_iter().collect();
-        if let Err(e) = app_store
-            .save_inventory_data(id, filtered_ingredients, modified_amts)
-            .await
-        {
-            error!(err=?e);
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", e));
-        }
-        (
-            StatusCode::OK,
-            "Successfully saved inventory data".to_owned(),
+        save_inventory_data(
+            app_store,
+            id,
+            filtered_ingredients,
+            modified_amts,
+            Vec::new(),
         )
+        .await
     } else {
         (
             StatusCode::UNAUTHORIZED,
@@ -333,12 +401,13 @@ pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socke
     let router = Router::new()
         .route("/", get(|| async { Redirect::temporary("/ui/plan") }))
         .route("/ui/*path", get(ui_static_assets))
+        // TODO(jwall): Cleanup the routing using nested routes
+        // TODO(jwall): We should use route_layer to enforce the authorization
+        // requirements here.
         // recipes api path route
         .route("/api/v1/recipes", get(api_recipes).post(api_save_recipes))
         // recipe entry api path route
         .route("/api/v1/recipe/:recipe_id", get(api_recipe_entry))
-        // TODO(jwall): We should use route_layer to enforce the authorization
-        // requirements here.
         // mealplan api path routes
         .route("/api/v1/plan", get(api_plan).post(api_save_plan))
         .route("/api/v1/plan/:date", get(api_plan_since))
@@ -346,6 +415,10 @@ pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socke
         .route(
             "/api/v1/inventory",
             get(api_inventory).post(api_save_inventory),
+        )
+        .route(
+            "/api/v2/inventory",
+            get(api_inventory_v2).post(api_save_inventory_v2),
         )
         // categories api path route
         .route(

@@ -1,14 +1,34 @@
 {
   "db": "SQLite",
-  "07f619ff4474e9eb5f4d56497abb724e6952b4e43d681ba5ecd61490cf990ae9": {
+  "04987493e4b13793a2dff75cc2710972bb28abf303275f5e6346470cdf5c2c17": {
     "describe": {
-      "columns": [],
-      "nullable": [],
+      "columns": [
+        {
+          "name": "name",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "form",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "measure_type",
+          "ordinal": 2,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false
+      ],
       "parameters": {
         "Right": 1
       }
     },
-    "query": "delete from filtered_ingredients where user_id = ?"
+    "query": "with latest_dates as (\n    select\n        user_id,\n        name,\n        form,\n        measure_type,\n        max(plan_date) as plan_date\n    from filtered_ingredients\n    where user_id = ?\n)\n\nselect\n    filtered_ingredients.name,\n    filtered_ingredients.form,\n    filtered_ingredients.measure_type\nfrom latest_dates\ninner join filtered_ingredients on\n     latest_dates.user_id = filtered_ingredients.user_id\n     and latest_dates.name = filtered_ingredients.name\n     and latest_dates.form = filtered_ingredients.form\n     and latest_dates.measure_type = filtered_ingredients.measure_type\n     and latest_dates.plan_date = filtered_ingredients.plan_date"
   },
   "104f07472670436d3eee1733578bbf0c92dc4f965d3d13f9bf4bfbc92958c5b6": {
     "describe": {
@@ -27,6 +47,16 @@
       }
     },
     "query": "select password_hashed from users where id = ?"
+  },
+  "160a9dfccf2e91a37d81f75eba21ec73105a7453c4f1fe76a430d04e525bc6cd": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 4
+      }
+    },
+    "query": "insert into filtered_ingredients(user_id, name, form, measure_type, plan_date)\n    values (?, ?, ?, ?, date()) on conflict(user_id, name, form, measure_type, plan_date) DO NOTHING"
   },
   "196e289cbd65224293c4213552160a0cdf82f924ac597810fe05102e247b809d": {
     "describe": {
@@ -82,6 +112,16 @@
     },
     "query": "select plan_date as \"plan_date: NaiveDate\", recipe_id, count\nfrom plan_recipes\nwhere\n    user_id = ?\n    and date(plan_date) > ?\norder by user_id, plan_date"
   },
+  "3caefb86073c47b5dd5d05f639ddef2f7ed2d1fd80f224457d1ec34243cc56c7": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "insert into extra_items (user_id, name, plan_date, amt)\nvalues (?, ?, date(), ?)\non conflict (user_id, name, plan_date) do update set amt=excluded.amt"
+  },
   "3fd4017569dca4fe73e97e0e2bd612027a8c1b17b0b10faabd6459f56ca1c0bb": {
     "describe": {
       "columns": [],
@@ -92,6 +132,42 @@
     },
     "query": "insert into recipes (user_id, recipe_id, recipe_text) values (?, ?, ?)\n    on conflict(user_id, recipe_id) do update set recipe_text=excluded.recipe_text"
   },
+  "406aac6ac2b0084c31c29adec6fa2fb9bb925d92121305c8afbac009caf1ecc0": {
+    "describe": {
+      "columns": [
+        {
+          "name": "name",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "form",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "measure_type",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "amt",
+          "ordinal": 3,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "with latest_dates as (\n    select\n        user_id,\n        name,\n        form,\n        measure_type,\n        amt,\n        max(plan_date) as plan_date\n    from modified_amts\n    where user_id = ?\n)\n\nselect\n    modified_amts.name,\n    modified_amts.form,\n    modified_amts.measure_type,\n    modified_amts.amt\nfrom latest_dates\ninner join modified_amts on\n    latest_dates.user_id = modified_amts.user_id\n    and latest_dates.name = modified_amts.name\n    and latest_dates.form = modified_amts.form\n    and latest_dates.amt = modified_amts.amt\n    and latest_dates.plan_date = modified_amts.plan_date"
+  },
   "5d743897fb0d8fd54c3708f1b1c6e416346201faa9e28823c1ba5a421472b1fa": {
     "describe": {
       "columns": [],
@@ -101,6 +177,16 @@
       }
     },
     "query": "insert into users (id, password_hashed) values (?, ?)"
+  },
+  "6e28698330e42fd6c87ba1e6f1deb664c0d3995caa2b937ceac8c908e98aded6": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 5
+      }
+    },
+    "query": "insert into modified_amts(user_id, name, form, measure_type, amt, plan_date)\n    values (?, ?, ?, ?, ?, date()) on conflict (user_id, name, form, measure_type, plan_date) do update set amt=excluded.amt"
   },
   "7578157607967a6a4c60f12408c5d9900d15b429a49681a4cae4e02d31c524ec": {
     "describe": {
@@ -184,16 +270,6 @@
     },
     "query": "insert into sessions (id, session_value) values (?, ?)"
   },
-  "9e24ed2ea4d235e3a036025a0a0b5ea685546a81d7f2469a59a2fc1fc88798dc": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "delete from modified_amts where user_id = ?"
-  },
   "ad3408cd773dd8f9308255ec2800171638a1aeda9817c57fb8360f97115f8e97": {
     "describe": {
       "columns": [
@@ -242,36 +318,6 @@
     },
     "query": "select category_text from categories where user_id = ?"
   },
-  "d7d94a87b0153d1436eac0f6db820f25594e94decc8d740037c10802aa49157f": {
-    "describe": {
-      "columns": [
-        {
-          "name": "name",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "form",
-          "ordinal": 1,
-          "type_info": "Text"
-        },
-        {
-          "name": "measure_type",
-          "ordinal": 2,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false
-      ],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "select name, form, measure_type from filtered_ingredients where user_id = ?"
-  },
   "d84685a82585c5e4ae72c86ba1fe6e4a7241c4c3c9e948213e5849d956132bad": {
     "describe": {
       "columns": [],
@@ -282,17 +328,7 @@
     },
     "query": "delete from sessions"
   },
-  "f510d7f8dcb79907abd8b17bd52127af1699b3b79d2737c7729972d6bd5a0693": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 4
-      }
-    },
-    "query": "insert into filtered_ingredients(user_id, name, form, measure_type)\n    values (?, ?, ?, ?) on conflict(user_id, name, form, measure_type) DO NOTHING"
-  },
-  "fc294739374d2a791214f747095e0bf9378989d1ff07d96a5431dbb208f21951": {
+  "f34ec23c5cc8f61f92464ecf68620150a8d4521b68b5099a0a7dac3328651880": {
     "describe": {
       "columns": [
         {
@@ -301,24 +337,12 @@
           "type_info": "Text"
         },
         {
-          "name": "form",
-          "ordinal": 1,
-          "type_info": "Text"
-        },
-        {
-          "name": "measure_type",
-          "ordinal": 2,
-          "type_info": "Text"
-        },
-        {
           "name": "amt",
-          "ordinal": 3,
+          "ordinal": 1,
           "type_info": "Text"
         }
       ],
       "nullable": [
-        false,
-        false,
         false,
         false
       ],
@@ -326,16 +350,6 @@
         "Right": 1
       }
     },
-    "query": "select name, form, measure_type, amt from modified_amts where user_id = ?;"
-  },
-  "fc9d3f8ce9d0b42f34307aeb31c128cc3267e77613d6f2e170c95e83d6e361df": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 5
-      }
-    },
-    "query": "insert into modified_amts(user_id, name, form, measure_type, amt)\n    values (?, ?, ?, ?, ?) on conflict (user_id, name, form, measure_type) do update set amt=excluded.amt"
+    "query": "with latest_dates as (\n    select\n        user_id,\n        name,\n        max(plan_date) as plan_date\n    from extra_items\n    where user_id = ?\n    group by user_id, name\n)\n\nselect\n    extra_items.name,\n    extra_items.amt\nfrom latest_dates\ninner join extra_items on\n    latest_dates.user_id = extra_items.user_id\n    and latest_dates.name = extra_items.name\n    and latest_dates.plan_date= extra_items.plan_date"
   }
 }
