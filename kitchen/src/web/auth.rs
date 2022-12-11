@@ -74,6 +74,7 @@ pub async fn handler(
         let cookie = Cookie::build(storage::AXUM_SESSION_COOKIE_NAME, cookie_value)
             .same_site(SameSite::Strict)
             .secure(true)
+            .path("/")
             .finish();
         let parsed_cookie = match cookie.to_string().parse() {
             Err(err) => {

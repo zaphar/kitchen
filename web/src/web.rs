@@ -21,7 +21,7 @@ use crate::{api, routing::Handler as RouteHandler};
 #[component]
 pub fn UI<G: Html>(cx: Scope) -> View<G> {
     crate::app_state::State::provide_context(cx);
-    api::HttpStore::provide_context(cx, "/api/v1".to_owned());
+    api::HttpStore::provide_context(cx, "/api".to_owned());
     info!("Starting UI");
 
     let view = create_signal(cx, View::empty());

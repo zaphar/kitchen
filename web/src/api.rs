@@ -94,9 +94,18 @@ pub async fn init_page_state(store: &HttpStore, state: &app_state::State) -> Res
     }
     info!("Synchronizing inventory data");
     match store.get_inventory_data().await {
-        Ok((filtered_ingredients, modified_amts)) => {
+        Ok((filtered_ingredients, modified_amts, mut extra_items)) => {
             state.reset_modified_amts(modified_amts);
             state.filtered_ingredients.set(filtered_ingredients);
+            state.extras.set(
+                extra_items
+                    .drain(0..)
+                    .enumerate()
+                    .map(|(idx, (amt, name))| {
+                        (idx, (create_rc_signal(amt.clone()), create_rc_signal(name)))
+                    })
+                    .collect(),
+            )
         }
         Err(e) => {
             error!("{:?}", e);
@@ -160,8 +169,20 @@ pub struct HttpStore {
 }
 
 impl HttpStore {
-    pub fn new(root: String) -> Self {
+    fn new(root: String) -> Self {
         Self { root }
+    }
+
+    pub fn v1_path(&self) -> String {
+        let mut path = self.root.clone();
+        path.push_str("/v1");
+        path
+    }
+
+    pub fn v2_path(&self) -> String {
+        let mut path = self.root.clone();
+        path.push_str("/v2");
+        path
     }
 
     pub fn provide_context<S: Into<String>>(cx: Scope, root: S) {
@@ -174,7 +195,7 @@ impl HttpStore {
 
     //#[instrument]
     pub async fn get_categories(&self) -> Result<Option<String>, Error> {
-        let mut path = self.root.clone();
+        let mut path = self.v1_path();
         path.push_str("/categories");
         let storage = js_lib::get_storage();
         let resp = match reqwasm::http::Request::get(&path).send().await {
@@ -203,7 +224,7 @@ impl HttpStore {
 
     #[instrument]
     pub async fn get_recipes(&self) -> Result<Option<Vec<RecipeEntry>>, Error> {
-        let mut path = self.root.clone();
+        let mut path = self.v1_path();
         path.push_str("/recipes");
         let storage = js_lib::get_storage();
         let resp = match reqwasm::http::Request::get(&path).send().await {
@@ -247,7 +268,7 @@ impl HttpStore {
         &self,
         id: S,
     ) -> Result<Option<RecipeEntry>, Error> {
-        let mut path = self.root.clone();
+        let mut path = self.v1_path();
         path.push_str("/recipe/");
         path.push_str(id.as_ref());
         let storage = js_lib::get_storage();
@@ -282,7 +303,7 @@ impl HttpStore {
 
     #[instrument(skip(recipes), fields(count=recipes.len()))]
     pub async fn save_recipes(&self, recipes: Vec<RecipeEntry>) -> Result<(), Error> {
-        let mut path = self.root.clone();
+        let mut path = self.v1_path();
         path.push_str("/recipes");
         let storage = js_lib::get_storage();
         for r in recipes.iter() {
@@ -310,7 +331,7 @@ impl HttpStore {
 
     #[instrument(skip(categories))]
     pub async fn save_categories(&self, categories: String) -> Result<(), Error> {
-        let mut path = self.root.clone();
+        let mut path = self.v1_path();
         path.push_str("/categories");
         let storage = js_lib::get_storage();
         storage.set("categories", &categories)?;
@@ -327,21 +348,31 @@ impl HttpStore {
         }
     }
 
+    #[instrument]
     pub async fn save_state(&self, state: std::rc::Rc<app_state::State>) -> Result<(), Error> {
         let mut plan = Vec::new();
         for (key, count) in state.recipe_counts.get_untracked().iter() {
             plan.push((key.clone(), *count.get_untracked() as i32));
         }
+        debug!("Saving plan data");
         self.save_plan(plan).await?;
+        debug!("Saving inventory data");
         self.save_inventory_data(
             state.filtered_ingredients.get_untracked().as_ref().clone(),
             state.get_current_modified_amts(),
+            state
+                .extras
+                .get()
+                .as_ref()
+                .iter()
+                .map(|t| (t.1 .0.get().as_ref().clone(), t.1 .1.get().as_ref().clone()))
+                .collect(),
         )
         .await
     }
 
     pub async fn save_plan(&self, plan: Vec<(String, i32)>) -> Result<(), Error> {
-        let mut path = self.root.clone();
+        let mut path = self.v1_path();
         path.push_str("/plan");
         let storage = js_lib::get_storage();
         let serialized_plan = to_string(&plan).expect("Unable to encode plan as json");
@@ -360,7 +391,7 @@ impl HttpStore {
     }
 
     pub async fn get_plan(&self) -> Result<Option<Vec<(String, i32)>>, Error> {
-        let mut path = self.root.clone();
+        let mut path = self.v1_path();
         path.push_str("/plan");
         let resp = reqwasm::http::Request::get(&path).send().await?;
         let storage = js_lib::get_storage();
@@ -380,22 +411,47 @@ impl HttpStore {
 
     pub async fn get_inventory_data(
         &self,
-    ) -> Result<(BTreeSet<IngredientKey>, BTreeMap<IngredientKey, String>), Error> {
-        let mut path = self.root.clone();
+    ) -> Result<
+        (
+            BTreeSet<IngredientKey>,
+            BTreeMap<IngredientKey, String>,
+            Vec<(String, String)>,
+        ),
+        Error,
+    > {
+        let mut path = self.v2_path();
         path.push_str("/inventory");
         let storage = js_lib::get_storage();
         let resp = reqwasm::http::Request::get(&path).send().await?;
         if resp.status() != 200 {
             let err = Err(format!("Status: {}", resp.status()).into());
             Ok(match storage.get("inventory") {
-                Ok(Some(val)) => from_str(&val).expect("Failed to deserialize cached val"),
+                Ok(Some(val)) => match from_str(&val) {
+                    // TODO(jwall): Once we remove the v1 endpoint this is no longer needed.
+                    Ok((filtered_ingredients, modified_amts)) => {
+                        (filtered_ingredients, modified_amts, Vec::new())
+                    }
+                    Err(_) => match from_str(&val) {
+                        Ok((filtered_ingredients, modified_amts, extra_items)) => {
+                            (filtered_ingredients, modified_amts, extra_items)
+                        }
+                        Err(_) => {
+                            // Whatever is in storage is corrupted or invalid so we should delete it.
+                            storage
+                                .delete("inventory")
+                                .expect("Unable to delete corrupt data in inventory cache");
+                            return err;
+                        }
+                    },
+                },
                 Ok(None) | Err(_) => return err,
             })
         } else {
             debug!("We got a valid response back");
-            let (filtered_ingredients, modified_amts): (
+            let (filtered_ingredients, modified_amts, extra_items): (
                 Vec<IngredientKey>,
                 Vec<(IngredientKey, String)>,
+                Vec<(String, String)>,
             ) = resp.json().await.map_err(|e| format!("{}", e))?;
             let _ = storage.set(
                 "inventory",
@@ -405,29 +461,37 @@ impl HttpStore {
             Ok((
                 filtered_ingredients.into_iter().collect(),
                 modified_amts.into_iter().collect(),
+                extra_items,
             ))
         }
     }
 
+    #[instrument]
     pub async fn save_inventory_data(
         &self,
         filtered_ingredients: BTreeSet<IngredientKey>,
         modified_amts: BTreeMap<IngredientKey, String>,
+        extra_items: Vec<(String, String)>,
     ) -> Result<(), Error> {
-        let mut path = self.root.clone();
+        let mut path = self.v2_path();
+        path.push_str("/inventory");
         let filtered_ingredients: Vec<IngredientKey> = filtered_ingredients.into_iter().collect();
         let modified_amts: Vec<(IngredientKey, String)> = modified_amts.into_iter().collect();
-        let serialized_inventory = to_string(&(filtered_ingredients, modified_amts))
+        let serialized_inventory = to_string(&(filtered_ingredients, modified_amts, extra_items))
             .expect("Unable to encode plan as json");
         let storage = js_lib::get_storage();
-        let _ = storage.set("inventory", &serialized_inventory);
-        path.push_str("/inventory");
+        debug!("Storing inventory data in cache");
+        storage
+            .set("inventory", &serialized_inventory)
+            .expect("Failed to cache inventory data");
+        debug!("Storing inventory data via API");
         let resp = reqwasm::http::Request::post(&path)
             .body(&serialized_inventory)
             .header("content-type", "application/json")
             .send()
             .await?;
         if resp.status() != 200 {
+            debug!("Invalid response back");
             Err(format!("Status: {}", resp.status()).into())
         } else {
             debug!("We got a valid response back!");
