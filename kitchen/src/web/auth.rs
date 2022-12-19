@@ -18,20 +18,43 @@ use async_session::{Session, SessionStore};
 use axum::{
     extract::Extension,
     http::{header, HeaderMap, StatusCode},
-    response::IntoResponse,
 };
 use axum_auth::AuthBasic;
 use cookie::{Cookie, SameSite};
 use secrecy::Secret;
+use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, instrument};
 
-use super::storage::{self, AuthStore};
+use super::storage::{self, AuthStore, UserCreds};
+
+// FIXME(jwall): This needs to live in a client integration library.
+#[derive(Serialize, Deserialize)]
+pub enum AccountResponse {
+    Success { user_id: String },
+    Err { message: String },
+}
+
+impl From<UserCreds> for AccountResponse {
+    fn from(auth: UserCreds) -> Self {
+        Self::Success {
+            user_id: auth.user_id().to_owned(),
+        }
+    }
+}
+
+impl<'a> From<&'a str> for AccountResponse {
+    fn from(msg: &'a str) -> Self {
+        Self::Err {
+            message: msg.to_string(),
+        }
+    }
+}
 
 #[instrument(skip_all, fields(user=%auth.0.0))]
 pub async fn handler(
     auth: AuthBasic,
     Extension(session_store): Extension<Arc<storage::SqliteStore>>,
-) -> impl IntoResponse {
+) -> (StatusCode, HeaderMap, axum::Json<AccountResponse>) {
     // NOTE(jwall): It is very important that you do **not** log the password
     // here. We convert the AuthBasic into UserCreds immediately to help prevent
     // that. Do not circumvent that protection.
@@ -44,28 +67,31 @@ pub async fn handler(
         let mut session = Session::new();
         if let Err(err) = session.insert("user_id", auth.user_id()) {
             error!(?err, "Unable to insert user id into session");
+            let resp: AccountResponse = "Unable to insert user id into session".into();
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 headers,
-                "Unable to insert user id into session",
+                axum::Json::from(resp),
             );
         }
         // 2. Store the session in the store.
         let cookie_value = match session_store.store_session(session).await {
             Err(err) => {
                 error!(?err, "Unable to store session in session store");
+                let resp: AccountResponse = "Unable to store session in session store".into();
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     headers,
-                    "Unable to store session in session store",
+                    axum::Json::from(resp),
                 );
             }
             Ok(None) => {
                 error!("Unable to create session cookie");
+                let resp: AccountResponse = "Unable to create session cookie".into();
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     headers,
-                    "Unable to create session cookie",
+                    axum::Json::from(resp),
                 );
             }
             Ok(Some(value)) => value,
@@ -79,25 +105,24 @@ pub async fn handler(
         let parsed_cookie = match cookie.to_string().parse() {
             Err(err) => {
                 error!(?err, "Unable to parse session cookie");
+                let resp: AccountResponse = "Unable to parse session cookie".into();
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     headers,
-                    "Unable to parse session cookie",
+                    axum::Json::from(resp),
                 );
             }
             Ok(parsed_cookie) => parsed_cookie,
         };
         headers.insert(header::SET_COOKIE, parsed_cookie);
         // Respond with 200 OK
-        (StatusCode::OK, headers, "Login Successful")
+        let resp: AccountResponse = auth.into();
+        (StatusCode::OK, headers, axum::Json::from(resp))
     } else {
         debug!("Invalid credentials");
         let headers = HeaderMap::new();
-        (
-            StatusCode::UNAUTHORIZED,
-            headers,
-            "Invalid user id or password",
-        )
+        let resp: AccountResponse = "Invalid user id or password".into();
+        (StatusCode::UNAUTHORIZED, headers, axum::Json::from(resp))
     }
 }
 
