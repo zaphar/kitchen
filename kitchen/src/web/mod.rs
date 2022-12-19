@@ -23,13 +23,15 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
     routing::{get, Router},
 };
+use chrono::NaiveDate;
 use mime_guess;
 use recipes::{IngredientKey, RecipeEntry};
 use rust_embed::RustEmbed;
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, info, instrument};
 
+use api;
 use storage::{APIStore, AuthStore};
 
 mod auth;
@@ -83,7 +85,7 @@ async fn api_recipe_entry(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
     Path(recipe_id): Path<String>,
-) -> impl IntoResponse {
+) -> api::Response<Option<RecipeEntry>> {
     use storage::{UserId, UserIdFromSession::*};
     let result = match session {
         NoUserId => store
@@ -95,11 +97,7 @@ async fn api_recipe_entry(
             .await
             .map_err(|e| format!("Error: {:?}", e)),
     };
-    match result {
-        Ok(Some(recipes)) => (StatusCode::OK, axum::Json::from(recipes)).into_response(),
-        Ok(None) => (StatusCode::NOT_FOUND, axum::Json::from("")).into_response(),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, axum::Json::from(e)).into_response(),
-    }
+    result.into()
 }
 
 #[instrument]
@@ -107,7 +105,7 @@ async fn api_recipes(
     Extension(store): Extension<Arc<storage::file_store::AsyncFileStore>>,
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
-) -> impl IntoResponse {
+) -> api::RecipeEntryResponse {
     // Select recipes based on the user-id if it exists or serve the default if it does not.
     use storage::{UserId, UserIdFromSession::*};
     let result = match session {
@@ -120,11 +118,7 @@ async fn api_recipes(
             .await
             .map_err(|e| format!("Error: {:?}", e)),
     };
-    match result {
-        Ok(Some(recipes)) => Ok(axum::Json::from(recipes)),
-        Ok(None) => Ok(axum::Json::from(Vec::<RecipeEntry>::new())),
-        Err(e) => Err(e),
-    }
+    result.into()
 }
 
 #[instrument]
@@ -132,7 +126,7 @@ async fn api_categories(
     Extension(store): Extension<Arc<storage::file_store::AsyncFileStore>>,
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
-) -> impl IntoResponse {
+) -> api::Response<String> {
     // Select Categories based on the user-id if it exists or serve the default if it does not.
     use storage::{UserId, UserIdFromSession::*};
     let categories_result = match session {
@@ -145,33 +139,28 @@ async fn api_categories(
             .await
             .map_err(|e| format!("Error: {:?}", e)),
     };
-    let result: Result<axum::Json<String>, String> = match categories_result {
-        Ok(Some(categories)) => Ok(axum::Json::from(categories)),
-        Ok(None) => Ok(axum::Json::from(String::new())),
-        Err(e) => Err(e),
-    };
-    result
+    categories_result.into()
 }
 
 async fn api_save_categories(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
     Json(categories): Json<String>,
-) -> impl IntoResponse {
+) -> api::Response<String> {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
         if let Err(e) = app_store
             .store_categories_for_user(id.as_str(), categories.as_str())
             .await
         {
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", e));
+            return api::Response::error(
+                StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                format!("{:?}", e),
+            );
         }
-        (StatusCode::OK, "Successfully saved categories".to_owned())
+        api::Response::success("Successfully saved categories".into())
     } else {
-        (
-            StatusCode::UNAUTHORIZED,
-            "You must be authorized to use this API call".to_owned(),
-        )
+        api::Response::Unauthorized
     }
 }
 
@@ -179,43 +168,31 @@ async fn api_save_recipes(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
     Json(recipes): Json<Vec<RecipeEntry>>,
-) -> impl IntoResponse {
+) -> api::Response<()> {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
         let result = app_store
             .store_recipes_for_user(id.as_str(), &recipes)
             .await;
-        match result.map_err(|e| format!("Error: {:?}", e)) {
-            Ok(val) => Ok(axum::Json::from(val)),
-            Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e)),
-        }
+        result.map_err(|e| format!("Error: {:?}", e)).into()
     } else {
-        Err((
-            StatusCode::UNAUTHORIZED,
-            "You must be authorized to use this API call".to_owned(),
-        ))
+        api::Response::Unauthorized
     }
 }
 
 async fn api_plan(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
-) -> impl IntoResponse {
+) -> api::PlanDataResponse {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
-        match app_store
+        app_store
             .fetch_latest_meal_plan(&id)
             .await
             .map_err(|e| format!("Error: {:?}", e))
-        {
-            Ok(val) => Ok(axum::Json::from(val)),
-            Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e)),
-        }
+            .into()
     } else {
-        Err((
-            StatusCode::UNAUTHORIZED,
-            "You must be authorized to use this API call".to_owned(),
-        ))
+        api::Response::Unauthorized
     }
 }
 
@@ -223,22 +200,16 @@ async fn api_plan_since(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
     Path(date): Path<chrono::NaiveDate>,
-) -> impl IntoResponse {
+) -> api::Response<BTreeMap<NaiveDate, Vec<(String, i32)>>> {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
-        match app_store
+        app_store
             .fetch_meal_plans_since(&id, date)
             .await
             .map_err(|e| format!("Error: {:?}", e))
-        {
-            Ok(val) => Ok(axum::Json::from(val)),
-            Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, e)),
-        }
+            .into()
     } else {
-        Err((
-            StatusCode::UNAUTHORIZED,
-            "You must be authorized to use this API call".to_owned(),
-        ))
+        api::Response::Unauthorized
     }
 }
 
@@ -246,63 +217,53 @@ async fn api_save_plan(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
     Json(meal_plan): Json<Vec<(String, i32)>>,
-) -> impl IntoResponse {
+) -> api::Response<()> {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
-        if let Err(e) = app_store
+        app_store
             .save_meal_plan(id.as_str(), &meal_plan, chrono::Local::now().date_naive())
             .await
-        {
-            return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", e));
-        }
-        (StatusCode::OK, "Successfully saved mealPlan".to_owned())
+            .map_err(|e| format!("{:?}", e))
+            .into()
     } else {
-        (
-            StatusCode::UNAUTHORIZED,
-            "You must be authorized to use this API call".to_owned(),
-        )
+        api::Response::Unauthorized
     }
 }
 
 async fn api_inventory_v2(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
-) -> impl IntoResponse {
+) -> api::InventoryResponse {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
-        match app_store.fetch_latest_inventory_data(id).await {
-            Ok(tpl) => Ok(axum::Json::from(tpl)),
-            Err(e) => {
-                error!(err=?e);
-                Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", e)))
-            }
-        }
+        app_store
+            .fetch_latest_inventory_data(id)
+            .await
+            .map_err(|e| format!("{:?}", e))
+            .map(|d| {
+                let data: api::InventoryData = d.into();
+                data
+            })
+            .into()
     } else {
-        Err((
-            StatusCode::UNAUTHORIZED,
-            "You must be authorized to use this API call".to_owned(),
-        ))
+        api::Response::Unauthorized
     }
 }
 
 async fn api_inventory(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
-) -> impl IntoResponse {
+) -> api::Response<(Vec<IngredientKey>, Vec<(IngredientKey, String)>)> {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
-        match app_store.fetch_latest_inventory_data(id).await {
-            Ok((item1, item2, _)) => Ok(axum::Json::from((item1, item2))),
-            Err(e) => {
-                error!(err=?e);
-                Err((StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", e)))
-            }
-        }
+        app_store
+            .fetch_latest_inventory_data(id)
+            .await
+            .map_err(|e| format!("{:?}", e))
+            .map(|(filtered, modified, _)| (filtered, modified))
+            .into()
     } else {
-        Err((
-            StatusCode::UNAUTHORIZED,
-            "You must be authorized to use this API call".to_owned(),
-        ))
+        api::Response::Unauthorized
     }
 }
 
@@ -312,18 +273,12 @@ async fn save_inventory_data(
     filtered_ingredients: BTreeSet<IngredientKey>,
     modified_amts: BTreeMap<IngredientKey, String>,
     extra_items: Vec<(String, String)>,
-) -> (StatusCode, String) {
-    if let Err(e) = app_store
+) -> api::Response<()> {
+    app_store
         .save_inventory_data(id, filtered_ingredients, modified_amts, extra_items)
         .await
-    {
-        error!(err=?e);
-        return (StatusCode::INTERNAL_SERVER_ERROR, format!("{:?}", e));
-    }
-    (
-        StatusCode::OK,
-        "Successfully saved inventory data".to_owned(),
-    )
+        .map_err(|e| format!("{:?}", e))
+        .into()
 }
 
 async fn api_save_inventory_v2(
@@ -334,7 +289,7 @@ async fn api_save_inventory_v2(
         Vec<(IngredientKey, String)>,
         Vec<(String, String)>,
     )>,
-) -> impl IntoResponse {
+) -> api::Response<()> {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
         let filtered_ingredients = filtered_ingredients.into_iter().collect();
@@ -347,11 +302,9 @@ async fn api_save_inventory_v2(
             extra_items,
         )
         .await
+        .into()
     } else {
-        (
-            StatusCode::UNAUTHORIZED,
-            "You must be authorized to use this API call".to_owned(),
-        )
+        api::Response::Unauthorized
     }
 }
 
@@ -362,7 +315,7 @@ async fn api_save_inventory(
         Vec<IngredientKey>,
         Vec<(IngredientKey, String)>,
     )>,
-) -> impl IntoResponse {
+) -> api::Response<()> {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
         let filtered_ingredients = filtered_ingredients.into_iter().collect();
@@ -375,11 +328,9 @@ async fn api_save_inventory(
             Vec::new(),
         )
         .await
+        .into()
     } else {
-        (
-            StatusCode::UNAUTHORIZED,
-            "You must be authorized to use this API call".to_owned(),
-        )
+        api::Response::Unauthorized
     }
 }
 

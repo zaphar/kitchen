@@ -14,6 +14,7 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
+use api;
 use async_session::{Session, SessionStore};
 use axum::{
     extract::Extension,
@@ -22,31 +23,15 @@ use axum::{
 use axum_auth::AuthBasic;
 use cookie::{Cookie, SameSite};
 use secrecy::Secret;
-use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, instrument};
 
 use super::storage::{self, AuthStore, UserCreds};
 
-// FIXME(jwall): This needs to live in a client integration library.
-#[derive(Serialize, Deserialize)]
-pub enum AccountResponse {
-    Success { user_id: String },
-    Err { message: String },
-}
-
-impl From<UserCreds> for AccountResponse {
+impl From<UserCreds> for api::AccountResponse {
     fn from(auth: UserCreds) -> Self {
-        Self::Success {
+        Self::Success(api::UserData {
             user_id: auth.user_id().to_owned(),
-        }
-    }
-}
-
-impl<'a> From<&'a str> for AccountResponse {
-    fn from(msg: &'a str) -> Self {
-        Self::Err {
-            message: msg.to_string(),
-        }
+        })
     }
 }
 
@@ -54,7 +39,7 @@ impl<'a> From<&'a str> for AccountResponse {
 pub async fn handler(
     auth: AuthBasic,
     Extension(session_store): Extension<Arc<storage::SqliteStore>>,
-) -> (StatusCode, HeaderMap, axum::Json<AccountResponse>) {
+) -> (StatusCode, HeaderMap, axum::Json<api::AccountResponse>) {
     // NOTE(jwall): It is very important that you do **not** log the password
     // here. We convert the AuthBasic into UserCreds immediately to help prevent
     // that. Do not circumvent that protection.
@@ -67,7 +52,10 @@ pub async fn handler(
         let mut session = Session::new();
         if let Err(err) = session.insert("user_id", auth.user_id()) {
             error!(?err, "Unable to insert user id into session");
-            let resp: AccountResponse = "Unable to insert user id into session".into();
+            let resp = api::AccountResponse::error(
+                StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                "Unable to insert user id into session",
+            );
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 headers,
@@ -78,7 +66,10 @@ pub async fn handler(
         let cookie_value = match session_store.store_session(session).await {
             Err(err) => {
                 error!(?err, "Unable to store session in session store");
-                let resp: AccountResponse = "Unable to store session in session store".into();
+                let resp = api::AccountResponse::error(
+                    StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                    "Unable to store session in session store",
+                );
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     headers,
@@ -87,7 +78,10 @@ pub async fn handler(
             }
             Ok(None) => {
                 error!("Unable to create session cookie");
-                let resp: AccountResponse = "Unable to create session cookie".into();
+                let resp = api::AccountResponse::error(
+                    StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                    "Unable to create session cookie",
+                );
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     headers,
@@ -105,7 +99,10 @@ pub async fn handler(
         let parsed_cookie = match cookie.to_string().parse() {
             Err(err) => {
                 error!(?err, "Unable to parse session cookie");
-                let resp: AccountResponse = "Unable to parse session cookie".into();
+                let resp = api::AccountResponse::error(
+                    StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                    "Unable to parse session cookie",
+                );
                 return (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     headers,
@@ -116,12 +113,15 @@ pub async fn handler(
         };
         headers.insert(header::SET_COOKIE, parsed_cookie);
         // Respond with 200 OK
-        let resp: AccountResponse = auth.into();
+        let resp: api::AccountResponse = auth.into();
         (StatusCode::OK, headers, axum::Json::from(resp))
     } else {
         debug!("Invalid credentials");
         let headers = HeaderMap::new();
-        let resp: AccountResponse = "Invalid user id or password".into();
+        let resp = api::AccountResponse::error(
+            StatusCode::UNAUTHORIZED.as_u16(),
+            "Invalid user id or password",
+        );
         (StatusCode::UNAUTHORIZED, headers, axum::Json::from(resp))
     }
 }

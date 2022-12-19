@@ -1,0 +1,18 @@
+[package]
+name = "api"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = "1.0.144"
+recipes = { path = "../recipes" }
+
+[dependencies.axum]
+version = "0.5.16"
+optional = true
+
+[features]
+server = ["axum"]
+browser = []
