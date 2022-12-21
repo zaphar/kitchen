@@ -18,6 +18,7 @@ use serde_json::{from_str, to_string};
 use sycamore::prelude::*;
 use tracing::{debug, error, info, instrument, warn};
 
+use client_api::*;
 use recipes::{parse, IngredientKey, Recipe, RecipeEntry};
 use wasm_bindgen::JsValue;
 
@@ -216,7 +217,7 @@ impl HttpStore {
             Err(format!("Status: {}", resp.status()).into())
         } else {
             debug!("We got a valid response back!");
-            let resp: String = resp.json().await?;
+            let resp = resp.json::<CategoryResponse>().await?.as_success().unwrap();
             storage.set("categories", &resp)?;
             Ok(Some(resp))
         }
@@ -250,8 +251,11 @@ impl HttpStore {
             Err(format!("Status: {}", resp.status()).into())
         } else {
             debug!("We got a valid response back!");
-            let entries: Option<Vec<RecipeEntry>> =
-                resp.json().await.map_err(|e| format!("{}", e))?;
+            let entries = resp
+                .json::<RecipeEntryResponse>()
+                .await
+                .map_err(|e| format!("{}", e))?
+                .as_success();
             if let Some(ref entries) = entries {
                 for r in entries.iter() {
                     storage.set(
@@ -292,7 +296,12 @@ impl HttpStore {
             Ok(None)
         } else {
             debug!("We got a valid response back!");
-            let entry: Option<RecipeEntry> = resp.json().await.map_err(|e| format!("{}", e))?;
+            let entry = resp
+                .json::<Response<Option<RecipeEntry>>>()
+                .await
+                .map_err(|e| format!("{}", e))?
+                .as_success()
+                .unwrap();
             if let Some(ref entry) = entry {
                 let serialized: String = to_string(entry).map_err(|e| format!("{}", e))?;
                 storage.set(&recipe_key(entry.recipe_id()), &serialized)?
@@ -399,8 +408,11 @@ impl HttpStore {
             Err(format!("Status: {}", resp.status()).into())
         } else {
             debug!("We got a valid response back");
-            let plan: Option<Vec<(String, i32)>> =
-                resp.json().await.map_err(|e| format!("{}", e))?;
+            let plan = resp
+                .json::<PlanDataResponse>()
+                .await
+                .map_err(|e| format!("{}", e))?
+                .as_success();
             if let Some(ref entry) = plan {
                 let serialized: String = to_string(entry).map_err(|e| format!("{}", e))?;
                 storage.set("plan", &serialized)?
@@ -448,11 +460,16 @@ impl HttpStore {
             })
         } else {
             debug!("We got a valid response back");
-            let (filtered_ingredients, modified_amts, extra_items): (
-                Vec<IngredientKey>,
-                Vec<(IngredientKey, String)>,
-                Vec<(String, String)>,
-            ) = resp.json().await.map_err(|e| format!("{}", e))?;
+            let InventoryData {
+                filtered_ingredients,
+                modified_amts,
+                extra_items,
+            } = resp
+                .json::<InventoryResponse>()
+                .await
+                .map_err(|e| format!("{}", e))?
+                .as_success()
+                .unwrap();
             let _ = storage.set(
                 "inventory",
                 &to_string(&(&filtered_ingredients, &modified_amts))

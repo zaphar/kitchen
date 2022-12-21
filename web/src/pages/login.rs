@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use base64;
+use client_api::AccountResponse;
 use reqwasm::http;
 use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{debug, error, info};
@@ -20,7 +21,7 @@ fn token68(user: String, pass: String) -> String {
     base64::encode(format!("{}:{}", user, pass))
 }
 
-async fn authenticate(user: String, pass: String) -> bool {
+async fn authenticate(user: String, pass: String) -> Option<AccountResponse> {
     debug!(
         username = user,
         password = pass,
@@ -35,13 +36,16 @@ async fn authenticate(user: String, pass: String) -> bool {
         .await;
     if let Ok(resp) = &result {
         if resp.status() == 200 {
-            return true;
+            return resp
+                .json()
+                .await
+                .expect("Unparseable authentication response");
         }
         error!(status = resp.status(), "Login was unsuccessful")
     } else {
         error!(err=?result.unwrap_err(), "Failed to send auth request");
     }
-    return false;
+    return None;
 }
 
 #[component]
@@ -55,6 +59,7 @@ pub fn LoginForm<G: Html>(cx: Scope) -> View<G> {
             spawn_local_scoped(cx, async move {
                 debug!("authenticating against ui");
                 // TODO(jwall): Navigate to plan if the below is successful.
+                // TODO(jwall): Store account data in our app_state.
                 authenticate(username, password).await;
             });
         }

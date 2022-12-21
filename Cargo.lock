@@ -58,6 +58,7 @@ name = "api"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "chrono",
  "recipes",
  "serde",
 ]
@@ -1300,6 +1301,7 @@ dependencies = [
 name = "kitchen-wasm"
 version = "0.2.11"
 dependencies = [
+ "api",
  "async-trait",
  "base64",
  "chrono",

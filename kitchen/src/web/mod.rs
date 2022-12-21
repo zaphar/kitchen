@@ -23,7 +23,6 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
     routing::{get, Router},
 };
-use chrono::NaiveDate;
 use mime_guess;
 use recipes::{IngredientKey, RecipeEntry};
 use rust_embed::RustEmbed;
@@ -146,7 +145,7 @@ async fn api_save_categories(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
     Json(categories): Json<String>,
-) -> api::Response<String> {
+) -> api::CategoryResponse {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
         if let Err(e) = app_store
@@ -158,9 +157,9 @@ async fn api_save_categories(
                 format!("{:?}", e),
             );
         }
-        api::Response::success("Successfully saved categories".into())
+        api::CategoryResponse::success("Successfully saved categories".into())
     } else {
-        api::Response::Unauthorized
+        api::CategoryResponse::Unauthorized
     }
 }
 
@@ -168,7 +167,7 @@ async fn api_save_recipes(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
     Json(recipes): Json<Vec<RecipeEntry>>,
-) -> api::Response<()> {
+) -> api::EmptyResponse {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
         let result = app_store
@@ -176,7 +175,7 @@ async fn api_save_recipes(
             .await;
         result.map_err(|e| format!("Error: {:?}", e)).into()
     } else {
-        api::Response::Unauthorized
+        api::EmptyResponse::Unauthorized
     }
 }
 
@@ -200,7 +199,7 @@ async fn api_plan_since(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
     Path(date): Path<chrono::NaiveDate>,
-) -> api::Response<BTreeMap<NaiveDate, Vec<(String, i32)>>> {
+) -> api::PlanHistoryResponse {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
         app_store
@@ -209,7 +208,7 @@ async fn api_plan_since(
             .map_err(|e| format!("Error: {:?}", e))
             .into()
     } else {
-        api::Response::Unauthorized
+        api::PlanHistoryResponse::Unauthorized
     }
 }
 
@@ -217,7 +216,7 @@ async fn api_save_plan(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
     Json(meal_plan): Json<Vec<(String, i32)>>,
-) -> api::Response<()> {
+) -> api::EmptyResponse {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
         app_store
@@ -226,7 +225,7 @@ async fn api_save_plan(
             .map_err(|e| format!("{:?}", e))
             .into()
     } else {
-        api::Response::Unauthorized
+        api::EmptyResponse::Unauthorized
     }
 }
 
@@ -273,7 +272,7 @@ async fn save_inventory_data(
     filtered_ingredients: BTreeSet<IngredientKey>,
     modified_amts: BTreeMap<IngredientKey, String>,
     extra_items: Vec<(String, String)>,
-) -> api::Response<()> {
+) -> api::EmptyResponse {
     app_store
         .save_inventory_data(id, filtered_ingredients, modified_amts, extra_items)
         .await
@@ -289,7 +288,7 @@ async fn api_save_inventory_v2(
         Vec<(IngredientKey, String)>,
         Vec<(String, String)>,
     )>,
-) -> api::Response<()> {
+) -> api::EmptyResponse {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
         let filtered_ingredients = filtered_ingredients.into_iter().collect();
@@ -304,7 +303,7 @@ async fn api_save_inventory_v2(
         .await
         .into()
     } else {
-        api::Response::Unauthorized
+        api::EmptyResponse::Unauthorized
     }
 }
 
@@ -315,7 +314,7 @@ async fn api_save_inventory(
         Vec<IngredientKey>,
         Vec<(IngredientKey, String)>,
     )>,
-) -> api::Response<()> {
+) -> api::EmptyResponse {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
         let filtered_ingredients = filtered_ingredients.into_iter().collect();

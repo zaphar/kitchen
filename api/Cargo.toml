@@ -8,11 +8,14 @@ edition = "2021"
 [dependencies]
 serde = "1.0.144"
 recipes = { path = "../recipes" }
+chrono = "0.4.22"
+
 
 [dependencies.axum]
 version = "0.5.16"
 optional = true
 
 [features]
+default = []
 server = ["axum"]
 browser = []

@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 // Copyright 2022 Jeremy Wall (Jeremy@marzhilsltudios.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,6 +42,15 @@ impl<T> Response<T> {
     pub fn success(payload: T) -> Self {
         Self::Success(payload)
     }
+
+    #[cfg(feature = "browser")]
+    pub fn as_success(self) -> Option<T> {
+        if let Self::Success(val) = self {
+            Some(val)
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(feature = "server")]
@@ -57,6 +68,7 @@ where
                 };
                 (code, axum::Json::from(self)).into_response()
             }
+            // TODO(jwall): Perhaps this can show a more useful json payload?
             Self::NotFound => (StatusCode::NOT_FOUND, axum::Json::from(self)).into_response(),
             Self::Unauthorized => {
                 (StatusCode::UNAUTHORIZED, axum::Json::from(self)).into_response()
@@ -86,6 +98,10 @@ where
         }
     }
 }
+
+pub type CategoryResponse = Response<String>;
+
+pub type EmptyResponse = Response<()>;
 
 #[derive(Serialize, Deserialize)]
 pub struct UserData {
@@ -124,6 +140,8 @@ impl From<Option<Vec<(String, i32)>>> for PlanDataResponse {
         }
     }
 }
+
+pub type PlanHistoryResponse = Response<BTreeMap<chrono::NaiveDate, Vec<(String, i32)>>>;
 
 #[derive(Serialize, Deserialize)]
 pub struct InventoryData {
