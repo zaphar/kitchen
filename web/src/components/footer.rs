@@ -11,24 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-pub mod add_recipe;
-pub mod categories;
-pub mod footer;
-pub mod header;
-pub mod recipe;
-pub mod recipe_list;
-pub mod recipe_plan;
-pub mod recipe_selection;
-pub mod shopping_list;
-pub mod tabs;
 
-pub use add_recipe::*;
-pub use categories::*;
-pub use footer::*;
-pub use header::*;
-pub use recipe::*;
-pub use recipe_list::*;
-pub use recipe_plan::*;
-pub use recipe_selection::*;
-pub use shopping_list::*;
-pub use tabs::*;
+use sycamore::prelude::*;
+
+#[component]
+pub fn Footer<G: Html>(cx: Scope) -> View<G> {
+    view! {cx,
+        nav(class="no-print") {
+            ul {
+                li { a(href="https://github.com/zaphar/kitchen") { "On Github" } }
+            }
+        }
+    }
+}

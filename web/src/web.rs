@@ -14,7 +14,7 @@
 use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{error, info, instrument};
 
-use crate::components::Header;
+use crate::components::{Footer, Header};
 use crate::{api, routing::Handler as RouteHandler};
 
 #[instrument]
@@ -39,6 +39,7 @@ pub fn UI<G: Html>(cx: Scope) -> View<G> {
                 div(class="app") {
                     Header { }
                     RouteHandler()
+                    Footer { }
                 }
             });
         }
