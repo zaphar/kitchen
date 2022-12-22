@@ -21,9 +21,10 @@ kitchen: wasm kitchen/src/*.rs
 release: wasmrelease
 	cd kitchen; cargo build --release
 
-static-prep: web/index.html web/static/*.css
+static-prep: web/index.html web/favicon.ico web/static/*.css
 	mkdir -p web/dist
 	cp -r web/index.html web/dist/
+	cp -r web/favicon.ico web/dist/
 	cp -r web/static web/dist/
 
 wasmrelease: wasmrelease-dist static-prep

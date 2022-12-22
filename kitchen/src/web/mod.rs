@@ -371,6 +371,7 @@ pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socke
         .expect("Failed to run database migrations");
     let router = Router::new()
         .route("/", get(|| async { Redirect::temporary("/ui/plan") }))
+        .route("/favicon.ico", get(|| async { StaticFile("favicon.ico") }))
         .route("/ui/*path", get(ui_static_assets))
         // TODO(jwall): We should use route_layer to enforce the authorization
         // requirements here.
