@@ -10,7 +10,7 @@ edition = "2021"
 tracing = "0.1.35"
 tracing-subscriber = "0.3.14"
 recipes = { path = "../recipes" }
-api = { path = "../api" }
+client-api = { path = "../api", features = ["server"], package = "api" }
 csv = "1.1.1"
 rust-embed="6.4.0"
 mime_guess = "2.0.4"

@@ -16,6 +16,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use sycamore::prelude::*;
 use tracing::{debug, instrument, warn};
 
+use client_api::UserData;
 use recipes::{Ingredient, IngredientAccumulator, IngredientKey, Recipe};
 
 #[derive(Debug)]
@@ -27,6 +28,7 @@ pub struct State {
     pub category_map: RcSignal<BTreeMap<String, String>>,
     pub filtered_ingredients: RcSignal<BTreeSet<IngredientKey>>,
     pub modified_amts: RcSignal<BTreeMap<IngredientKey, RcSignal<String>>>,
+    pub auth: RcSignal<Option<UserData>>,
 }
 
 impl State {
@@ -39,6 +41,7 @@ impl State {
             category_map: create_rc_signal(BTreeMap::new()),
             filtered_ingredients: create_rc_signal(BTreeSet::new()),
             modified_amts: create_rc_signal(BTreeMap::new()),
+            auth: create_rc_signal(None),
         }
     }
 

@@ -11,42 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use base64;
-use client_api::AccountResponse;
-use reqwasm::http;
 use sycamore::{futures::spawn_local_scoped, prelude::*};
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
-fn token68(user: String, pass: String) -> String {
-    base64::encode(format!("{}:{}", user, pass))
-}
-
-async fn authenticate(user: String, pass: String) -> Option<AccountResponse> {
-    debug!(
-        username = user,
-        password = pass,
-        "attempting login request against api."
-    );
-    let result = http::Request::get("/api/v1/auth")
-        .header(
-            "Authorization",
-            format!("Basic {}", token68(user, pass)).as_str(),
-        )
-        .send()
-        .await;
-    if let Ok(resp) = &result {
-        if resp.status() == 200 {
-            return resp
-                .json()
-                .await
-                .expect("Unparseable authentication response");
-        }
-        error!(status = resp.status(), "Login was unsuccessful")
-    } else {
-        error!(err=?result.unwrap_err(), "Failed to send auth request");
-    }
-    return None;
-}
+use crate::app_state;
 
 #[component]
 pub fn LoginForm<G: Html>(cx: Scope) -> View<G> {
@@ -57,10 +25,11 @@ pub fn LoginForm<G: Html>(cx: Scope) -> View<G> {
         let (username, password) = (*clicked.get()).clone();
         if username != "" && password != "" {
             spawn_local_scoped(cx, async move {
+                let state = app_state::State::get_from_context(cx);
+                let store = crate::api::HttpStore::get_from_context(cx);
                 debug!("authenticating against ui");
                 // TODO(jwall): Navigate to plan if the below is successful.
-                // TODO(jwall): Store account data in our app_state.
-                authenticate(username, password).await;
+                state.auth.set(store.authenticate(username, password).await);
             });
         }
     });

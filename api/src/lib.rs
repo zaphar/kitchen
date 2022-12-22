@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 
 use recipes::{IngredientKey, RecipeEntry};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Response<T> {
     Success(T),
     Err { status: u16, message: String },
@@ -103,7 +103,7 @@ pub type CategoryResponse = Response<String>;
 
 pub type EmptyResponse = Response<()>;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct UserData {
     pub user_id: String,
 }

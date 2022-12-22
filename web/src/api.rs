@@ -13,6 +13,7 @@
 // limitations under the License.
 use std::collections::{BTreeMap, BTreeSet};
 
+use base64;
 use reqwasm;
 use serde_json::{from_str, to_string};
 use sycamore::prelude::*;
@@ -77,6 +78,16 @@ pub async fn init_page_state(store: &HttpStore, state: &app_state::State) -> Res
                     state.set_recipe_count_by_index(&r.recipe_id().to_owned(), 0);
                 }
             }
+        }
+    }
+    info!("Checking for user_data in local storage");
+    let storage = js_lib::get_storage();
+    let user_data = storage
+        .get("user_data")
+        .expect("Couldn't read from storage");
+    if let Some(data) = user_data {
+        if let Ok(user_data) = from_str(&data) {
+            state.auth.set(user_data)
         }
     }
     info!("Synchronizing categories");
@@ -164,6 +175,10 @@ fn recipe_key<S: std::fmt::Display>(id: S) -> String {
     format!("recipe:{}", id)
 }
 
+fn token68(user: String, pass: String) -> String {
+    base64::encode(format!("{}:{}", user, pass))
+}
+
 #[derive(Clone, Debug)]
 pub struct HttpStore {
     root: String,
@@ -192,6 +207,42 @@ impl HttpStore {
 
     pub fn get_from_context(cx: Scope) -> std::rc::Rc<Self> {
         use_context::<std::rc::Rc<Self>>(cx).clone()
+    }
+
+    // NOTE(jwall): We do **not** want to record the password in our logs.
+    #[instrument(skip_all, fields(?self, user))]
+    pub async fn authenticate(&self, user: String, pass: String) -> Option<UserData> {
+        debug!("attempting login request against api.");
+        let mut path = self.v1_path();
+        path.push_str("/auth");
+        let storage = js_lib::get_storage();
+        let result = reqwasm::http::Request::get(&path)
+            .header(
+                "Authorization",
+                format!("Basic {}", token68(user, pass)).as_str(),
+            )
+            .send()
+            .await;
+        if let Ok(resp) = &result {
+            if resp.status() == 200 {
+                let user_data = resp
+                    .json::<AccountResponse>()
+                    .await
+                    .expect("Unparseable authentication response")
+                    .as_success();
+                storage
+                    .set(
+                        "user_data",
+                        &to_string(&user_data).expect("Unable to serialize user_data"),
+                    )
+                    .unwrap();
+                return user_data;
+            }
+            error!(status = resp.status(), "Login was unsuccessful")
+        } else {
+            error!(err=?result.unwrap_err(), "Failed to send auth request");
+        }
+        return None;
     }
 
     //#[instrument]

@@ -14,13 +14,13 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
-use api;
 use async_session::{Session, SessionStore};
 use axum::{
     extract::Extension,
     http::{header, HeaderMap, StatusCode},
 };
 use axum_auth::AuthBasic;
+use client_api as api;
 use cookie::{Cookie, SameSite};
 use secrecy::Secret;
 use tracing::{debug, error, info, instrument};

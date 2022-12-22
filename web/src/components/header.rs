@@ -14,15 +14,26 @@
 
 use sycamore::prelude::*;
 
+use crate::app_state;
+
 #[component]
 pub fn Header<G: Html>(cx: Scope) -> View<G> {
+    let state = app_state::State::get_from_context(cx);
+    let login = create_memo(cx, move || {
+        let user_id = state.auth.get();
+        match user_id.as_ref() {
+            Some(user_data) => format!("{}", user_data.user_id),
+            None => "Login".to_owned(),
+        }
+    });
     view! {cx,
         nav(class="no-print") {
             h1(class="title") { "Kitchen" }
             ul {
                 li { a(href="/ui/planning/plan") { "MealPlan" } }
                 li { a(href="/ui/manage/categories") { "Manage" } }
-                li { a(href="/ui/login") { "Login" } }
+                li { a(href="/ui/login") { (login.get()) } }
+                // TODO(jwall): Move to footer?
                 li { a(href="https://github.com/zaphar/kitchen") { "Github" } }
             }
         }

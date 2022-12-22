@@ -30,7 +30,7 @@ use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, info, instrument};
 
-use api;
+use client_api as api;
 use storage::{APIStore, AuthStore};
 
 mod auth;
