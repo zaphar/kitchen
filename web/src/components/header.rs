@@ -33,8 +33,6 @@ pub fn Header<G: Html>(cx: Scope) -> View<G> {
                 li { a(href="/ui/planning/plan") { "MealPlan" } }
                 li { a(href="/ui/manage/categories") { "Manage" } }
                 li { a(href="/ui/login") { (login.get()) } }
-                // TODO(jwall): Move to footer?
-                li { a(href="https://github.com/zaphar/kitchen") { "Github" } }
             }
         }
     }
