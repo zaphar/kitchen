@@ -17,13 +17,17 @@ use base64;
 use reqwasm;
 use serde_json::{from_str, to_string};
 use sycamore::prelude::*;
+use sycamore_state::Handler;
 use tracing::{debug, error, info, instrument, warn};
 
 use client_api::*;
 use recipes::{parse, IngredientKey, Recipe, RecipeEntry};
 use wasm_bindgen::JsValue;
 
-use crate::{app_state, js_lib};
+use crate::{
+    app_state::{self, AppState, Message, StateMachine},
+    js_lib,
+};
 
 #[instrument]
 fn filter_recipes(
@@ -50,6 +54,87 @@ fn filter_recipes(
             Ok((staples, Some(parsed_map)))
         }
         None => Ok((None, None)),
+    }
+}
+
+pub async fn init_app_state<'ctx>(
+    cx: Scope<'ctx>,
+    h: &'ctx Handler<'ctx, StateMachine, AppState, Message>,
+) {
+    info!("Synchronizing Recipes");
+    let store = HttpStore::get_from_context(cx);
+    // TODO(jwall): Make our caching logic using storage more robust.
+    let recipe_entries = match store.get_recipes().await {
+        Ok(recipe_entries) => {
+            if let Ok((staples, recipes)) = filter_recipes(&recipe_entries) {
+                h.dispatch(Message::SetStaples(staples));
+                if let Some(recipes) = recipes {
+                    h.dispatch(Message::InitRecipes(recipes));
+                }
+            }
+            recipe_entries
+        }
+        Err(err) => {
+            error!(?err);
+            None
+        }
+    };
+
+    if let Ok(Some(plan)) = store.get_plan().await {
+        // set the counts.
+        let mut plan_map = BTreeMap::new();
+        for (id, count) in plan {
+            plan_map.insert(id, count as usize);
+        }
+        h.dispatch(Message::InitRecipeCounts(plan_map));
+    } else {
+        // Initialize things to zero
+        if let Some(rs) = recipe_entries {
+            for r in rs {
+                h.dispatch(Message::UpdateRecipeCount(r.recipe_id().to_owned(), 0))
+            }
+        }
+    }
+    info!("Checking for user_data in local storage");
+    let storage = js_lib::get_storage();
+    let user_data = storage
+        .get("user_data")
+        .expect("Couldn't read from storage");
+    if let Some(data) = user_data {
+        if let Ok(user_data) = from_str(&data) {
+            h.dispatch(Message::SetUserData(user_data));
+        }
+    }
+    info!("Synchronizing categories");
+    match store.get_categories().await {
+        Ok(Some(categories_content)) => {
+            debug!(categories=?categories_content);
+            match recipes::parse::as_categories(&categories_content) {
+                Ok(category_map) => {
+                    h.dispatch(Message::SetCategoryMap(category_map));
+                }
+                Err(err) => {
+                    error!(?err)
+                }
+            };
+        }
+        Ok(None) => {
+            warn!("There is no category file");
+        }
+        Err(e) => {
+            error!("{:?}", e);
+        }
+    }
+    info!("Synchronizing inventory data");
+    match store.get_inventory_data().await {
+        Ok((filtered_ingredients, modified_amts, extra_items)) => {
+            h.dispatch(Message::InitAmts(modified_amts));
+            h.dispatch(Message::InitFilteredIngredient(filtered_ingredients));
+            h.dispatch(Message::InitExtras(BTreeSet::from_iter(extra_items)));
+        }
+        Err(e) => {
+            error!("{:?}", e);
+        }
     }
 }
 

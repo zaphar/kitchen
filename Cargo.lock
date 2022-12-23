@@ -1344,6 +1344,7 @@ dependencies = [
  "serde_json",
  "sycamore",
  "sycamore-router",
+ "sycamore-state",
  "tracing",
  "tracing-subscriber",
  "tracing-web",
@@ -2247,6 +2248,13 @@ dependencies = [
  "quote",
  "syn",
  "unicode-xid",
+]
+
+[[package]]
+name = "sycamore-state"
+version = "0.0.1"
+dependencies = [
+ "sycamore",
 ]
 
 [[package]]

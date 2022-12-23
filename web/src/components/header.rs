@@ -14,17 +14,17 @@
 
 use sycamore::prelude::*;
 
-use crate::app_state;
+use crate::app_state::{AppState, Message, StateMachine};
+use sycamore_state::Handler;
 
 #[component]
-pub fn Header<G: Html>(cx: Scope) -> View<G> {
-    let state = app_state::State::get_from_context(cx);
-    let login = create_memo(cx, move || {
-        let user_id = state.auth.get();
-        match user_id.as_ref() {
-            Some(user_data) => format!("{}", user_data.user_id),
-            None => "Login".to_owned(),
-        }
+pub fn Header<'ctx, G: Html>(
+    cx: Scope<'ctx>,
+    h: &'ctx Handler<'ctx, StateMachine, AppState, Message>,
+) -> View<G> {
+    let login = h.get_selector(cx, |sig| match &sig.get().auth {
+        Some(id) => id.user_id.clone(),
+        None => "Login".to_owned(),
     });
     view! {cx,
         nav(class="no-print") {

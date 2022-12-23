@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use sycamore::{futures::spawn_local_scoped, prelude::*};
-use tracing::{error, info, instrument};
+use tracing::{info, instrument};
 
 use crate::components::{Footer, Header};
 use crate::{api, routing::Handler as RouteHandler};
@@ -20,24 +20,20 @@ use crate::{api, routing::Handler as RouteHandler};
 #[instrument]
 #[component]
 pub fn UI<G: Html>(cx: Scope) -> View<G> {
-    crate::app_state::State::provide_context(cx);
     api::HttpStore::provide_context(cx, "/api".to_owned());
     info!("Starting UI");
-
+    let app_state = crate::app_state::AppState::new();
+    let handler = crate::app_state::get_state_handler(cx, app_state);
     let view = create_signal(cx, View::empty());
     // FIXME(jwall): We need a way to trigger refreshes when required. Turn this
     // into a create_effect with a refresh signal stored as a context.
     spawn_local_scoped(cx, {
-        let store = api::HttpStore::get_from_context(cx);
-        let state = crate::app_state::State::get_from_context(cx);
         async move {
-            if let Err(err) = api::init_page_state(store.as_ref(), state.as_ref()).await {
-                error!(?err);
-            };
+            api::init_app_state(cx, handler).await;
             // TODO(jwall): This needs to be moved into the RouteHandler
             view.set(view! { cx,
                 div(class="app") {
-                    Header { }
+                    Header(handler)
                     RouteHandler()
                     Footer { }
                 }
