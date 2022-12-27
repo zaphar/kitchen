@@ -14,10 +14,10 @@
 use sycamore::prelude::*;
 
 use super::PlanningPage;
-use crate::components::recipe_list::*;
+use crate::{app_state::StateHandler, components::recipe_list::*};
 
 #[component]
-pub fn CookPage<G: Html>(cx: Scope) -> View<G> {
+pub fn CookPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
     view! {cx,
         PlanningPage(
             selected=Some("Cook".to_owned()),

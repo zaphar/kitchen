@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use super::ManagePage;
-use crate::components::recipe::Editor;
+use crate::{app_state::StateHandler, components::recipe::Editor};
 
 use sycamore::prelude::*;
 use tracing::instrument;
 
-#[instrument]
+#[instrument(skip_all)]
 #[component()]
-pub fn StaplesPage<G: Html>(cx: Scope) -> View<G> {
+pub fn StaplesPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
     view! {cx,
         ManagePage(
             selected=Some("Staples".to_owned()),

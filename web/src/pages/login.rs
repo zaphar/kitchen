@@ -14,7 +14,7 @@
 use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{debug, info};
 
-use crate::app_state;
+use crate::app_state::{self, StateHandler};
 
 #[component]
 pub fn LoginForm<G: Html>(cx: Scope) -> View<G> {
@@ -50,7 +50,7 @@ pub fn LoginForm<G: Html>(cx: Scope) -> View<G> {
 }
 
 #[component]
-pub fn LoginPage<G: Html>(cx: Scope) -> View<G> {
+pub fn LoginPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
     view! {cx,
             LoginForm()
     }

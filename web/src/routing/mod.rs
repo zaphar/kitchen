@@ -16,64 +16,7 @@ use crate::app_state::StateHandler;
 use sycamore::prelude::*;
 use sycamore_router::{HistoryIntegration, Route, Router};
 
-use tracing::{debug, instrument};
-
 use crate::pages::*;
-
-#[instrument(skip_all, fields(?route))]
-fn route_switch<'ctx, G: Html>(
-    cx: Scope<'ctx>,
-    sh: StateHandler<'ctx>,
-    route: &'ctx ReadSignal<Routes>,
-) -> View<G> {
-    // NOTE(jwall): This needs to not be a dynamic node. The rules around
-    // this are somewhat unclear and underdocumented for Sycamore. But basically
-    // avoid conditionals in the `view!` macro calls here.
-
-    let switcher = |cx: Scope, sh: StateHandler, route: &Routes| {
-        debug!(?route, "Dispatching for route");
-        match route {
-            Routes::Planning(Plan) => view! {cx,
-                PlanPage()
-            },
-            Routes::Planning(Inventory) => view! {cx,
-                InventoryPage()
-            },
-            Routes::Planning(Cook) => view! {cx,
-                CookPage()
-            },
-            Routes::Login => view! {cx,
-                LoginPage()
-            },
-            Routes::Recipe(RecipeRoutes::View(id)) => view! {cx,
-                RecipeViewPage(recipe=id.clone())
-            },
-            Routes::Recipe(RecipeRoutes::Edit(id)) => view! {cx,
-                RecipeEditPage(recipe=id.clone())
-            },
-            Routes::Manage(ManageRoutes::Categories) => view! {cx,
-                CategoryPage()
-            },
-            Routes::Manage(ManageRoutes::NewRecipe) => view! {cx,
-                AddRecipePage()
-            },
-            Routes::Manage(ManageRoutes::Staples) => view! {cx,
-                StaplesPage()
-            },
-            Routes::NotFound
-            | Routes::Manage(ManageRoutes::NotFound)
-            | Routes::Planning(PlanningRoutes::NotFound)
-            | Routes::Recipe(RecipeRoutes::NotFound) => view! {cx,
-                // TODO(Create a real one)
-                PlanPage()
-            },
-        }
-    };
-    use PlanningRoutes::*;
-    view! {cx,
-        (switcher(cx, sh, route.get().as_ref()))
-    }
-}
 
 #[derive(Route, Debug)]
 pub enum Routes {
@@ -131,11 +74,49 @@ pub struct HandlerProps<'ctx> {
 #[component]
 pub fn Handler<'ctx, G: Html>(cx: Scope<'ctx>, props: HandlerProps<'ctx>) -> View<G> {
     let HandlerProps { sh } = props;
+    use ManageRoutes::*;
+    use PlanningRoutes::*;
     view! {cx,
         Router(
             integration=HistoryIntegration::new(),
-            view=|cx, route| {
-                route_switch(cx, sh, route)
+            view=move |cx: Scope, route: &ReadSignal<Routes>| {
+                match route.get().as_ref() {
+                    Routes::Planning(Plan) => view! {cx,
+                        PlanPage(sh)
+                    },
+                    Routes::Planning(Inventory) => view! {cx,
+                        InventoryPage(sh)
+                    },
+                    Routes::Planning(Cook) => view! {cx,
+                        CookPage(sh)
+                    },
+                    Routes::Login => view! {cx,
+                        LoginPage(sh)
+                    },
+                    Routes::Recipe(RecipeRoutes::View(id)) => view! {cx,
+                        RecipeViewPage(recipe=id.clone(), sh=sh)
+                    },
+                    Routes::Recipe(RecipeRoutes::Edit(id)) => view! {cx,
+                        RecipeEditPage(recipe=id.clone(), sh=sh)
+                    },
+                    Routes::Manage(Categories) => view! {cx,
+                        CategoryPage(sh)
+                    },
+                    Routes::Manage(NewRecipe) => view! {cx,
+                        AddRecipePage(sh)
+                    },
+                    Routes::Manage(Staples) => view! {cx,
+                        StaplesPage(sh)
+                    },
+                    Routes::NotFound
+                    | Routes::Manage(ManageRoutes::NotFound)
+                    | Routes::Planning(PlanningRoutes::NotFound)
+                    | Routes::Recipe(RecipeRoutes::NotFound) => view! {cx,
+                        // TODO(Create a real one)
+                        PlanPage(sh)
+                    },
+                }
+
             },
         )
     }

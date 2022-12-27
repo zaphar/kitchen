@@ -17,13 +17,14 @@ use crate::components::recipe::Editor;
 use sycamore::prelude::*;
 use tracing::instrument;
 
-#[instrument]
+#[instrument(skip_all, fields(recipe=props.recipe))]
 #[component()]
 pub fn RecipeEditPage<G: Html>(cx: Scope, props: RecipePageProps) -> View<G> {
+    let RecipePageProps { recipe, sh } = props;
     view! {cx,
         RecipePage(
             selected=Some("Edit".to_owned()),
-            recipe=props.recipe.clone(),
-        ) { Editor(props.recipe) }
+            recipe=recipe.clone(),
+        ) { Editor(recipe) }
     }
 }

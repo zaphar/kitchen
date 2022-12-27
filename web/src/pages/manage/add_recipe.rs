@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use super::ManagePage;
-use crate::components::add_recipe::AddRecipe;
+use crate::{app_state::StateHandler, components::add_recipe::AddRecipe};
 
 use sycamore::prelude::*;
 
 #[component]
-pub fn AddRecipePage<G: Html>(cx: Scope) -> View<G> {
+pub fn AddRecipePage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
     view! {cx,
         ManagePage(
             selected=Some("New Recipe".to_owned()),
