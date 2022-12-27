@@ -12,19 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::app_state::StateHandler;
 use sycamore::prelude::*;
 use sycamore_router::{HistoryIntegration, Route, Router};
+
 use tracing::{debug, instrument};
 
 use crate::pages::*;
 
-#[instrument]
-fn route_switch<'a, G: Html>(cx: Scope<'a>, route: &'a ReadSignal<Routes>) -> View<G> {
+#[instrument(skip_all, fields(?route))]
+fn route_switch<'ctx, G: Html>(
+    cx: Scope<'ctx>,
+    sh: StateHandler<'ctx>,
+    route: &'ctx ReadSignal<Routes>,
+) -> View<G> {
     // NOTE(jwall): This needs to not be a dynamic node. The rules around
     // this are somewhat unclear and underdocumented for Sycamore. But basically
     // avoid conditionals in the `view!` macro calls here.
 
-    let switcher = |cx: Scope, route: &Routes| {
+    let switcher = |cx: Scope, sh: StateHandler, route: &Routes| {
         debug!(?route, "Dispatching for route");
         match route {
             Routes::Planning(Plan) => view! {cx,
@@ -65,7 +71,7 @@ fn route_switch<'a, G: Html>(cx: Scope<'a>, route: &'a ReadSignal<Routes>) -> Vi
     };
     use PlanningRoutes::*;
     view! {cx,
-        (switcher(cx, route.get().as_ref()))
+        (switcher(cx, sh, route.get().as_ref()))
     }
 }
 
@@ -117,12 +123,20 @@ pub enum PlanningRoutes {
     NotFound,
 }
 
+#[derive(Props)]
+pub struct HandlerProps<'ctx> {
+    sh: StateHandler<'ctx>,
+}
+
 #[component]
-pub fn Handler<G: Html>(cx: Scope) -> View<G> {
+pub fn Handler<'ctx, G: Html>(cx: Scope<'ctx>, props: HandlerProps<'ctx>) -> View<G> {
+    let HandlerProps { sh } = props;
     view! {cx,
         Router(
             integration=HistoryIntegration::new(),
-            view=route_switch,
+            view=|cx, route| {
+                route_switch(cx, sh, route)
+            },
         )
     }
 }

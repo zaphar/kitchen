@@ -34,7 +34,7 @@ pub fn UI<G: Html>(cx: Scope) -> View<G> {
             view.set(view! { cx,
                 div(class="app") {
                     Header(handler)
-                    RouteHandler()
+                    RouteHandler(sh=handler)
                     Footer { }
                 }
             });

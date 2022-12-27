@@ -131,10 +131,9 @@ impl MessageMapper<Message, AppState> for StateMachine {
     }
 }
 
-pub fn get_state_handler<'ctx>(
-    cx: Scope<'ctx>,
-    initial: AppState,
-) -> &'ctx Handler<'ctx, StateMachine, AppState, Message> {
+pub type StateHandler<'ctx> = &'ctx Handler<'ctx, StateMachine, AppState, Message>;
+
+pub fn get_state_handler<'ctx>(cx: Scope<'ctx>, initial: AppState) -> StateHandler<'ctx> {
     Handler::new(cx, initial, StateMachine())
 }
 #[derive(Debug)]

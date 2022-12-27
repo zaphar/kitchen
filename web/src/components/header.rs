@@ -14,14 +14,10 @@
 
 use sycamore::prelude::*;
 
-use crate::app_state::{AppState, Message, StateMachine};
-use sycamore_state::Handler;
+use crate::app_state::StateHandler;
 
 #[component]
-pub fn Header<'ctx, G: Html>(
-    cx: Scope<'ctx>,
-    h: &'ctx Handler<'ctx, StateMachine, AppState, Message>,
-) -> View<G> {
+pub fn Header<'ctx, G: Html>(cx: Scope<'ctx>, h: StateHandler<'ctx>) -> View<G> {
     let login = h.get_selector(cx, |sig| match &sig.get().auth {
         Some(id) => id.user_id.clone(),
         None => "Login".to_owned(),
