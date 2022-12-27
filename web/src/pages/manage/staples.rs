@@ -23,6 +23,6 @@ pub fn StaplesPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vi
     view! {cx,
         ManagePage(
             selected=Some("Staples".to_owned()),
-        ) { Editor("staples.txt".to_owned()) }
+        ) { Editor(recipe_id="staples.txt".to_owned(), sh=sh) }
     }
 }

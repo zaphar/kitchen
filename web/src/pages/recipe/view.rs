@@ -26,6 +26,6 @@ pub fn RecipeViewPage<G: Html>(cx: Scope, props: RecipePageProps) -> View<G> {
         RecipePage(
             selected=Some("View".to_owned()),
             recipe=recipe.clone(),
-        ) { Viewer(recipe) }
+        ) { Viewer(recipe_id=recipe, sh=sh) }
     }
 }

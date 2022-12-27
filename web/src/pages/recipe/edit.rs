@@ -25,6 +25,6 @@ pub fn RecipeEditPage<G: Html>(cx: Scope, props: RecipePageProps) -> View<G> {
         RecipePage(
             selected=Some("Edit".to_owned()),
             recipe=recipe.clone(),
-        ) { Editor(recipe) }
+        ) { Editor(recipe_id=recipe, sh=sh) }
     }
 }
