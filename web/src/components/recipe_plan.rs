@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use recipes::Recipe;
-use sycamore::{futures::spawn_local_scoped, prelude::*};
+use sycamore::prelude::*;
 use tracing::instrument;
 
+use crate::app_state;
 use crate::app_state::{Message, StateHandler};
 use crate::components::recipe_selection::*;
-use crate::{api::*, app_state};
 
 #[allow(non_snake_case)]
 #[instrument(skip_all)]
@@ -41,12 +41,11 @@ pub fn RecipePlan<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
     // FIXME(jwall): We should probably make this a dispatch method instead.
     create_effect(cx, move || {
         refresh_click.track();
-        let store = HttpStore::get_from_context(cx);
-        spawn_local_scoped(cx, async move { init_app_state(store.as_ref(), sh).await });
+        sh.dispatch(cx, Message::LoadState);
     });
     create_effect(cx, move || {
         save_click.track();
-        sh.dispatch(Message::SaveState);
+        sh.dispatch(cx, Message::SaveState);
     });
     view! {cx,
         table(class="recipe_selector no-print") {

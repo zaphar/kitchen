@@ -13,15 +13,16 @@
 // limitations under the License.
 use std::collections::{BTreeMap, BTreeSet};
 
-use sycamore::{futures::spawn_local, prelude::*};
-use tracing::{debug, error, instrument, warn};
-
 use client_api::UserData;
-use recipes::{Ingredient, IngredientAccumulator, IngredientKey, Recipe};
-
+use recipes::{parse, Ingredient, IngredientAccumulator, IngredientKey, Recipe, RecipeEntry};
+use serde_json::from_str;
+use sycamore::futures::spawn_local_scoped;
+use sycamore::{futures::spawn_local, prelude::*};
 use sycamore_state::{Handler, MessageMapper};
+use tracing::{debug, error, info, instrument, warn};
 
 use crate::api::HttpStore;
+use crate::js_lib;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AppState {
@@ -70,13 +71,122 @@ pub enum Message {
     SetUserData(UserData),
     UnsetUserData,
     SaveState,
+    LoadState,
 }
 
 pub struct StateMachine(HttpStore);
 
+#[instrument]
+fn filter_recipes(
+    recipe_entries: &Option<Vec<RecipeEntry>>,
+) -> Result<(Option<Recipe>, Option<BTreeMap<String, Recipe>>), String> {
+    match recipe_entries {
+        Some(parsed) => {
+            let mut staples = None;
+            let mut parsed_map = BTreeMap::new();
+            for r in parsed {
+                let recipe = match parse::as_recipe(&r.recipe_text()) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        error!("Error parsing recipe {}", e);
+                        continue;
+                    }
+                };
+                if recipe.title == "Staples" {
+                    staples = Some(recipe);
+                } else {
+                    parsed_map.insert(r.recipe_id().to_owned(), recipe);
+                }
+            }
+            Ok((staples, Some(parsed_map)))
+        }
+        None => Ok((None, None)),
+    }
+}
+impl StateMachine {
+    async fn load_state(store: HttpStore, original: &Signal<AppState>) {
+        let mut state = original.get().as_ref().clone();
+        info!("Synchronizing Recipes");
+        // TODO(jwall): Make our caching logic using storage more robust.
+        let recipe_entries = match store.get_recipes().await {
+            Ok(recipe_entries) => {
+                if let Ok((staples, recipes)) = filter_recipes(&recipe_entries) {
+                    state.staples = staples;
+                    if let Some(recipes) = recipes {
+                        state.recipes = recipes;
+                    }
+                }
+                recipe_entries
+            }
+            Err(err) => {
+                error!(?err);
+                None
+            }
+        };
+
+        if let Ok(Some(plan)) = store.get_plan().await {
+            // set the counts.
+            let mut plan_map = BTreeMap::new();
+            for (id, count) in plan {
+                plan_map.insert(id, count as usize);
+            }
+            state.recipe_counts = plan_map;
+        } else {
+            // Initialize things to zero
+            if let Some(rs) = recipe_entries {
+                for r in rs {
+                    state.recipe_counts.insert(r.recipe_id().to_owned(), 0);
+                }
+            }
+        }
+        info!("Checking for user_data in local storage");
+        let storage = js_lib::get_storage();
+        let user_data = storage
+            .get("user_data")
+            .expect("Couldn't read from storage");
+        if let Some(data) = user_data {
+            if let Ok(user_data) = from_str(&data) {
+                state.auth = Some(user_data);
+            }
+        }
+        info!("Synchronizing categories");
+        match store.get_categories().await {
+            Ok(Some(categories_content)) => {
+                debug!(categories=?categories_content);
+                match recipes::parse::as_categories(&categories_content) {
+                    Ok(category_map) => {
+                        state.category_map = category_map;
+                    }
+                    Err(err) => {
+                        error!(?err)
+                    }
+                };
+            }
+            Ok(None) => {
+                warn!("There is no category file");
+            }
+            Err(e) => {
+                error!("{:?}", e);
+            }
+        }
+        info!("Synchronizing inventory data");
+        match store.get_inventory_data().await {
+            Ok((filtered_ingredients, modified_amts, extra_items)) => {
+                state.modified_amts = modified_amts;
+                state.filtered_ingredients = filtered_ingredients;
+                state.extras = BTreeSet::from_iter(extra_items);
+            }
+            Err(e) => {
+                error!("{:?}", e);
+            }
+        }
+        original.set(state);
+    }
+}
+
 impl MessageMapper<Message, AppState> for StateMachine {
     #[instrument(skip_all, fields(?msg))]
-    fn map(&self, msg: Message, original: &ReadSignal<AppState>) -> AppState {
+    fn map<'ctx>(&self, cx: Scope<'ctx>, msg: Message, original: &'ctx Signal<AppState>) {
         let mut original_copy = original.get().as_ref().clone();
         match msg {
             Message::InitRecipeCounts(map) => {
@@ -133,14 +243,21 @@ impl MessageMapper<Message, AppState> for StateMachine {
             Message::SaveState => {
                 let store = self.0.clone();
                 let original_copy = original_copy.clone();
-                spawn_local(async move {
+                spawn_local_scoped(cx, async move {
                     if let Err(e) = store.save_app_state(original_copy).await {
                         error!(err=?e, "Error saving app state")
                     };
                 });
             }
+            Message::LoadState => {
+                let store = self.0.clone();
+                spawn_local_scoped(cx, async move {
+                    Self::load_state(store, original).await;
+                });
+                return;
+            }
         }
-        original_copy
+        original.set(original_copy);
     }
 }
 

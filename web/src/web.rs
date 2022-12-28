@@ -14,6 +14,7 @@
 use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{info, instrument};
 
+use crate::app_state::Message;
 use crate::components::{Footer, Header};
 use crate::{api, routing::Handler as RouteHandler};
 
@@ -25,19 +26,19 @@ pub fn UI<G: Html>(cx: Scope) -> View<G> {
     let store = api::HttpStore::get_from_context(cx).as_ref().clone();
     info!("Starting UI");
     let app_state = crate::app_state::AppState::new();
-    let handler = crate::app_state::get_state_handler(cx, app_state, store);
+    let sh = crate::app_state::get_state_handler(cx, app_state, store);
     let view = create_signal(cx, View::empty());
     // FIXME(jwall): We need a way to trigger refreshes when required. Turn this
     // into a create_effect with a refresh signal stored as a context.
     spawn_local_scoped(cx, {
         let store = api::HttpStore::get_from_context(cx);
         async move {
-            api::init_app_state(store.as_ref(), handler).await;
+            sh.dispatch(cx, Message::LoadState);
             // TODO(jwall): This needs to be moved into the RouteHandler
             view.set(view! { cx,
                 div(class="app") {
-                    Header(handler)
-                    RouteHandler(sh=handler)
+                    Header(sh)
+                    RouteHandler(sh=sh)
                     Footer { }
                 }
             });

@@ -95,10 +95,10 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
                     // We also need to set recipe in our state
                     dirty.set(false);
                     if let Ok(recipe) = recipes::parse::as_recipe(text.get_untracked().as_ref()) {
-                        sh.dispatch(Message::SetRecipe(
-                            id.get_untracked().as_ref().to_owned(),
-                            recipe,
-                        ));
+                        sh.dispatch(
+                            cx,
+                            Message::SetRecipe(id.get_untracked().as_ref().to_owned(), recipe),
+                        );
                     }
                 };
             }
