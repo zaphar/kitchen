@@ -21,6 +21,6 @@ pub fn CategoryPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> V
     view! {cx,
         ManagePage(
             selected=Some("Categories".to_owned()),
-        ) { Categories() }
+        ) { Categories(sh) }
     }
 }

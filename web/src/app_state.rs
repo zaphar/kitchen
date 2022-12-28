@@ -30,7 +30,7 @@ pub struct AppState {
     pub extras: BTreeSet<(String, String)>,
     pub staples: Option<Recipe>,
     pub recipes: BTreeMap<String, Recipe>,
-    pub category_map: BTreeMap<String, String>,
+    pub category_map: String,
     pub filtered_ingredients: BTreeSet<IngredientKey>,
     pub modified_amts: BTreeMap<IngredientKey, String>,
     pub auth: Option<UserData>,
@@ -43,7 +43,7 @@ impl AppState {
             extras: BTreeSet::new(),
             staples: None,
             recipes: BTreeMap::new(),
-            category_map: BTreeMap::new(),
+            category_map: String::new(),
             filtered_ingredients: BTreeSet::new(),
             modified_amts: BTreeMap::new(),
             auth: None,
@@ -63,7 +63,8 @@ pub enum Message {
     SetRecipe(String, Recipe),
     RemoveRecipe(String),
     SetStaples(Option<Recipe>),
-    SetCategoryMap(BTreeMap<String, String>),
+    SetCategoryMap(String),
+    UpdateCategories,
     InitFilteredIngredient(BTreeSet<IngredientKey>),
     AddFilteredIngredient(IngredientKey),
     RemoveFilteredIngredient(IngredientKey),
@@ -154,14 +155,7 @@ impl StateMachine {
         match store.get_categories().await {
             Ok(Some(categories_content)) => {
                 debug!(categories=?categories_content);
-                match recipes::parse::as_categories(&categories_content) {
-                    Ok(category_map) => {
-                        state.category_map = category_map;
-                    }
-                    Err(err) => {
-                        error!(?err)
-                    }
-                };
+                state.category_map = categories_content;
             }
             Ok(None) => {
                 warn!("There is no category file");
@@ -233,8 +227,29 @@ impl MessageMapper<Message, AppState> for StateMachine {
             Message::RemoveRecipe(id) => {
                 original_copy.recipes.remove(&id);
             }
-            Message::SetCategoryMap(map) => {
-                original_copy.category_map = map;
+            Message::SetCategoryMap(category_text) => {
+                let store = self.0.clone();
+                original_copy.category_map = category_text.clone();
+                spawn_local_scoped(cx, async move {
+                    if let Err(e) = store.save_categories(category_text).await {
+                        error!(?e, "Failed to save categories");
+                    }
+                });
+            }
+            Message::UpdateCategories => {
+                let store = self.0.clone();
+                let mut original_copy = original_copy.clone();
+                spawn_local_scoped(cx, async move {
+                    if let Some(categories) = match store.get_categories().await {
+                        Ok(js) => js,
+                        Err(e) => {
+                            error!(err=?e, "Failed to get categories.");
+                            return;
+                        }
+                    } {
+                        original_copy.category_map = categories;
+                    };
+                });
             }
             Message::InitFilteredIngredient(set) => {
                 original_copy.filtered_ingredients = set;

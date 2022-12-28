@@ -21,8 +21,8 @@ use crate::{api, routing::Handler as RouteHandler};
 #[instrument]
 #[component]
 pub fn UI<G: Html>(cx: Scope) -> View<G> {
-    api::HttpStore::provide_context(cx, "/api".to_owned());
     // FIXME(jwall): We shouldn't need to get the store from a context anymore.
+    api::HttpStore::provide_context(cx, "/api".to_owned());
     let store = api::HttpStore::get_from_context(cx).as_ref().clone();
     info!("Starting UI");
     let app_state = crate::app_state::AppState::new();
