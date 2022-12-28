@@ -164,7 +164,7 @@ pub fn Viewer<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
     let RecipeComponentProps { recipe_id, sh } = props;
     let state = app_state::State::get_from_context(cx);
     let view = create_signal(cx, View::empty());
-    let recipe_signal = sh.get_selector(cx, |state| {
+    let recipe_signal = sh.get_selector(cx, move |state| {
         if let Some(recipe) = state.get().recipes.get(&recipe_id) {
             let title = recipe.title.clone();
             let desc = recipe.desc.clone().unwrap_or_else(|| String::new());

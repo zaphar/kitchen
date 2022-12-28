@@ -20,7 +20,7 @@ use super::{RecipePage, RecipePageProps};
 
 #[instrument(skip_all, fields(recipe=props.recipe))]
 #[component()]
-pub fn RecipeViewPage<G: Html>(cx: Scope, props: RecipePageProps) -> View<G> {
+pub fn RecipeViewPage<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipePageProps<'ctx>) -> View<G> {
     let RecipePageProps { recipe, sh } = props;
     view! {cx,
         RecipePage(

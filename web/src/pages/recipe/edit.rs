@@ -19,7 +19,7 @@ use tracing::instrument;
 
 #[instrument(skip_all, fields(recipe=props.recipe))]
 #[component()]
-pub fn RecipeEditPage<G: Html>(cx: Scope, props: RecipePageProps) -> View<G> {
+pub fn RecipeEditPage<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipePageProps<'ctx>) -> View<G> {
     let RecipePageProps { recipe, sh } = props;
     view! {cx,
         RecipePage(
