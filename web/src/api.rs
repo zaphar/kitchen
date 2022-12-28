@@ -58,11 +58,10 @@ fn filter_recipes(
 }
 
 pub async fn init_app_state<'ctx>(
-    cx: Scope<'ctx>,
+    store: &HttpStore,
     h: &'ctx Handler<'ctx, StateMachine, AppState, Message>,
 ) {
     info!("Synchronizing Recipes");
-    let store = HttpStore::get_from_context(cx);
     // TODO(jwall): Make our caching logic using storage more robust.
     let recipe_entries = match store.get_recipes().await {
         Ok(recipe_entries) => {
@@ -270,7 +269,7 @@ pub struct HttpStore {
 }
 
 impl HttpStore {
-    fn new(root: String) -> Self {
+    pub fn new(root: String) -> Self {
         Self { root }
     }
 
@@ -491,6 +490,27 @@ impl HttpStore {
             debug!("We got a valid response back!");
             Ok(())
         }
+    }
+
+    #[instrument(skip_all)]
+    pub async fn save_app_state(&self, state: AppState) -> Result<(), Error> {
+        let mut plan = Vec::new();
+        for (key, count) in state.recipe_counts.iter() {
+            plan.push((key.clone(), *count as i32));
+        }
+        debug!("Saving plan data");
+        self.save_plan(plan).await?;
+        debug!("Saving inventory data");
+        self.save_inventory_data(
+            state.filtered_ingredients,
+            state.modified_amts,
+            state
+                .extras
+                .iter()
+                .cloned()
+                .collect::<Vec<(String, String)>>(),
+        )
+        .await
     }
 
     #[instrument]

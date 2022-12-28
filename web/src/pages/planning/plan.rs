@@ -21,6 +21,6 @@ pub fn PlanPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<
     view! {cx,
         PlanningPage(
             selected=Some("Plan".to_owned()),
-        ) { RecipePlan() }
+        ) { RecipePlan(sh) }
     }
 }

@@ -13,21 +13,20 @@
 // limitations under the License.
 use recipes::Recipe;
 use sycamore::{futures::spawn_local_scoped, prelude::*};
-use tracing::{error, instrument};
+use tracing::instrument;
 
+use crate::app_state::{Message, StateHandler};
 use crate::components::recipe_selection::*;
 use crate::{api::*, app_state};
 
 #[allow(non_snake_case)]
-#[instrument]
-pub fn RecipePlan<G: Html>(cx: Scope) -> View<G> {
-    let rows = create_memo(cx, move || {
-        let state = app_state::State::get_from_context(cx);
+#[instrument(skip_all)]
+pub fn RecipePlan<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
+    let rows = sh.get_selector(cx, move |state| {
         let mut rows = Vec::new();
         for row in state
-            .recipes
             .get()
-            .as_ref()
+            .recipes
             .iter()
             .map(|(k, v)| create_signal(cx, (k.clone(), v.clone())))
             .collect::<Vec<&Signal<(String, Recipe)>>>()
@@ -39,27 +38,15 @@ pub fn RecipePlan<G: Html>(cx: Scope) -> View<G> {
     });
     let refresh_click = create_signal(cx, false);
     let save_click = create_signal(cx, false);
+    // FIXME(jwall): We should probably make this a dispatch method instead.
     create_effect(cx, move || {
         refresh_click.track();
         let store = HttpStore::get_from_context(cx);
-        let state = app_state::State::get_from_context(cx);
-        spawn_local_scoped(cx, {
-            async move {
-                if let Err(err) = init_page_state(store.as_ref(), state.as_ref()).await {
-                    error!(?err);
-                };
-            }
-        });
+        spawn_local_scoped(cx, async move { init_app_state(store.as_ref(), sh).await });
     });
     create_effect(cx, move || {
         save_click.track();
-        let store = HttpStore::get_from_context(cx);
-        let state = app_state::State::get_from_context(cx);
-        spawn_local_scoped(cx, {
-            async move {
-                store.save_state(state).await.expect("Failed to save plan");
-            }
-        })
+        sh.dispatch(Message::SaveState);
     });
     view! {cx,
         table(class="recipe_selector no-print") {

@@ -21,15 +21,18 @@ use crate::{api, routing::Handler as RouteHandler};
 #[component]
 pub fn UI<G: Html>(cx: Scope) -> View<G> {
     api::HttpStore::provide_context(cx, "/api".to_owned());
+    // FIXME(jwall): We shouldn't need to get the store from a context anymore.
+    let store = api::HttpStore::get_from_context(cx).as_ref().clone();
     info!("Starting UI");
     let app_state = crate::app_state::AppState::new();
-    let handler = crate::app_state::get_state_handler(cx, app_state);
+    let handler = crate::app_state::get_state_handler(cx, app_state, store);
     let view = create_signal(cx, View::empty());
     // FIXME(jwall): We need a way to trigger refreshes when required. Turn this
     // into a create_effect with a refresh signal stored as a context.
     spawn_local_scoped(cx, {
+        let store = api::HttpStore::get_from_context(cx);
         async move {
-            api::init_app_state(cx, handler).await;
+            api::init_app_state(store.as_ref(), handler).await;
             // TODO(jwall): This needs to be moved into the RouteHandler
             view.set(view! { cx,
                 div(class="app") {

@@ -13,13 +13,15 @@
 // limitations under the License.
 use std::collections::{BTreeMap, BTreeSet};
 
-use sycamore::prelude::*;
-use tracing::{debug, instrument, warn};
+use sycamore::{futures::spawn_local, prelude::*};
+use tracing::{debug, error, instrument, warn};
 
 use client_api::UserData;
 use recipes::{Ingredient, IngredientAccumulator, IngredientKey, Recipe};
 
 use sycamore_state::{Handler, MessageMapper};
+
+use crate::api::HttpStore;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AppState {
@@ -48,6 +50,7 @@ impl AppState {
     }
 }
 
+#[derive(Debug)]
 pub enum Message {
     InitRecipeCounts(BTreeMap<String, usize>),
     UpdateRecipeCount(String, usize),
@@ -66,12 +69,13 @@ pub enum Message {
     UpdateAmt(IngredientKey, String),
     SetUserData(UserData),
     UnsetUserData,
+    SaveState,
 }
 
-// TODO(jwall): Add HttpStore here and do the proper things for each event.
-pub struct StateMachine();
+pub struct StateMachine(HttpStore);
 
 impl MessageMapper<Message, AppState> for StateMachine {
+    #[instrument(skip_all, fields(?msg))]
     fn map(&self, msg: Message, original: &ReadSignal<AppState>) -> AppState {
         let mut original_copy = original.get().as_ref().clone();
         match msg {
@@ -126,6 +130,15 @@ impl MessageMapper<Message, AppState> for StateMachine {
             Message::UnsetUserData => {
                 original_copy.auth = None;
             }
+            Message::SaveState => {
+                let store = self.0.clone();
+                let original_copy = original_copy.clone();
+                spawn_local(async move {
+                    if let Err(e) = store.save_app_state(original_copy).await {
+                        error!(err=?e, "Error saving app state")
+                    };
+                });
+            }
         }
         original_copy
     }
@@ -133,9 +146,14 @@ impl MessageMapper<Message, AppState> for StateMachine {
 
 pub type StateHandler<'ctx> = &'ctx Handler<'ctx, StateMachine, AppState, Message>;
 
-pub fn get_state_handler<'ctx>(cx: Scope<'ctx>, initial: AppState) -> StateHandler<'ctx> {
-    Handler::new(cx, initial, StateMachine())
+pub fn get_state_handler<'ctx>(
+    cx: Scope<'ctx>,
+    initial: AppState,
+    store: HttpStore,
+) -> StateHandler<'ctx> {
+    Handler::new(cx, initial, StateMachine(store))
 }
+
 #[derive(Debug)]
 pub struct State {
     pub recipe_counts: RcSignal<BTreeMap<String, RcSignal<usize>>>,
