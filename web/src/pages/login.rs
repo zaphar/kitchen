@@ -14,10 +14,10 @@
 use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{debug, info};
 
-use crate::app_state::{self, StateHandler};
+use crate::app_state::{Message, StateHandler};
 
 #[component]
-pub fn LoginForm<G: Html>(cx: Scope) -> View<G> {
+pub fn LoginForm<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
     let username = create_signal(cx, "".to_owned());
     let password = create_signal(cx, "".to_owned());
     let clicked = create_signal(cx, ("".to_owned(), "".to_owned()));
@@ -25,11 +25,12 @@ pub fn LoginForm<G: Html>(cx: Scope) -> View<G> {
         let (username, password) = (*clicked.get()).clone();
         if username != "" && password != "" {
             spawn_local_scoped(cx, async move {
-                let state = app_state::State::get_from_context(cx);
                 let store = crate::api::HttpStore::get_from_context(cx);
                 debug!("authenticating against ui");
                 // TODO(jwall): Navigate to plan if the below is successful.
-                state.auth.set(store.authenticate(username, password).await);
+                if let Some(user_data) = store.authenticate(username, password).await {
+                    sh.dispatch(Message::SetUserData(user_data));
+                }
             });
         }
     });
@@ -52,6 +53,6 @@ pub fn LoginForm<G: Html>(cx: Scope) -> View<G> {
 #[component]
 pub fn LoginPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
     view! {cx,
-            LoginForm()
+            LoginForm(sh)
     }
 }
