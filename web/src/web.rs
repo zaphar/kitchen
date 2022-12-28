@@ -31,7 +31,6 @@ pub fn UI<G: Html>(cx: Scope) -> View<G> {
     // FIXME(jwall): We need a way to trigger refreshes when required. Turn this
     // into a create_effect with a refresh signal stored as a context.
     spawn_local_scoped(cx, {
-        let store = api::HttpStore::get_from_context(cx);
         async move {
             sh.dispatch(cx, Message::LoadState);
             // TODO(jwall): This needs to be moved into the RouteHandler

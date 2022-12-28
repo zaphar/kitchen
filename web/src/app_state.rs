@@ -17,7 +17,7 @@ use client_api::UserData;
 use recipes::{parse, Ingredient, IngredientAccumulator, IngredientKey, Recipe, RecipeEntry};
 use serde_json::from_str;
 use sycamore::futures::spawn_local_scoped;
-use sycamore::{futures::spawn_local, prelude::*};
+use sycamore::prelude::*;
 use sycamore_state::{Handler, MessageMapper};
 use tracing::{debug, error, info, instrument, warn};
 

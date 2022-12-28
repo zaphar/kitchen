@@ -14,7 +14,7 @@
 use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{debug, error};
 
-use crate::app_state::{self, Message, StateHandler};
+use crate::app_state::{Message, StateHandler};
 use recipes::{self, RecipeEntry};
 
 fn check_recipe_parses(
@@ -162,7 +162,6 @@ fn Steps<G: Html>(cx: Scope, steps: Vec<recipes::Step>) -> View<G> {
 #[component]
 pub fn Viewer<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>) -> View<G> {
     let RecipeComponentProps { recipe_id, sh } = props;
-    let state = app_state::State::get_from_context(cx);
     let view = create_signal(cx, View::empty());
     let recipe_signal = sh.get_selector(cx, move |state| {
         if let Some(recipe) = state.get().recipes.get(&recipe_id) {
