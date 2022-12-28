@@ -59,6 +59,7 @@ pub enum Message {
     AddExtra(String, String),
     RemoveExtra(String, String),
     InitRecipes(BTreeMap<String, Recipe>),
+    SaveRecipe(RecipeEntry),
     SetRecipe(String, Recipe),
     RemoveRecipe(String),
     SetStaples(Option<Recipe>),
@@ -212,6 +213,22 @@ impl MessageMapper<Message, AppState> for StateMachine {
             }
             Message::SetRecipe(id, recipe) => {
                 original_copy.recipes.insert(id, recipe);
+            }
+            Message::SaveRecipe(entry) => {
+                let recipe =
+                    parse::as_recipe(entry.recipe_text()).expect("Failed to parse RecipeEntry");
+                original_copy
+                    .recipes
+                    .insert(entry.recipe_id().to_owned(), recipe);
+                let store = self.0.clone();
+                original_copy
+                    .recipe_counts
+                    .insert(entry.recipe_id().to_owned(), 0);
+                spawn_local_scoped(cx, async move {
+                    if let Err(e) = store.save_recipes(vec![entry]).await {
+                        error!(err=?e, "Unable to save Recipe");
+                    }
+                });
             }
             Message::RemoveRecipe(id) => {
                 original_copy.recipes.remove(&id);
