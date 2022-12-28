@@ -51,6 +51,14 @@ pub fn as_categories(i: &str) -> std::result::Result<BTreeMap<String, String>, S
     }
 }
 
+pub fn as_measure(i: &str) -> std::result::Result<Measure, String> {
+    match measure(StrIter::new(i)) {
+        Result::Abort(e) | Result::Fail(e) => Err(format_err(e)),
+        Result::Incomplete(_) => Err(format!("Incomplete categories list can not parse")),
+        Result::Complete(_, m) => Ok(m),
+    }
+}
+
 make_fn!(
     pub categories<StrIter, BTreeMap<String, String>>,
     do_each!(

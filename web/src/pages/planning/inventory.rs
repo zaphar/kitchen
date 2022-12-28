@@ -21,6 +21,6 @@ pub fn InventoryPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> 
     view! {cx,
         PlanningPage(
             selected=Some("Inventory".to_owned()),
-        ) { ShoppingList() }
+        ) { ShoppingList(sh) }
     }
 }

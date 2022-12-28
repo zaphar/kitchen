@@ -17,7 +17,7 @@ use base64;
 use reqwasm;
 use serde_json::{from_str, to_string};
 use sycamore::prelude::*;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, instrument, warn};
 
 use client_api::*;
 use recipes::{parse, IngredientKey, Recipe, RecipeEntry};
