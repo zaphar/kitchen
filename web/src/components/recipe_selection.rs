@@ -16,7 +16,7 @@ use std::rc::Rc;
 use sycamore::prelude::*;
 use tracing::{debug, instrument};
 
-use crate::app_state::{self, Message, StateHandler};
+use crate::app_state::{Message, StateHandler};
 
 #[derive(Props)]
 pub struct RecipeCheckBoxProps<'ctx> {
@@ -46,7 +46,6 @@ pub fn RecipeSelection<'ctx, G: Html>(
             },
         ),
     );
-    let id_clone = id.clone();
     let title = title.get().clone();
     let for_id = id.clone();
     let href = format!("/ui/recipe/view/{}", id);

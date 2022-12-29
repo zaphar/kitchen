@@ -23,10 +23,7 @@ use client_api::*;
 use recipes::{parse, IngredientKey, Recipe, RecipeEntry};
 use wasm_bindgen::JsValue;
 
-use crate::{
-    app_state::{self, AppState},
-    js_lib,
-};
+use crate::{app_state::AppState, js_lib};
 
 // FIXME(jwall): We should be able to delete this now.
 #[instrument]
@@ -356,29 +353,6 @@ impl HttpStore {
                 .iter()
                 .cloned()
                 .collect::<Vec<(String, String)>>(),
-        )
-        .await
-    }
-
-    #[instrument]
-    pub async fn save_state(&self, state: std::rc::Rc<app_state::State>) -> Result<(), Error> {
-        let mut plan = Vec::new();
-        for (key, count) in state.recipe_counts.get_untracked().iter() {
-            plan.push((key.clone(), *count.get_untracked() as i32));
-        }
-        debug!("Saving plan data");
-        self.save_plan(plan).await?;
-        debug!("Saving inventory data");
-        self.save_inventory_data(
-            state.filtered_ingredients.get_untracked().as_ref().clone(),
-            state.get_current_modified_amts(),
-            state
-                .extras
-                .get()
-                .as_ref()
-                .iter()
-                .map(|t| (t.1 .0.get().as_ref().clone(), t.1 .1.get().as_ref().clone()))
-                .collect(),
         )
         .await
     }
