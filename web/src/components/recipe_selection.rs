@@ -35,28 +35,18 @@ pub fn RecipeSelection<'ctx, G: Html>(
     props: RecipeCheckBoxProps<'ctx>,
 ) -> View<G> {
     let RecipeCheckBoxProps { i, title, sh } = props;
-    let state = app_state::State::get_from_context(cx);
-    // This is total hack but it works around the borrow issues with
-    // the `view!` macro.
     let id = Rc::new(i);
+    let id_clone = id.clone();
     let count = create_signal(
         cx,
-        format!(
-            "{}",
-            state
-                .get_recipe_count_by_index(id.as_ref())
-                .unwrap_or_else(|| state.set_recipe_count_by_index(id.as_ref(), 0))
+        sh.get_value(
+            |state| match state.get_untracked().recipe_counts.get(id_clone.as_ref()) {
+                Some(count) => format!("{}", count),
+                None => "0".to_owned(),
+            },
         ),
     );
-    create_effect(cx, {
-        let id = id.clone();
-        let state = app_state::State::get_from_context(cx);
-        move || {
-            if let Some(usize_count) = state.get_recipe_count_by_index(id.as_ref()) {
-                count.set(format!("{}", *usize_count.get()));
-            }
-        }
-    });
+    let id_clone = id.clone();
     let title = title.get().clone();
     let for_id = id.clone();
     let href = format!("/ui/recipe/view/{}", id);
@@ -64,7 +54,7 @@ pub fn RecipeSelection<'ctx, G: Html>(
     view! {cx,
         div() {
             label(for=for_id) { a(href=href) { (*title) } }
-            input(type="number", class="item-count-sel", min="0", bind:value=count, name=name, on:change=move |_| {
+            input(type="number", class="item-count-sel", min="0", value=count, name=name, on:change=move |_| {
                 debug!(idx=%id, count=%(*count.get()), "setting recipe count");
                 sh.dispatch(cx, Message::UpdateRecipeCount(id.as_ref().clone(), count.get().parse().expect("Count is not a valid usize")));
             })
