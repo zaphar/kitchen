@@ -16,24 +16,29 @@ use std::rc::Rc;
 use sycamore::prelude::*;
 use tracing::{debug, instrument};
 
-use crate::app_state;
+use crate::app_state::{self, Message, StateHandler};
 
 #[derive(Props)]
 pub struct RecipeCheckBoxProps<'ctx> {
     pub i: String,
     pub title: &'ctx ReadSignal<String>,
+    pub sh: StateHandler<'ctx>,
 }
 
 #[instrument(skip(props, cx), fields(
-    idx=%props.i,
+    id=%props.i,
     title=%props.title.get()
 ))]
 #[component]
-pub fn RecipeSelection<G: Html>(cx: Scope, props: RecipeCheckBoxProps) -> View<G> {
+pub fn RecipeSelection<'ctx, G: Html>(
+    cx: Scope<'ctx>,
+    props: RecipeCheckBoxProps<'ctx>,
+) -> View<G> {
+    let RecipeCheckBoxProps { i, title, sh } = props;
     let state = app_state::State::get_from_context(cx);
     // This is total hack but it works around the borrow issues with
     // the `view!` macro.
-    let id = Rc::new(props.i);
+    let id = Rc::new(i);
     let count = create_signal(
         cx,
         format!(
@@ -52,7 +57,7 @@ pub fn RecipeSelection<G: Html>(cx: Scope, props: RecipeCheckBoxProps) -> View<G
             }
         }
     });
-    let title = props.title.get().clone();
+    let title = title.get().clone();
     let for_id = id.clone();
     let href = format!("/ui/recipe/view/{}", id);
     let name = format!("recipe_id:{}", id);
@@ -60,9 +65,8 @@ pub fn RecipeSelection<G: Html>(cx: Scope, props: RecipeCheckBoxProps) -> View<G
         div() {
             label(for=for_id) { a(href=href) { (*title) } }
             input(type="number", class="item-count-sel", min="0", bind:value=count, name=name, on:change=move |_| {
-                let state = app_state::State::get_from_context(cx);
                 debug!(idx=%id, count=%(*count.get()), "setting recipe count");
-                state.set_recipe_count_by_index(id.as_ref(), count.get().parse().expect("recipe count isn't a valid usize number"));
+                sh.dispatch(cx, Message::UpdateRecipeCount(id.as_ref().clone(), count.get().parse().expect("Count is not a valid usize")));
             })
         }
     }

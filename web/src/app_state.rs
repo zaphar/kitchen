@@ -53,7 +53,7 @@ impl AppState {
 
 #[derive(Debug)]
 pub enum Message {
-    InitRecipeCounts(BTreeMap<String, usize>),
+    ResetRecipeCounts,
     UpdateRecipeCount(String, usize),
     InitExtras(BTreeSet<(String, String)>),
     AddExtra(String, String),
@@ -64,6 +64,7 @@ pub enum Message {
     RemoveRecipe(String),
     SetStaples(Option<Recipe>),
     SetCategoryMap(String),
+    ResetInventory,
     UpdateCategories,
     InitFilteredIngredient(BTreeSet<IngredientKey>),
     AddFilteredIngredient(IngredientKey),
@@ -105,6 +106,7 @@ fn filter_recipes(
         None => Ok((None, None)),
     }
 }
+
 impl StateMachine {
     async fn load_state(store: HttpStore, original: &Signal<AppState>) {
         let mut state = original.get().as_ref().clone();
@@ -184,7 +186,11 @@ impl MessageMapper<Message, AppState> for StateMachine {
     fn map<'ctx>(&self, cx: Scope<'ctx>, msg: Message, original: &'ctx Signal<AppState>) {
         let mut original_copy = original.get().as_ref().clone();
         match msg {
-            Message::InitRecipeCounts(map) => {
+            Message::ResetRecipeCounts => {
+                let mut map = BTreeMap::new();
+                for (id, _) in original_copy.recipes.iter() {
+                    map.insert(id.clone(), 0);
+                }
                 original_copy.recipe_counts = map;
             }
             Message::UpdateRecipeCount(id, count) => {
@@ -250,6 +256,11 @@ impl MessageMapper<Message, AppState> for StateMachine {
                         original_copy.category_map = categories;
                     };
                 });
+            }
+            Message::ResetInventory => {
+                original_copy.filtered_ingredients = BTreeSet::new();
+                original_copy.modified_amts = BTreeMap::new();
+                original_copy.extras = BTreeSet::new();
             }
             Message::InitFilteredIngredient(set) => {
                 original_copy.filtered_ingredients = set;

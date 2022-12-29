@@ -15,7 +15,6 @@ use recipes::Recipe;
 use sycamore::prelude::*;
 use tracing::instrument;
 
-use crate::app_state;
 use crate::app_state::{Message, StateHandler};
 use crate::components::recipe_selection::*;
 
@@ -54,10 +53,10 @@ pub fn RecipePlan<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
                     view ! {cx,
                         tr { Keyed(
                             iterable=r,
-                            view=|cx, sig| {
+                            view=move |cx, sig| {
                                 let title = create_memo(cx, move || sig.get().1.title.clone());
                                 view! {cx,
-                                    td { RecipeSelection(i=sig.get().0.to_owned(), title=title) }
+                                    td { RecipeSelection(i=sig.get().0.to_owned(), title=title, sh=sh) }
                                 }
                             },
                             key=|sig| sig.get().0.to_owned(),
@@ -72,8 +71,7 @@ pub fn RecipePlan<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
             refresh_click.set(toggle);
         })
         input(type="button", value="Clear All", on:click=move |_| {
-            let state = app_state::State::get_from_context(cx);
-            state.reset_recipe_counts();
+            sh.dispatch(cx, Message::ResetRecipeCounts);
         })
         input(type="button", value="Save Plan", on:click=move |_| {
             // Poor man's click event signaling.

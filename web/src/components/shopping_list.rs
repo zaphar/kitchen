@@ -11,11 +11,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
 use recipes::{IngredientAccumulator, IngredientKey};
 use sycamore::prelude::*;
-use tracing::{debug, info, instrument};
+use tracing::{info, instrument};
 
 use crate::app_state::{Message, StateHandler};
 
@@ -191,72 +191,23 @@ fn make_shopping_table<'ctx, G: Html>(
 #[instrument(skip_all)]
 #[component]
 pub fn ShoppingList<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
-    let filtered_keys = sh.get_selector(cx, |state| state.get().filtered_ingredients.clone());
-    let ingredients_map = create_rc_signal(BTreeMap::new());
     let show_staples = create_signal(cx, true);
     let save_click = create_signal(cx, ());
-    create_effect(cx, {
-        let state = crate::app_state::State::get_from_context(cx);
-        let ingredients_map = ingredients_map.clone();
-        move || {
-            ingredients_map.set(state.get_shopping_list(*show_staples.get()));
-        }
-    });
-    debug!(ingredients_map=?ingredients_map.get_untracked());
-    let ingredients = create_memo(cx, {
-        let filtered_keys = filtered_keys.clone();
-        let ingredients_map = ingredients_map.clone();
-        move || {
-            let mut ingredients = Vec::new();
-            // This has the effect of sorting the ingredients by category
-            for (_, ingredients_list) in ingredients_map.get().iter() {
-                for (i, recipes) in ingredients_list.iter() {
-                    if !filtered_keys.get().contains(&i.key()) {
-                        ingredients.push((i.key(), (i.clone(), recipes.clone())));
-                    }
-                }
-            }
-            ingredients
-        }
-    });
-    let table_view = create_signal(cx, View::empty());
-    create_effect(cx, {
-        let state = crate::app_state::State::get_from_context(cx);
-        move || {
-            if (ingredients.get().len() > 0) || (state.extras.get().len() > 0) {
-                table_view.set(make_shopping_table(cx, sh, show_staples));
-            } else {
-                table_view.set(View::empty());
-            }
-        }
-    });
     create_effect(cx, move || {
         save_click.track();
         info!("Registering save request for inventory");
         sh.dispatch(cx, Message::SaveState);
     });
-    let state = crate::app_state::State::get_from_context(cx);
     view! {cx,
         h1 { "Shopping List " }
         label(for="show_staples_cb") { "Show staples" }
         input(id="show_staples_cb", type="checkbox", bind:checked=show_staples)
-        (table_view.get().as_ref().clone())
+        (make_shopping_table(cx, sh, show_staples))
         input(type="button", value="Add Item", class="no-print", on:click=move |_| {
-            let mut cloned_extras: Vec<(RcSignal<String>, RcSignal<String>)> = (*state.extras.get()).iter().map(|(_, tpl)| tpl.clone()).collect();
-            cloned_extras.push((create_rc_signal("".to_owned()), create_rc_signal("".to_owned())));
-            state.extras.set(cloned_extras.drain(0..).enumerate().collect());
+            sh.dispatch(cx, Message::AddExtra(String::new(), String::new()));
         })
-        input(type="button", value="Reset", class="no-print", on:click={
-            //let state = crate::app_state::State::get_from_context(cx);
-            move |_| {
-                // FIXME(jwall): This should be an event.
-            //    // TODO(jwall): We should actually pop up a modal here or use a different set of items.
-            //    ingredients_map.set(state.get_shopping_list(*show_staples.get()));
-            //    // clear the filter_signal
-            //    filtered_keys.set(BTreeSet::new());
-            //    state.modified_amts.set(BTreeMap::new());
-            //    state.extras.set(Vec::new());
-            }
+        input(type="button", value="Reset", class="no-print", on:click=move |_| {
+                sh.dispatch(cx, Message::ResetInventory);
         })
         input(type="button", value="Save", class="no-print", on:click=|_| {
             save_click.trigger_subscribers();
