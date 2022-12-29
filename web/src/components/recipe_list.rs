@@ -11,10 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{
-    app_state::{self, StateHandler},
-    components::recipe::Viewer,
-};
+use crate::{app_state::StateHandler, components::recipe::Viewer};
 
 use sycamore::prelude::*;
 use tracing::{debug, instrument};
@@ -22,8 +19,15 @@ use tracing::{debug, instrument};
 #[instrument(skip_all)]
 #[component]
 pub fn RecipeList<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
-    let state = app_state::State::get_from_context(cx);
-    let menu_list = create_memo(cx, move || state.get_menu_list());
+    let menu_list = sh.get_selector(cx, |state| {
+        state
+            .get()
+            .recipe_counts
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .filter(|(_, v)| *(v) != 0)
+            .collect()
+    });
     view! {cx,
         h1 { "Recipe List" }
         div() {
