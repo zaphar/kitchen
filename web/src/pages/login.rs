@@ -11,7 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use sycamore::{futures::spawn_local_scoped, prelude::*};
+use sycamore::futures::spawn_local_scoped;
+use sycamore::prelude::*;
 use tracing::{debug, info};
 
 use crate::app_state::{Message, StateHandler};
@@ -20,20 +21,6 @@ use crate::app_state::{Message, StateHandler};
 pub fn LoginForm<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
     let username = create_signal(cx, "".to_owned());
     let password = create_signal(cx, "".to_owned());
-    let clicked = create_signal(cx, ("".to_owned(), "".to_owned()));
-    create_effect(cx, move || {
-        let (username, password) = (*clicked.get()).clone();
-        if username != "" && password != "" {
-            spawn_local_scoped(cx, async move {
-                let store = crate::api::HttpStore::get_from_context(cx);
-                debug!("authenticating against ui");
-                // TODO(jwall): Navigate to plan if the below is successful.
-                if let Some(user_data) = store.authenticate(username, password).await {
-                    sh.dispatch(cx, Message::SetUserData(user_data));
-                }
-            });
-        }
-    });
     view! {cx,
         form() {
             label(for="username") { "Username" }
@@ -42,9 +29,18 @@ pub fn LoginForm<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View
             input(type="password", bind:value=password)
             input(type="button", value="Login", on:click=move |_| {
                 info!("Attempting login request");
-                clicked.set(((*username.get_untracked()).clone(), (*password.get_untracked()).clone()));
+                let (username, password) = ((*username.get_untracked()).clone(), (*password.get_untracked()).clone());
+                if username != "" && password != "" {
+                    spawn_local_scoped(cx, async move {
+                        let store = crate::api::HttpStore::get_from_context(cx);
+                        debug!("authenticating against ui");
+                        // TODO(jwall): Navigate to plan if the below is successful.
+                        if let Some(user_data) = store.authenticate(username, password).await {
+                            sh.dispatch(cx, Message::SetUserData(user_data));
+                        }
+                    });
+                }
                 debug!("triggering login click subscribers");
-                clicked.trigger_subscribers();
             }) {  }
         }
     }

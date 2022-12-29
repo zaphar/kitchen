@@ -53,7 +53,7 @@ pub fn RecipeSelection<'ctx, G: Html>(
     view! {cx,
         div() {
             label(for=for_id) { a(href=href) { (*title) } }
-            input(type="number", class="item-count-sel", min="0", value=count, name=name, on:change=move |_| {
+            input(type="number", class="item-count-sel", min="0", bind:value=count, name=name, on:change=move |_| {
                 debug!(idx=%id, count=%(*count.get()), "setting recipe count");
                 sh.dispatch(cx, Message::UpdateRecipeCount(id.as_ref().clone(), count.get().parse().expect("Count is not a valid usize")));
             })

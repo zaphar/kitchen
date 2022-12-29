@@ -48,6 +48,7 @@ pub fn AddRecipe<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View
         )
     });
 
+    // TODO(jwall): This create effect should no longer be necessary;
     create_effect(cx, move || {
         create_recipe_signal.track();
         if !*dirty.get_untracked() {

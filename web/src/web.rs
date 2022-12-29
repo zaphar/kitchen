@@ -28,8 +28,6 @@ pub fn UI<G: Html>(cx: Scope) -> View<G> {
     let app_state = crate::app_state::AppState::new();
     let sh = crate::app_state::get_state_handler(cx, app_state, store);
     let view = create_signal(cx, View::empty());
-    // FIXME(jwall): We need a way to trigger refreshes when required. Turn this
-    // into a create_effect with a refresh signal stored as a context.
     spawn_local_scoped(cx, {
         async move {
             sh.dispatch(cx, Message::LoadState);

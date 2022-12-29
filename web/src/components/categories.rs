@@ -43,7 +43,6 @@ fn check_category_text_parses(unparsed: &str, error_text: &Signal<String>) -> bo
 #[instrument(skip_all)]
 #[component]
 pub fn Categories<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
-    let save_signal = create_signal(cx, ());
     let error_text = create_signal(cx, String::new());
     let category_text: &Signal<String> = create_signal(cx, String::new());
     let dirty = create_signal(cx, false);
@@ -59,21 +58,6 @@ pub fn Categories<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
                 category_text.set(js);
             };
         }
-    });
-
-    create_effect(cx, move || {
-        save_signal.track();
-        if !*dirty.get() {
-            return;
-        }
-        spawn_local_scoped(cx, {
-            async move {
-                sh.dispatch(
-                    cx,
-                    Message::SetCategoryMap(category_text.get_untracked().as_ref().clone()),
-                );
-            }
-        });
     });
 
     let dialog_view = view! {cx,
@@ -102,10 +86,15 @@ pub fn Categories<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
             check_category_text_parses(category_text.get().as_str(), error_text);
         }) { "Check" } " "
         span(role="button", on:click=move |_| {
-            // TODO(jwall): check and then save the categories.
+            if !*dirty.get() {
+                return;
+            }
             if check_category_text_parses(category_text.get().as_str(), error_text) {
                 debug!("triggering category save");
-                save_signal.trigger_subscribers();
+                sh.dispatch(
+                    cx,
+                    Message::SetCategoryMap(category_text.get_untracked().as_ref().clone()),
+                );
             }
         }) { "Save" }
     }

@@ -185,6 +185,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
     #[instrument(skip_all, fields(?msg))]
     fn map<'ctx>(&self, cx: Scope<'ctx>, msg: Message, original: &'ctx Signal<AppState>) {
         let mut original_copy = original.get().as_ref().clone();
+        debug!("handling state message");
         match msg {
             Message::ResetRecipeCounts => {
                 let mut map = BTreeMap::new();

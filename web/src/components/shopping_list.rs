@@ -192,12 +192,6 @@ fn make_shopping_table<'ctx, G: Html>(
 #[component]
 pub fn ShoppingList<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
     let show_staples = create_signal(cx, true);
-    let save_click = create_signal(cx, ());
-    create_effect(cx, move || {
-        save_click.track();
-        info!("Registering save request for inventory");
-        sh.dispatch(cx, Message::SaveState);
-    });
     view! {cx,
         h1 { "Shopping List " }
         label(for="show_staples_cb") { "Show staples" }
@@ -209,8 +203,9 @@ pub fn ShoppingList<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> V
         input(type="button", value="Reset", class="no-print", on:click=move |_| {
                 sh.dispatch(cx, Message::ResetInventory);
         })
-        input(type="button", value="Save", class="no-print", on:click=|_| {
-            save_click.trigger_subscribers();
+        input(type="button", value="Save", class="no-print", on:click=move |_| {
+        info!("Registering save request for inventory");
+            sh.dispatch(cx, Message::SaveState);
         })
     }
 }

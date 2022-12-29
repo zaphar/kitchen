@@ -67,43 +67,7 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
     });
 
     let id = create_memo(cx, || recipe.get().recipe_id().to_owned());
-    let save_signal = create_signal(cx, ());
     let dirty = create_signal(cx, false);
-
-    debug!("Creating effect");
-    create_effect(cx, move || {
-        save_signal.track();
-        if !*dirty.get_untracked() {
-            debug!("Recipe text is unchanged");
-            return;
-        }
-        debug!("Recipe text is changed");
-        spawn_local_scoped(cx, {
-            let store = crate::api::HttpStore::get_from_context(cx);
-            async move {
-                debug!("Attempting to save recipe");
-                if let Err(e) = store
-                    .save_recipes(vec![RecipeEntry(
-                        id.get_untracked().as_ref().clone(),
-                        text.get_untracked().as_ref().clone(),
-                    )])
-                    .await
-                {
-                    error!(?e, "Failed to save recipe");
-                    error_text.set(format!("{:?}", e));
-                } else {
-                    // We also need to set recipe in our state
-                    dirty.set(false);
-                    if let Ok(recipe) = recipes::parse::as_recipe(text.get_untracked().as_ref()) {
-                        sh.dispatch(
-                            cx,
-                            Message::SetRecipe(id.get_untracked().as_ref().to_owned(), recipe),
-                        );
-                    }
-                };
-            }
-        });
-    });
 
     debug!("creating editor view");
     view! {cx,
@@ -121,7 +85,36 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
             let unparsed = text.get();
             if check_recipe_parses(unparsed.as_str(), error_text, aria_hint) {
                 debug!("triggering a save");
-                save_signal.trigger_subscribers();
+                if !*dirty.get_untracked() {
+                    debug!("Recipe text is unchanged");
+                    return;
+                }
+                debug!("Recipe text is changed");
+                spawn_local_scoped(cx, {
+                    let store = crate::api::HttpStore::get_from_context(cx);
+                    async move {
+                        debug!("Attempting to save recipe");
+                        if let Err(e) = store
+                            .save_recipes(vec![RecipeEntry(
+                                id.get_untracked().as_ref().clone(),
+                                text.get_untracked().as_ref().clone(),
+                            )])
+                            .await
+                        {
+                            error!(?e, "Failed to save recipe");
+                            error_text.set(format!("{:?}", e));
+                        } else {
+                            // We also need to set recipe in our state
+                            dirty.set(false);
+                            if let Ok(recipe) = recipes::parse::as_recipe(text.get_untracked().as_ref()) {
+                                sh.dispatch(
+                                    cx,
+                                    Message::SetRecipe(id.get_untracked().as_ref().to_owned(), recipe),
+                                );
+                            }
+                        };
+                    }
+                });
             } else {
             }
         }) { "Save" }

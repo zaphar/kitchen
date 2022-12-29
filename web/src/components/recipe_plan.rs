@@ -35,17 +35,6 @@ pub fn RecipePlan<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
         }
         rows
     });
-    let refresh_click = create_signal(cx, false);
-    let save_click = create_signal(cx, false);
-    // FIXME(jwall): We should probably make this a dispatch method instead.
-    create_effect(cx, move || {
-        refresh_click.track();
-        sh.dispatch(cx, Message::LoadState);
-    });
-    create_effect(cx, move || {
-        save_click.track();
-        sh.dispatch(cx, Message::SaveState);
-    });
     view! {cx,
         table(class="recipe_selector no-print") {
             (View::new_fragment(
@@ -66,17 +55,14 @@ pub fn RecipePlan<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
             ))
         }
         input(type="button", value="Reset", on:click=move |_| {
-            // Poor man's click event signaling.
-            let toggle = !*refresh_click.get();
-            refresh_click.set(toggle);
+            sh.dispatch(cx, Message::LoadState);
         })
         input(type="button", value="Clear All", on:click=move |_| {
             sh.dispatch(cx, Message::ResetRecipeCounts);
         })
         input(type="button", value="Save Plan", on:click=move |_| {
             // Poor man's click event signaling.
-            let toggle = !*save_click.get();
-            save_click.set(toggle);
+            sh.dispatch(cx, Message::SaveState);
         })
     }
 }
