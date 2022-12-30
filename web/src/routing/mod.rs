@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::app_state::StateHandler;
+use crate::{
+    app_state::StateHandler,
+    components::{Footer, Header},
+    pages::*,
+};
 use sycamore::prelude::*;
 use sycamore_router::{HistoryIntegration, Route, Router};
-
-use crate::pages::*;
+use tracing::{debug, instrument};
 
 #[derive(Route, Debug)]
 pub enum Routes {
@@ -71,52 +74,63 @@ pub struct HandlerProps<'ctx> {
     sh: StateHandler<'ctx>,
 }
 
+#[instrument(skip_all, fields(?route))]
+fn route_switch<'ctx, G: Html>(route: &Routes, cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
+    debug!("Handling route change");
+    use ManageRoutes::*;
+    use PlanningRoutes::*;
+    match route {
+        Routes::Planning(Plan) => view! {cx,
+            PlanPage(sh)
+        },
+        Routes::Planning(Inventory) => view! {cx,
+            InventoryPage(sh)
+        },
+        Routes::Planning(Cook) => view! {cx,
+            CookPage(sh)
+        },
+        Routes::Login => view! {cx,
+            LoginPage(sh)
+        },
+        Routes::Recipe(RecipeRoutes::View(id)) => view! {cx,
+            RecipeViewPage(recipe=id.clone(), sh=sh)
+        },
+        Routes::Recipe(RecipeRoutes::Edit(id)) => view! {cx,
+            RecipeEditPage(recipe=id.clone(), sh=sh)
+        },
+        Routes::Manage(Categories) => view! {cx,
+            CategoryPage(sh)
+        },
+        Routes::Manage(NewRecipe) => view! {cx,
+            AddRecipePage(sh)
+        },
+        Routes::Manage(Staples) => view! {cx,
+            StaplesPage(sh)
+        },
+        Routes::NotFound
+        | Routes::Manage(ManageRoutes::NotFound)
+        | Routes::Planning(PlanningRoutes::NotFound)
+        | Routes::Recipe(RecipeRoutes::NotFound) => view! {cx,
+            // TODO(Create a real one)
+            PlanPage(sh)
+        },
+    }
+}
+
 #[component]
 pub fn Handler<'ctx, G: Html>(cx: Scope<'ctx>, props: HandlerProps<'ctx>) -> View<G> {
     let HandlerProps { sh } = props;
-    use ManageRoutes::*;
-    use PlanningRoutes::*;
     view! {cx,
         Router(
             integration=HistoryIntegration::new(),
             view=move |cx: Scope, route: &ReadSignal<Routes>| {
-                match route.get().as_ref() {
-                    Routes::Planning(Plan) => view! {cx,
-                        PlanPage(sh)
-                    },
-                    Routes::Planning(Inventory) => view! {cx,
-                        InventoryPage(sh)
-                    },
-                    Routes::Planning(Cook) => view! {cx,
-                        CookPage(sh)
-                    },
-                    Routes::Login => view! {cx,
-                        LoginPage(sh)
-                    },
-                    Routes::Recipe(RecipeRoutes::View(id)) => view! {cx,
-                        RecipeViewPage(recipe=id.clone(), sh=sh)
-                    },
-                    Routes::Recipe(RecipeRoutes::Edit(id)) => view! {cx,
-                        RecipeEditPage(recipe=id.clone(), sh=sh)
-                    },
-                    Routes::Manage(Categories) => view! {cx,
-                        CategoryPage(sh)
-                    },
-                    Routes::Manage(NewRecipe) => view! {cx,
-                        AddRecipePage(sh)
-                    },
-                    Routes::Manage(Staples) => view! {cx,
-                        StaplesPage(sh)
-                    },
-                    Routes::NotFound
-                    | Routes::Manage(ManageRoutes::NotFound)
-                    | Routes::Planning(PlanningRoutes::NotFound)
-                    | Routes::Recipe(RecipeRoutes::NotFound) => view! {cx,
-                        // TODO(Create a real one)
-                        PlanPage(sh)
-                    },
+                view!{cx,
+                    div(class="app") {
+                        Header(sh)
+                        (route_switch(route.get().as_ref(), cx, sh))
+                        Footer { }
+                    }
                 }
-
             },
         )
     }

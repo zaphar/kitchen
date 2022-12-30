@@ -15,7 +15,6 @@ use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{info, instrument};
 
 use crate::app_state::Message;
-use crate::components::{Footer, Header};
 use crate::{api, routing::Handler as RouteHandler};
 
 #[instrument]
@@ -33,11 +32,7 @@ pub fn UI<G: Html>(cx: Scope) -> View<G> {
             sh.dispatch(cx, Message::LoadState);
             // TODO(jwall): This needs to be moved into the RouteHandler
             view.set(view! { cx,
-                div(class="app") {
-                    Header(sh)
-                    RouteHandler(sh=sh)
-                    Footer { }
-                }
+                RouteHandler(sh=sh)
             });
         }
     });

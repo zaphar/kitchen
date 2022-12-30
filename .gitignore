@@ -6,4 +6,5 @@ webdist/
 nix/*/result
 result
 .vscode/
-.session_store/ 
+.session_store/
+.gitignore/ 
