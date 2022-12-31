@@ -8,3 +8,7 @@ sycamore-router = { git = "https://github.com/sycamore-rs/sycamore/", rev = "5d4
 # NOTE(jwall): We are maintaining a patch to remove the unstable async_std_feature. It breaks in our project on
 # Rust v1.64
 sqlx = { git = "https://github.com/zaphar/sqlx", branch = "remove_unstable_async_std_feature" }
+
+[profile.release]
+lto = true
+opt-level = "s"
