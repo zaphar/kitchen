@@ -2213,8 +2213,8 @@ dependencies = [
 
 [[package]]
 name = "sycamore-state"
-version = "0.0.1"
-source = "git+https://github.com/zaphar/sycamore-state?rev=v0.0.1#f74a051bf85330aef926a457d31e33f983966781"
+version = "0.1.0"
+source = "git+https://github.com/zaphar/sycamore-state?rev=v0.1.0#bc8854b4dde1294915b2aa7f3fcd710515f3dfd8"
 dependencies = [
  "sycamore",
  "wasm-bindgen",
