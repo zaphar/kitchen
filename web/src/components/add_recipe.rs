@@ -48,37 +48,6 @@ pub fn AddRecipe<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View
         )
     });
 
-    // TODO(jwall): This create effect should no longer be necessary;
-    create_effect(cx, move || {
-        create_recipe_signal.track();
-        if !*dirty.get_untracked() {
-            return;
-        }
-        spawn_local_scoped(cx, {
-            let store = crate::api::HttpStore::get_from_context(cx);
-            async move {
-                let entry = entry.get_untracked();
-                // TODO(jwall): Better error reporting here.
-                match store.get_recipe_text(entry.recipe_id()).await {
-                    Ok(Some(_)) => {
-                        // TODO(jwall): We should tell the user that this id already exists
-                        info!(recipe_id = entry.recipe_id(), "Recipe already exists");
-                        return;
-                    }
-                    Ok(None) => {
-                        // noop
-                    }
-                    Err(err) => {
-                        // TODO(jwall): We should tell the user that this is failing
-                        error!(?err)
-                    }
-                }
-                sh.dispatch(cx, Message::SaveRecipe((*entry).clone()));
-                crate::js_lib::navigate_to_path(&format!("/ui/recipe/{}", entry.recipe_id()))
-                    .expect("Unable to navigate to recipe");
-            }
-        });
-    });
     view! {cx,
         label(for="recipe_title") { "Recipe Title" }
         input(bind:value=recipe_title, type="text", name="recipe_title", id="recipe_title", on:change=move |_| {
@@ -86,6 +55,33 @@ pub fn AddRecipe<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View
         })
         button(on:click=move |_| {
             create_recipe_signal.trigger_subscribers();
+            if !*dirty.get_untracked() {
+                return;
+            }
+            spawn_local_scoped(cx, {
+                let store = crate::api::HttpStore::get_from_context(cx);
+                async move {
+                    let entry = entry.get_untracked();
+                    // TODO(jwall): Better error reporting here.
+                    match store.get_recipe_text(entry.recipe_id()).await {
+                        Ok(Some(_)) => {
+                            // TODO(jwall): We should tell the user that this id already exists
+                            info!(recipe_id = entry.recipe_id(), "Recipe already exists");
+                            return;
+                        }
+                        Ok(None) => {
+                            // noop
+                        }
+                        Err(err) => {
+                            // TODO(jwall): We should tell the user that this is failing
+                            error!(?err)
+                        }
+                    }
+                    sh.dispatch(cx, Message::SaveRecipe((*entry).clone()));
+                    crate::js_lib::navigate_to_path(&format!("/ui/recipe/{}", entry.recipe_id()))
+                        .expect("Unable to navigate to recipe");
+                }
+            });
         }) { "Create" }
     }
 }
