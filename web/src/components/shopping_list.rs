@@ -15,17 +15,20 @@ use std::collections::BTreeSet;
 
 use recipes::{IngredientAccumulator, IngredientKey};
 use sycamore::prelude::*;
-use tracing::{info, instrument};
+use tracing::{debug, info, instrument};
 
 use crate::app_state::{Message, StateHandler};
 
+#[instrument(skip_all)]
 fn make_ingredients_rows<'ctx, G: Html>(
     cx: Scope<'ctx>,
     sh: StateHandler<'ctx>,
     show_staples: &'ctx ReadSignal<bool>,
 ) -> View<G> {
+    debug!("Making ingredients rows");
     let ingredients = sh.get_selector(cx, move |state| {
         let state = state.get();
+        debug!("building ingredient list from state");
         let mut acc = IngredientAccumulator::new();
         for (id, count) in state.recipe_counts.iter() {
             for _ in 0..(*count) {
@@ -45,7 +48,7 @@ fn make_ingredients_rows<'ctx, G: Html>(
         acc.ingredients()
             .into_iter()
             // First we filter out any filtered ingredients
-            .filter(|(i, _)| state.filtered_ingredients.contains(i))
+            .filter(|(i, _)| !state.filtered_ingredients.contains(i))
             // Then we take into account our modified amts
             .map(|(k, (i, rs))| {
                 if state.modified_amts.contains_key(&k) {
@@ -89,9 +92,6 @@ fn make_ingredients_rows<'ctx, G: Html>(
                 };
                 let amt_signal = create_signal(cx, amt);
                 let k_clone = k.clone();
-                sh.bind_trigger(cx, &amt_signal, move |val| {
-                    Message::UpdateAmt(k_clone.clone(), val.as_ref().clone())
-                });
                 let form = form.map(|form| format!("({})", form)).unwrap_or_default();
                 let recipes = rs
                     .iter()
@@ -101,7 +101,9 @@ fn make_ingredients_rows<'ctx, G: Html>(
                 view! {cx,
                     tr {
                         td {
-                            input(bind:value=amt_signal, type="text")
+                            input(bind:value=amt_signal, type="text", on:change=move |_| {
+                                sh.dispatch(cx, Message::UpdateAmt(k_clone.clone(), amt_signal.get_untracked().as_ref().clone()));
+                            })
                         }
                         td {
                             input(type="button", class="no-print destructive", value="X", on:click={
@@ -118,50 +120,44 @@ fn make_ingredients_rows<'ctx, G: Html>(
     )
 }
 
+#[instrument(skip_all)]
 fn make_extras_rows<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
+    debug!("Making extras rows");
     let extras_read_signal = sh.get_selector(cx, |state| {
-        state
-            .get()
-            .extras
-            .iter()
-            .cloned()
-            .collect::<Vec<(String, String)>>()
+        state.get().extras.iter().cloned().enumerate().collect()
     });
     view! {cx,
-                Indexed(
-                    iterable=extras_read_signal,
-                    view= move |cx, (amt, name)| {
-                        let amt_signal = create_signal(cx, amt.clone());
-                        let name_signal = create_signal(cx, name.clone());
-                        create_effect(cx, {
-                            let amt_clone = amt.clone();
-                            let name_clone = name.clone();
-                            move || {
-                                let new_amt = amt_signal.get();
-                                let new_name = name_signal.get();
-                                sh.dispatch(cx, Message::RemoveExtra(amt_clone.clone(), name_clone.clone()));
-                                sh.dispatch(cx, Message::AddExtra(new_amt.as_ref().clone(), new_name.as_ref().clone()));
-                            }
-                        });
-                        view! {cx,
-                            tr {
-                                td {
-                                    input(bind:value=amt_signal, type="text")
-                                }
-                                td {
-                                    input(type="button", class="no-print destructive", value="X", on:click={
-                                        move |_| {
-                                            sh.dispatch(cx, Message::RemoveExtra(amt.clone(), name.clone()));
-                                    }})
-                                }
-                                td {
-                                    input(bind:value=name_signal, type="text")
-                                }
-                                td { "Misc" }
-                            }
+        Indexed(
+            iterable=extras_read_signal,
+            view= move |cx, (idx, (amt, name))| {
+                let amt_signal = create_signal(cx, amt.clone());
+                let name_signal = create_signal(cx, name.clone());
+                view! {cx,
+                    tr {
+                        td {
+                            input(bind:value=amt_signal, type="text", on:change=move |_| {
+                                sh.dispatch(cx, Message::UpdateExtra(idx,
+                                    amt_signal.get_untracked().as_ref().clone(),
+                                    name_signal.get_untracked().as_ref().clone()));
+                            })
                         }
+                        td {
+                            input(type="button", class="no-print destructive", value="X", on:click=move |_| {
+                                sh.dispatch(cx, Message::RemoveExtra(idx));
+                            })
+                        }
+                        td {
+                            input(bind:value=name_signal, type="text", on:change=move |_| {
+                                sh.dispatch(cx, Message::UpdateExtra(idx,
+                                    amt_signal.get_untracked().as_ref().clone(),
+                                    name_signal.get_untracked().as_ref().clone()));
+                            })
+                        }
+                        td { "Misc" }
                     }
-                )
+                }
+            }
+        )
     }
 }
 
@@ -170,8 +166,7 @@ fn make_shopping_table<'ctx, G: Html>(
     sh: StateHandler<'ctx>,
     show_staples: &'ctx ReadSignal<bool>,
 ) -> View<G> {
-    let extra_rows_view = make_extras_rows(cx, sh);
-    let ingredient_rows = make_ingredients_rows(cx, sh, show_staples);
+    debug!("Making shopping table");
     view! {cx,
         table(class="pad-top shopping-list page-breaker container-fluid", role="grid") {
             tr {
@@ -181,8 +176,8 @@ fn make_shopping_table<'ctx, G: Html>(
                 th { " Recipes " }
             }
             tbody {
-                (ingredient_rows)
-                (extra_rows_view)
+                (make_ingredients_rows(cx, sh, show_staples))
+                (make_extras_rows(cx, sh))
             }
         }
     }
@@ -198,13 +193,15 @@ pub fn ShoppingList<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> V
         input(id="show_staples_cb", type="checkbox", bind:checked=show_staples)
         (make_shopping_table(cx, sh, show_staples))
         input(type="button", value="Add Item", class="no-print", on:click=move |_| {
+            info!("Registering add item request for inventory");
             sh.dispatch(cx, Message::AddExtra(String::new(), String::new()));
         })
         input(type="button", value="Reset", class="no-print", on:click=move |_| {
-                sh.dispatch(cx, Message::ResetInventory);
+            info!("Registering reset request for inventory");
+            sh.dispatch(cx, Message::ResetInventory);
         })
         input(type="button", value="Save", class="no-print", on:click=move |_| {
-        info!("Registering save request for inventory");
+            info!("Registering save request for inventory");
             sh.dispatch(cx, Message::SaveState);
         })
     }

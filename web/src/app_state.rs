@@ -20,6 +20,7 @@ use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore_state::{Handler, MessageMapper};
 use tracing::{debug, error, info, instrument, warn};
+use wasm_bindgen::throw_str;
 
 use crate::api::HttpStore;
 use crate::js_lib;
@@ -27,7 +28,7 @@ use crate::js_lib;
 #[derive(Debug, Clone, PartialEq)]
 pub struct AppState {
     pub recipe_counts: BTreeMap<String, usize>,
-    pub extras: BTreeSet<(String, String)>,
+    pub extras: Vec<(String, String)>,
     pub staples: Option<Recipe>,
     pub recipes: BTreeMap<String, Recipe>,
     pub category_map: String,
@@ -40,7 +41,7 @@ impl AppState {
     pub fn new() -> Self {
         Self {
             recipe_counts: BTreeMap::new(),
-            extras: BTreeSet::new(),
+            extras: Vec::new(),
             staples: None,
             recipes: BTreeMap::new(),
             category_map: String::new(),
@@ -56,7 +57,8 @@ pub enum Message {
     ResetRecipeCounts,
     UpdateRecipeCount(String, usize),
     AddExtra(String, String),
-    RemoveExtra(String, String),
+    RemoveExtra(usize),
+    UpdateExtra(usize, String, String),
     SaveRecipe(RecipeEntry),
     SetRecipe(String, Recipe),
     // TODO(jwall): Remove this annotation when safe to do so.
@@ -171,7 +173,7 @@ impl StateMachine {
             Ok((filtered_ingredients, modified_amts, extra_items)) => {
                 state.modified_amts = modified_amts;
                 state.filtered_ingredients = filtered_ingredients;
-                state.extras = BTreeSet::from_iter(extra_items);
+                state.extras = extra_items;
             }
             Err(e) => {
                 error!("{:?}", e);
@@ -198,11 +200,20 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 original_copy.recipe_counts.insert(id, count);
             }
             Message::AddExtra(amt, name) => {
-                original_copy.extras.insert((amt, name));
+                original_copy.extras.push((amt, name));
             }
-            Message::RemoveExtra(amt, name) => {
-                original_copy.extras.remove(&(amt, name));
+            Message::RemoveExtra(idx) => {
+                original_copy.extras.remove(idx);
             }
+            Message::UpdateExtra(idx, amt, name) => match original_copy.extras.get_mut(idx) {
+                Some(extra) => {
+                    extra.0 = amt;
+                    extra.1 = name;
+                }
+                None => {
+                    throw_str("Attempted to remove extra that didn't exist");
+                }
+            },
             Message::SetStaples(staples) => {
                 original_copy.staples = staples;
             }
@@ -240,7 +251,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
             Message::ResetInventory => {
                 original_copy.filtered_ingredients = BTreeSet::new();
                 original_copy.modified_amts = BTreeMap::new();
-                original_copy.extras = BTreeSet::new();
+                original_copy.extras = Vec::new();
             }
             Message::AddFilteredIngredient(key) => {
                 original_copy.filtered_ingredients.insert(key);
