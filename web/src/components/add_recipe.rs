@@ -78,7 +78,7 @@ pub fn AddRecipe<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View
                         }
                     }
                     sh.dispatch(cx, Message::SaveRecipe((*entry).clone()));
-                    crate::js_lib::navigate_to_path(&format!("/ui/recipe/{}", entry.recipe_id()))
+                    crate::js_lib::navigate_to_path(&format!("/ui/recipe/edit/{}", entry.recipe_id()))
                         .expect("Unable to navigate to recipe");
                 }
             });
