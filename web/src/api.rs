@@ -21,7 +21,8 @@ use tracing::{debug, error, instrument, warn};
 
 use client_api::*;
 use recipes::{parse, IngredientKey, Recipe, RecipeEntry};
-use wasm_bindgen::JsValue;
+use wasm_bindgen::{JsValue, UnwrapThrowExt};
+use web_sys::Storage;
 
 use crate::{app_state::AppState, js_lib};
 
@@ -108,13 +109,169 @@ fn token68(user: String, pass: String) -> String {
 }
 
 #[derive(Clone, Debug)]
+pub struct LocalStore {
+    store: Storage,
+}
+
+impl LocalStore {
+    pub fn new() -> Self {
+        Self {
+            store: js_lib::get_storage(),
+        }
+    }
+
+    /// Gets user data from local storage.
+    pub fn get_user_data(&self) -> Option<UserData> {
+        self.store
+            .get("user_data")
+            .map_or(None, |val| val.map(|val| from_str(&val).unwrap_or(None)))
+            .flatten()
+    }
+
+    // Set's user data to local storage.
+    pub fn set_user_data(&self, data: Option<&UserData>) {
+        if let Some(data) = data {
+            self.store
+                .set("user_data", &to_string(data).unwrap_throw())
+                .unwrap_throw();
+        } else {
+            self.store.delete("user_data").unwrap_throw();
+        }
+    }
+
+    /// Gets categories from local storage.
+    pub fn get_categories(&self) -> Option<String> {
+        self.store.get("categories").unwrap_throw()
+    }
+
+    /// Set the categories to the given string.
+    pub fn set_categories(&self, categories: Option<&String>) {
+        if let Some(c) = categories {
+            self.store.set("categories", c).unwrap_throw();
+        } else {
+            self.store.delete("categories").unwrap_throw()
+        }
+    }
+
+    fn get_storage_keys(&self) -> Vec<String> {
+        let mut keys = Vec::new();
+        for idx in 0..self.store.length().unwrap() {
+            keys.push(self.store.key(idx).unwrap_throw().unwrap_throw())
+        }
+        keys
+    }
+
+    fn get_recipe_keys(&self) -> impl Iterator<Item = String> {
+        self.get_storage_keys()
+            .into_iter()
+            .filter(|k| k.starts_with("recipe:"))
+    }
+
+    /// Gets all the recipes from local storage.
+    pub fn get_recipes(&self) -> Option<Vec<RecipeEntry>> {
+        let mut recipe_list = Vec::new();
+        for recipe_key in self.get_recipe_keys() {
+            if let Some(entry) = self.store.get(&recipe_key).unwrap_throw() {
+                match from_str(&entry) {
+                    Ok(entry) => {
+                        recipe_list.push(entry);
+                    }
+                    Err(e) => {
+                        error!(recipe_key, err = ?e, "Failed to parse recipe entry");
+                    }
+                }
+            }
+        }
+        if recipe_list.is_empty() {
+            return None;
+        }
+        Some(recipe_list)
+    }
+
+    /// Sets the set of recipes to the entries passed in. Deletes any recipes not
+    /// in the list.
+    pub fn set_all_recipes(&self, entries: &Vec<RecipeEntry>) {
+        for recipe_key in self.get_recipe_keys() {
+            self.store.delete(&recipe_key).unwrap_throw();
+        }
+        for entry in entries {
+            self.set_recipe_entry(entry);
+        }
+    }
+
+    /// Set recipe entry in local storage.
+    pub fn set_recipe_entry(&self, entry: &RecipeEntry) {
+        self.store
+            .set(
+                &recipe_key(entry.recipe_id()),
+                &to_string(&entry).unwrap_throw(),
+            )
+            .unwrap_throw()
+    }
+
+    /// Delete recipe entry from local storage.
+    pub fn delete_recipe_entry(&self, recipe_key: &str) {
+        self.store.delete(recipe_key).unwrap_throw()
+    }
+
+    /// Save working plan to local storage.
+    pub fn save_plan(&self, plan: &Vec<(String, i32)>) {
+        self.store
+            .set("plan", &to_string(&plan).unwrap_throw())
+            .unwrap_throw();
+    }
+
+    pub fn get_plan(&self) -> Option<Vec<(String, i32)>> {
+        if let Some(plan) = self.store.get("plan").unwrap_throw() {
+            Some(from_str(&plan).unwrap_throw())
+        } else {
+            None
+        }
+    }
+
+    pub fn get_inventory_data(
+        &self,
+    ) -> Option<(
+        BTreeSet<IngredientKey>,
+        BTreeMap<IngredientKey, String>,
+        Vec<(String, String)>,
+    )> {
+        if let Some(inventory) = self.store.get("inventory").unwrap_throw() {
+            return Some(from_str(&inventory).unwrap_throw());
+        }
+        return None;
+    }
+
+    pub fn delete_inventory_data(&self) {
+        self.store.delete("inventory").unwrap_throw();
+    }
+
+    pub fn set_inventory_data(
+        &self,
+        inventory: (
+            &BTreeSet<IngredientKey>,
+            &BTreeMap<IngredientKey, String>,
+            &Vec<(String, String)>,
+        ),
+    ) {
+        self.store
+            .set("inventory", &to_string(&inventory).unwrap_throw())
+            .unwrap_throw();
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct HttpStore {
     root: String,
+    local_store: LocalStore,
 }
 
 impl HttpStore {
     pub fn new(root: String) -> Self {
-        Self { root }
+        Self {
+            root,
+            local_store: LocalStore::new(),
+        }
     }
 
     pub fn v1_path(&self) -> String {
@@ -143,7 +300,6 @@ impl HttpStore {
         debug!("attempting login request against api.");
         let mut path = self.v1_path();
         path.push_str("/auth");
-        let storage = js_lib::get_storage();
         let result = reqwasm::http::Request::get(&path)
             .header(
                 "Authorization",
@@ -158,12 +314,7 @@ impl HttpStore {
                     .await
                     .expect("Unparseable authentication response")
                     .as_success();
-                storage
-                    .set(
-                        "user_data",
-                        &to_string(&user_data).expect("Unable to serialize user_data"),
-                    )
-                    .unwrap();
+                self.local_store.set_user_data(user_data.as_ref());
                 return user_data;
             }
             error!(status = resp.status(), "Login was unsuccessful")
@@ -177,12 +328,11 @@ impl HttpStore {
     pub async fn get_categories(&self) -> Result<Option<String>, Error> {
         let mut path = self.v1_path();
         path.push_str("/categories");
-        let storage = js_lib::get_storage();
         let resp = match reqwasm::http::Request::get(&path).send().await {
             Ok(resp) => resp,
             Err(reqwasm::Error::JsError(err)) => {
                 error!(path, ?err, "Error hitting api");
-                return Ok(storage.get("categories")?);
+                return Ok(self.local_store.get_categories());
             }
             Err(err) => {
                 return Err(err)?;
@@ -190,14 +340,14 @@ impl HttpStore {
         };
         if resp.status() == 404 {
             debug!("Categories returned 404");
-            storage.remove_item("categories")?;
+            self.local_store.set_categories(None);
             Ok(None)
         } else if resp.status() != 200 {
             Err(format!("Status: {}", resp.status()).into())
         } else {
             debug!("We got a valid response back!");
             let resp = resp.json::<CategoryResponse>().await?.as_success().unwrap();
-            storage.set("categories", &resp)?;
+            self.local_store.set_categories(Some(&resp));
             Ok(Some(resp))
         }
     }
@@ -206,26 +356,16 @@ impl HttpStore {
     pub async fn get_recipes(&self) -> Result<Option<Vec<RecipeEntry>>, Error> {
         let mut path = self.v1_path();
         path.push_str("/recipes");
-        let storage = js_lib::get_storage();
         let resp = match reqwasm::http::Request::get(&path).send().await {
             Ok(resp) => resp,
             Err(reqwasm::Error::JsError(err)) => {
                 error!(path, ?err, "Error hitting api");
-                let mut entries = Vec::new();
-                for key in js_lib::get_storage_keys() {
-                    if key.starts_with("recipe:") {
-                        let entry = from_str(&storage.get_item(&key)?.unwrap())
-                            .map_err(|e| format!("{}", e))?;
-                        entries.push(entry);
-                    }
-                }
-                return Ok(Some(entries));
+                return Ok(self.local_store.get_recipes());
             }
             Err(err) => {
                 return Err(err)?;
             }
         };
-        let storage = js_lib::get_storage();
         if resp.status() != 200 {
             Err(format!("Status: {}", resp.status()).into())
         } else {
@@ -236,12 +376,7 @@ impl HttpStore {
                 .map_err(|e| format!("{}", e))?
                 .as_success();
             if let Some(ref entries) = entries {
-                for r in entries.iter() {
-                    storage.set(
-                        &recipe_key(r.recipe_id()),
-                        &to_string(&r).expect("Unable to serialize recipe entries"),
-                    )?;
-                }
+                self.local_store.set_all_recipes(&entries);
             }
             Ok(entries)
         }
@@ -293,15 +428,11 @@ impl HttpStore {
     pub async fn save_recipes(&self, recipes: Vec<RecipeEntry>) -> Result<(), Error> {
         let mut path = self.v1_path();
         path.push_str("/recipes");
-        let storage = js_lib::get_storage();
         for r in recipes.iter() {
             if r.recipe_id().is_empty() {
                 return Err("Recipe Ids can not be empty".into());
             }
-            storage.set(
-                &recipe_key(r.recipe_id()),
-                &to_string(&r).expect("Unable to serialize recipe entries"),
-            )?;
+            self.local_store.set_recipe_entry(&r);
         }
         let serialized = to_string(&recipes).expect("Unable to serialize recipe entries");
         let resp = reqwasm::http::Request::post(&path)
@@ -321,8 +452,7 @@ impl HttpStore {
     pub async fn save_categories(&self, categories: String) -> Result<(), Error> {
         let mut path = self.v1_path();
         path.push_str("/categories");
-        let storage = js_lib::get_storage();
-        storage.set("categories", &categories)?;
+        self.local_store.set_categories(Some(&categories));
         let resp = reqwasm::http::Request::post(&path)
             .body(to_string(&categories).expect("Unable to encode categories as json"))
             .header("content-type", "application/json")
@@ -360,9 +490,7 @@ impl HttpStore {
     pub async fn save_plan(&self, plan: Vec<(String, i32)>) -> Result<(), Error> {
         let mut path = self.v1_path();
         path.push_str("/plan");
-        let storage = js_lib::get_storage();
-        let serialized_plan = to_string(&plan).expect("Unable to encode plan as json");
-        storage.set("plan", &serialized_plan)?;
+        self.local_store.save_plan(&plan);
         let resp = reqwasm::http::Request::post(&path)
             .body(to_string(&plan).expect("Unable to encode plan as json"))
             .header("content-type", "application/json")
@@ -380,7 +508,6 @@ impl HttpStore {
         let mut path = self.v1_path();
         path.push_str("/plan");
         let resp = reqwasm::http::Request::get(&path).send().await?;
-        let storage = js_lib::get_storage();
         if resp.status() != 200 {
             Err(format!("Status: {}", resp.status()).into())
         } else {
@@ -391,8 +518,7 @@ impl HttpStore {
                 .map_err(|e| format!("{}", e))?
                 .as_success();
             if let Some(ref entry) = plan {
-                let serialized: String = to_string(entry).map_err(|e| format!("{}", e))?;
-                storage.set("plan", &serialized)?
+                self.local_store.save_plan(&entry);
             }
             Ok(plan)
         }
@@ -414,26 +540,9 @@ impl HttpStore {
         let resp = reqwasm::http::Request::get(&path).send().await?;
         if resp.status() != 200 {
             let err = Err(format!("Status: {}", resp.status()).into());
-            Ok(match storage.get("inventory") {
-                Ok(Some(val)) => match from_str(&val) {
-                    // TODO(jwall): Once we remove the v1 endpoint this is no longer needed.
-                    Ok((filtered_ingredients, modified_amts)) => {
-                        (filtered_ingredients, modified_amts, Vec::new())
-                    }
-                    Err(_) => match from_str(&val) {
-                        Ok((filtered_ingredients, modified_amts, extra_items)) => {
-                            (filtered_ingredients, modified_amts, extra_items)
-                        }
-                        Err(_) => {
-                            // Whatever is in storage is corrupted or invalid so we should delete it.
-                            storage
-                                .delete("inventory")
-                                .expect("Unable to delete corrupt data in inventory cache");
-                            return err;
-                        }
-                    },
-                },
-                Ok(None) | Err(_) => return err,
+            Ok(match self.local_store.get_inventory_data() {
+                Some(val) => val,
+                None => return err,
             })
         } else {
             debug!("We got a valid response back");
@@ -447,11 +556,11 @@ impl HttpStore {
                 .map_err(|e| format!("{}", e))?
                 .as_success()
                 .unwrap();
-            let _ = storage.set(
-                "inventory",
-                &to_string(&(&filtered_ingredients, &modified_amts))
-                    .expect("Failed to serialize inventory data"),
-            );
+            self.local_store.set_inventory_data((
+                &(filtered_ingredients.iter().cloned().collect()),
+                &(modified_amts.iter().cloned().collect()),
+                &extra_items,
+            ));
             Ok((
                 filtered_ingredients.into_iter().collect(),
                 modified_amts.into_iter().collect(),
@@ -471,13 +580,14 @@ impl HttpStore {
         path.push_str("/inventory");
         let filtered_ingredients: Vec<IngredientKey> = filtered_ingredients.into_iter().collect();
         let modified_amts: Vec<(IngredientKey, String)> = modified_amts.into_iter().collect();
+        debug!("Storing inventory data in cache");
+        self.local_store.set_inventory_data((
+            &(filtered_ingredients.iter().cloned().collect()),
+            &(modified_amts.iter().cloned().collect()),
+            &extra_items,
+        ));
         let serialized_inventory = to_string(&(filtered_ingredients, modified_amts, extra_items))
             .expect("Unable to encode plan as json");
-        let storage = js_lib::get_storage();
-        debug!("Storing inventory data in cache");
-        storage
-            .set("inventory", &serialized_inventory)
-            .expect("Failed to cache inventory data");
         debug!("Storing inventory data via API");
         let resp = reqwasm::http::Request::post(&path)
             .body(&serialized_inventory)
