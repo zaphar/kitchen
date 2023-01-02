@@ -21,7 +21,7 @@ use tracing::{debug, error, instrument, warn};
 
 use client_api::*;
 use recipes::{parse, IngredientKey, Recipe, RecipeEntry};
-use wasm_bindgen::{JsValue, UnwrapThrowExt};
+use wasm_bindgen::JsValue;
 use web_sys::Storage;
 
 use crate::{app_state::AppState, js_lib};
@@ -132,31 +132,44 @@ impl LocalStore {
     pub fn set_user_data(&self, data: Option<&UserData>) {
         if let Some(data) = data {
             self.store
-                .set("user_data", &to_string(data).unwrap_throw())
-                .unwrap_throw();
+                .set(
+                    "user_data",
+                    &to_string(data).expect("Failed to desrialize user_data"),
+                )
+                .expect("Failed to set user_data");
         } else {
-            self.store.delete("user_data").unwrap_throw();
+            self.store
+                .delete("user_data")
+                .expect("Failed to delete user_data");
         }
     }
 
     /// Gets categories from local storage.
     pub fn get_categories(&self) -> Option<String> {
-        self.store.get("categories").unwrap_throw()
+        self.store
+            .get("categories")
+            .expect("Failed go get categories")
     }
 
     /// Set the categories to the given string.
     pub fn set_categories(&self, categories: Option<&String>) {
         if let Some(c) = categories {
-            self.store.set("categories", c).unwrap_throw();
+            self.store
+                .set("categories", c)
+                .expect("Failed to set categories");
         } else {
-            self.store.delete("categories").unwrap_throw()
+            self.store
+                .delete("categories")
+                .expect("Failed to delete categories")
         }
     }
 
     fn get_storage_keys(&self) -> Vec<String> {
         let mut keys = Vec::new();
         for idx in 0..self.store.length().unwrap() {
-            keys.push(self.store.key(idx).unwrap_throw().unwrap_throw())
+            if let Some(k) = self.store.key(idx).expect("Failed to get storage key") {
+                keys.push(k)
+            }
         }
         keys
     }
@@ -171,7 +184,11 @@ impl LocalStore {
     pub fn get_recipes(&self) -> Option<Vec<RecipeEntry>> {
         let mut recipe_list = Vec::new();
         for recipe_key in self.get_recipe_keys() {
-            if let Some(entry) = self.store.get(&recipe_key).unwrap_throw() {
+            if let Some(entry) = self
+                .store
+                .get(&recipe_key)
+                .expect(&format!("Failed to get recipe: {}", recipe_key))
+            {
                 match from_str(&entry) {
                     Ok(entry) => {
                         recipe_list.push(entry);
@@ -189,17 +206,20 @@ impl LocalStore {
     }
 
     pub fn get_recipe_entry(&self, id: &str) -> Option<RecipeEntry> {
+        let key = recipe_key(id);
         self.store
-            .get(&recipe_key(id))
-            .unwrap_throw()
-            .map(|entry| from_str(&entry).unwrap_throw())
+            .get(&key)
+            .expect(&format!("Failed to get recipe {}", key))
+            .map(|entry| from_str(&entry).expect(&format!("Failed to get recipe {}", key)))
     }
 
     /// Sets the set of recipes to the entries passed in. Deletes any recipes not
     /// in the list.
     pub fn set_all_recipes(&self, entries: &Vec<RecipeEntry>) {
         for recipe_key in self.get_recipe_keys() {
-            self.store.delete(&recipe_key).unwrap_throw();
+            self.store
+                .delete(&recipe_key)
+                .expect(&format!("Failed to get recipe {}", recipe_key));
         }
         for entry in entries {
             self.set_recipe_entry(entry);
@@ -211,26 +231,28 @@ impl LocalStore {
         self.store
             .set(
                 &recipe_key(entry.recipe_id()),
-                &to_string(&entry).unwrap_throw(),
+                &to_string(&entry).expect(&format!("Failed to get recipe {}", entry.recipe_id())),
             )
-            .unwrap_throw()
+            .expect(&format!("Failed to store recipe {}", entry.recipe_id()))
     }
 
     /// Delete recipe entry from local storage.
-    pub fn delete_recipe_entry(&self, recipe_key: &str) {
-        self.store.delete(recipe_key).unwrap_throw()
+    pub fn delete_recipe_entry(&self, recipe_id: &str) {
+        self.store
+            .delete(&recipe_key(recipe_id))
+            .expect(&format!("Failed to delete recipe {}", recipe_id))
     }
 
     /// Save working plan to local storage.
     pub fn save_plan(&self, plan: &Vec<(String, i32)>) {
         self.store
-            .set("plan", &to_string(&plan).unwrap_throw())
-            .unwrap_throw();
+            .set("plan", &to_string(&plan).expect("Failed to serialize plan"))
+            .expect("Failed to store plan'");
     }
 
     pub fn get_plan(&self) -> Option<Vec<(String, i32)>> {
-        if let Some(plan) = self.store.get("plan").unwrap_throw() {
-            Some(from_str(&plan).unwrap_throw())
+        if let Some(plan) = self.store.get("plan").expect("Failed to store plan") {
+            Some(from_str(&plan).expect("Failed to deserialize plan"))
         } else {
             None
         }
@@ -243,14 +265,25 @@ impl LocalStore {
         BTreeMap<IngredientKey, String>,
         Vec<(String, String)>,
     )> {
-        if let Some(inventory) = self.store.get("inventory").unwrap_throw() {
-            return Some(from_str(&inventory).unwrap_throw());
+        if let Some(inventory) = self
+            .store
+            .get("inventory")
+            .expect("Failed to retrieve inventory data")
+        {
+            let (filtered, modified, extras): (
+                BTreeSet<IngredientKey>,
+                Vec<(IngredientKey, String)>,
+                Vec<(String, String)>,
+            ) = from_str(&inventory).expect("Failed to deserialize inventory");
+            return Some((filtered, BTreeMap::from_iter(modified), extras));
         }
         return None;
     }
 
     pub fn delete_inventory_data(&self) {
-        self.store.delete("inventory").unwrap_throw();
+        self.store
+            .delete("inventory")
+            .expect("Failed to delete inventory data");
     }
 
     pub fn set_inventory_data(
@@ -261,9 +294,23 @@ impl LocalStore {
             &Vec<(String, String)>,
         ),
     ) {
+        let filtered = inventory.0;
+        let modified_amts = inventory
+            .1
+            .iter()
+            .map(|(k, amt)| (k.clone(), amt.clone()))
+            .collect::<Vec<(IngredientKey, String)>>();
+        let extras = inventory.2;
+        let inventory_data = (filtered, &modified_amts, extras);
         self.store
-            .set("inventory", &to_string(&inventory).unwrap_throw())
-            .unwrap_throw();
+            .set(
+                "inventory",
+                &to_string(&inventory_data).expect(&format!(
+                    "Failed to serialize inventory {:?}",
+                    inventory_data
+                )),
+            )
+            .expect("Failed to set inventory");
     }
 }
 

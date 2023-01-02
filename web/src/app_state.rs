@@ -19,7 +19,7 @@ use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore_state::{Handler, MessageMapper};
 use tracing::{debug, error, info, instrument, warn};
-use wasm_bindgen::{throw_str, UnwrapThrowExt};
+use wasm_bindgen::throw_str;
 
 use crate::api::{HttpStore, LocalStore};
 
@@ -299,7 +299,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 spawn_local_scoped(cx, async move {
                     Self::load_state(&store, &local_store, original)
                         .await
-                        .unwrap_throw();
+                        .expect("Failed to load_state.");
                     local_store.set_inventory_data((
                         &original.get().filtered_ingredients,
                         &original.get().modified_amts,
