@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 use async_session::{Session, SessionStore};
 use axum::{
-    extract::Extension,
+    extract::{Extension, Host},
     http::{header, HeaderMap, StatusCode},
 };
 use axum_auth::AuthBasic;
@@ -38,6 +38,7 @@ impl From<UserCreds> for api::AccountResponse {
 #[instrument(skip_all, fields(user=%auth.0.0))]
 pub async fn handler(
     auth: AuthBasic,
+    Host(domain): Host,
     Extension(session_store): Extension<Arc<storage::SqliteStore>>,
 ) -> (StatusCode, HeaderMap, axum::Json<api::AccountResponse>) {
     // NOTE(jwall): It is very important that you do **not** log the password
@@ -93,6 +94,7 @@ pub async fn handler(
         // 3. Construct the Session Cookie.
         let cookie = Cookie::build(storage::AXUM_SESSION_COOKIE_NAME, cookie_value)
             .same_site(SameSite::Strict)
+            .domain(domain)
             .secure(true)
             .path("/")
             .finish();
