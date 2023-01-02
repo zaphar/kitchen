@@ -188,6 +188,13 @@ impl LocalStore {
         Some(recipe_list)
     }
 
+    pub fn get_recipe_entry(&self, id: &str) -> Option<RecipeEntry> {
+        self.store
+            .get(&recipe_key(id))
+            .unwrap_throw()
+            .map(|entry| from_str(&entry).unwrap_throw())
+    }
+
     /// Sets the set of recipes to the entries passed in. Deletes any recipes not
     /// in the list.
     pub fn set_all_recipes(&self, entries: &Vec<RecipeEntry>) {
@@ -314,7 +321,6 @@ impl HttpStore {
                     .await
                     .expect("Unparseable authentication response")
                     .as_success();
-                self.local_store.set_user_data(user_data.as_ref());
                 return user_data;
             }
             error!(status = resp.status(), "Login was unsuccessful")
@@ -340,14 +346,12 @@ impl HttpStore {
         };
         if resp.status() == 404 {
             debug!("Categories returned 404");
-            self.local_store.set_categories(None);
             Ok(None)
         } else if resp.status() != 200 {
             Err(format!("Status: {}", resp.status()).into())
         } else {
             debug!("We got a valid response back!");
             let resp = resp.json::<CategoryResponse>().await?.as_success().unwrap();
-            self.local_store.set_categories(Some(&resp));
             Ok(Some(resp))
         }
     }
@@ -375,9 +379,6 @@ impl HttpStore {
                 .await
                 .map_err(|e| format!("{}", e))?
                 .as_success();
-            if let Some(ref entries) = entries {
-                self.local_store.set_all_recipes(&entries);
-            }
             Ok(entries)
         }
     }
@@ -389,15 +390,11 @@ impl HttpStore {
         let mut path = self.v1_path();
         path.push_str("/recipe/");
         path.push_str(id.as_ref());
-        let storage = js_lib::get_storage();
         let resp = match reqwasm::http::Request::get(&path).send().await {
             Ok(resp) => resp,
             Err(reqwasm::Error::JsError(err)) => {
                 error!(path, ?err, "Error hitting api");
-                return match storage.get(&recipe_key(&id))? {
-                    Some(s) => Ok(Some(from_str(&s).map_err(|e| format!("{}", e))?)),
-                    None => Ok(None),
-                };
+                return Ok(self.local_store.get_recipe_entry(id.as_ref()));
             }
             Err(err) => {
                 return Err(err)?;
@@ -417,8 +414,7 @@ impl HttpStore {
                 .as_success()
                 .unwrap();
             if let Some(ref entry) = entry {
-                let serialized: String = to_string(entry).map_err(|e| format!("{}", e))?;
-                storage.set(&recipe_key(entry.recipe_id()), &serialized)?
+                self.local_store.set_recipe_entry(entry);
             }
             Ok(entry)
         }
@@ -432,7 +428,6 @@ impl HttpStore {
             if r.recipe_id().is_empty() {
                 return Err("Recipe Ids can not be empty".into());
             }
-            self.local_store.set_recipe_entry(&r);
         }
         let serialized = to_string(&recipes).expect("Unable to serialize recipe entries");
         let resp = reqwasm::http::Request::post(&path)
@@ -452,7 +447,6 @@ impl HttpStore {
     pub async fn save_categories(&self, categories: String) -> Result<(), Error> {
         let mut path = self.v1_path();
         path.push_str("/categories");
-        self.local_store.set_categories(Some(&categories));
         let resp = reqwasm::http::Request::post(&path)
             .body(to_string(&categories).expect("Unable to encode categories as json"))
             .header("content-type", "application/json")
@@ -490,7 +484,6 @@ impl HttpStore {
     pub async fn save_plan(&self, plan: Vec<(String, i32)>) -> Result<(), Error> {
         let mut path = self.v1_path();
         path.push_str("/plan");
-        self.local_store.save_plan(&plan);
         let resp = reqwasm::http::Request::post(&path)
             .body(to_string(&plan).expect("Unable to encode plan as json"))
             .header("content-type", "application/json")
@@ -517,9 +510,6 @@ impl HttpStore {
                 .await
                 .map_err(|e| format!("{}", e))?
                 .as_success();
-            if let Some(ref entry) = plan {
-                self.local_store.save_plan(&entry);
-            }
             Ok(plan)
         }
     }
@@ -536,7 +526,6 @@ impl HttpStore {
     > {
         let mut path = self.v2_path();
         path.push_str("/inventory");
-        let storage = js_lib::get_storage();
         let resp = reqwasm::http::Request::get(&path).send().await?;
         if resp.status() != 200 {
             let err = Err(format!("Status: {}", resp.status()).into());
@@ -556,11 +545,6 @@ impl HttpStore {
                 .map_err(|e| format!("{}", e))?
                 .as_success()
                 .unwrap();
-            self.local_store.set_inventory_data((
-                &(filtered_ingredients.iter().cloned().collect()),
-                &(modified_amts.iter().cloned().collect()),
-                &extra_items,
-            ));
             Ok((
                 filtered_ingredients.into_iter().collect(),
                 modified_amts.into_iter().collect(),
@@ -581,11 +565,6 @@ impl HttpStore {
         let filtered_ingredients: Vec<IngredientKey> = filtered_ingredients.into_iter().collect();
         let modified_amts: Vec<(IngredientKey, String)> = modified_amts.into_iter().collect();
         debug!("Storing inventory data in cache");
-        self.local_store.set_inventory_data((
-            &(filtered_ingredients.iter().cloned().collect()),
-            &(modified_amts.iter().cloned().collect()),
-            &extra_items,
-        ));
         let serialized_inventory = to_string(&(filtered_ingredients, modified_amts, extra_items))
             .expect("Unable to encode plan as json");
         debug!("Storing inventory data via API");
