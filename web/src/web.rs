@@ -20,7 +20,6 @@ use crate::{api, routing::Handler as RouteHandler};
 #[instrument]
 #[component]
 pub fn UI<G: Html>(cx: Scope) -> View<G> {
-    // FIXME(jwall): We shouldn't need to get the store from a context anymore.
     api::HttpStore::provide_context(cx, "/api".to_owned());
     let store = api::HttpStore::get_from_context(cx).as_ref().clone();
     info!("Starting UI");
@@ -29,8 +28,7 @@ pub fn UI<G: Html>(cx: Scope) -> View<G> {
     let view = create_signal(cx, View::empty());
     spawn_local_scoped(cx, {
         async move {
-            sh.dispatch(cx, Message::LoadState);
-            // TODO(jwall): This needs to be moved into the RouteHandler
+            sh.dispatch(cx, Message::LoadState(None));
             view.set(view! { cx,
                 RouteHandler(sh=sh)
             });

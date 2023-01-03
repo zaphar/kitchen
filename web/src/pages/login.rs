@@ -36,8 +36,7 @@ pub fn LoginForm<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View
                         debug!("authenticating against ui");
                         if let Some(user_data) = store.authenticate(username, password).await {
                             sh.dispatch(cx, Message::SetUserData(user_data));
-                            sh.dispatch(cx, Message::LoadState);
-                            sycamore_router::navigate("/ui/planning/plan");
+                            sh.dispatch(cx, Message::LoadState(Some(Box::new(|| sycamore_router::navigate("/ui/planning/plan")))));
                         }
                     });
                 }

@@ -202,7 +202,7 @@ pub fn ShoppingList<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> V
         })
         input(type="button", value="Save", class="no-print", on:click=move |_| {
             info!("Registering save request for inventory");
-            sh.dispatch(cx, Message::SaveState);
+            sh.dispatch(cx, Message::SaveState(None));
         })
     }
 }

@@ -11,7 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt::Debug,
+};
 
 use client_api::UserData;
 use recipes::{parse, IngredientKey, Recipe, RecipeEntry};
@@ -50,7 +53,6 @@ impl AppState {
     }
 }
 
-#[derive(Debug)]
 pub enum Message {
     ResetRecipeCounts,
     UpdateRecipeCount(String, usize),
@@ -64,8 +66,46 @@ pub enum Message {
     AddFilteredIngredient(IngredientKey),
     UpdateAmt(IngredientKey, String),
     SetUserData(UserData),
-    SaveState,
-    LoadState,
+    SaveState(Option<Box<dyn FnOnce()>>),
+    LoadState(Option<Box<dyn FnOnce()>>),
+}
+
+impl Debug for Message {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ResetRecipeCounts => write!(f, "ResetRecipeCounts"),
+            Self::UpdateRecipeCount(arg0, arg1) => f
+                .debug_tuple("UpdateRecipeCount")
+                .field(arg0)
+                .field(arg1)
+                .finish(),
+            Self::AddExtra(arg0, arg1) => {
+                f.debug_tuple("AddExtra").field(arg0).field(arg1).finish()
+            }
+            Self::RemoveExtra(arg0) => f.debug_tuple("RemoveExtra").field(arg0).finish(),
+            Self::UpdateExtra(arg0, arg1, arg2) => f
+                .debug_tuple("UpdateExtra")
+                .field(arg0)
+                .field(arg1)
+                .field(arg2)
+                .finish(),
+            Self::SaveRecipe(arg0) => f.debug_tuple("SaveRecipe").field(arg0).finish(),
+            Self::SetRecipe(arg0, arg1) => {
+                f.debug_tuple("SetRecipe").field(arg0).field(arg1).finish()
+            }
+            Self::SetCategoryMap(arg0) => f.debug_tuple("SetCategoryMap").field(arg0).finish(),
+            Self::ResetInventory => write!(f, "ResetInventory"),
+            Self::AddFilteredIngredient(arg0) => {
+                f.debug_tuple("AddFilteredIngredient").field(arg0).finish()
+            }
+            Self::UpdateAmt(arg0, arg1) => {
+                f.debug_tuple("UpdateAmt").field(arg0).field(arg1).finish()
+            }
+            Self::SetUserData(arg0) => f.debug_tuple("SetUserData").field(arg0).finish(),
+            Self::SaveState(_) => write!(f, "SaveState"),
+            Self::LoadState(_) => write!(f, "LoadState"),
+        }
+    }
 }
 
 pub struct StateMachine {
@@ -284,16 +324,17 @@ impl MessageMapper<Message, AppState> for StateMachine {
             Message::SetUserData(user_data) => {
                 original_copy.auth = Some(user_data);
             }
-            Message::SaveState => {
+            Message::SaveState(f) => {
                 let original_copy = original_copy.clone();
                 let store = self.store.clone();
                 spawn_local_scoped(cx, async move {
                     if let Err(e) = store.save_app_state(original_copy).await {
                         error!(err=?e, "Error saving app state")
                     };
+                    f.map(|f| f());
                 });
             }
-            Message::LoadState => {
+            Message::LoadState(f) => {
                 let store = self.store.clone();
                 let local_store = self.local_store.clone();
                 spawn_local_scoped(cx, async move {
@@ -305,6 +346,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                         &original.get().modified_amts,
                         &original.get().extras,
                     ));
+                    f.map(|f| f());
                 });
                 return;
             }
