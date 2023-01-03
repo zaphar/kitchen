@@ -355,8 +355,8 @@ fn mk_v2_routes() -> Router {
     )
 }
 
-#[instrument(fields(recipe_dir=?recipe_dir_path,listen=?listen_socket), skip_all)]
-pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socket: SocketAddr) {
+#[instrument(fields(recipe_dir=?recipe_dir_path), skip_all)]
+pub async fn make_router(recipe_dir_path: PathBuf, store_path: PathBuf) -> Router {
     let store = Arc::new(storage::file_store::AsyncFileStore::new(
         recipe_dir_path.clone(),
     ));
@@ -369,7 +369,7 @@ pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socke
         .run_migrations()
         .await
         .expect("Failed to run database migrations");
-    let router = Router::new()
+    Router::new()
         .route("/", get(|| async { Redirect::temporary("/ui/plan") }))
         .route("/favicon.ico", get(|| async { StaticFile("favicon.ico") }))
         .route("/ui/*path", get(ui_static_assets))
@@ -390,12 +390,39 @@ pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socke
                 .layer(TraceLayer::new_for_http())
                 .layer(Extension(store))
                 .layer(Extension(app_store)),
-        );
+        )
+}
+
+#[instrument(fields(recipe_dir=?recipe_dir_path,listen=?listen_socket), skip_all)]
+pub async fn ui_main_tls(
+    recipe_dir_path: PathBuf,
+    store_path: PathBuf,
+    listen_socket: SocketAddr,
+    cert_path: &str,
+    key_path: &str,
+) {
+    let router = make_router(recipe_dir_path, store_path).await;
     info!(
         http = format!("http://{}", listen_socket),
         "Starting server"
     );
-    axum::Server::bind(&listen_socket)
+    let config = axum_server::tls_rustls::RustlsConfig::from_pem_file(cert_path, key_path)
+        .await
+        .expect("Failed to parse config from pem files");
+    axum_server::bind_rustls(listen_socket, config)
+        .serve(router.into_make_service())
+        .await
+        .expect("Failed to start tls service");
+}
+
+#[instrument(fields(recipe_dir=?recipe_dir_path,listen=?listen_socket), skip_all)]
+pub async fn ui_main(recipe_dir_path: PathBuf, store_path: PathBuf, listen_socket: SocketAddr) {
+    let router = make_router(recipe_dir_path, store_path).await;
+    info!(
+        http = format!("http://{}", listen_socket),
+        "Starting server"
+    );
+    axum_server::bind(listen_socket)
         .serve(router.into_make_service())
         .await
         .expect("Failed to start service");

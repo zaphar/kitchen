@@ -29,6 +29,10 @@ version = "0.4.1"
 version = "0.8.0"
 features = ["serde"]
 
+[dependencies.axum-server]
+version = "0.4.4"
+features = [ "tls-rustls" ]
+
 [dependencies.axum-auth]
 version = "0.3.0"
 features = ["auth-basic"]

@@ -45,7 +45,10 @@ fn create_app<'a>() -> clap::App<'a> {
         (@subcommand serve =>
             (about: "Serve the interface via the web")
             (@arg recipe_dir: -d --dir +takes_value "Directory containing recipe files to use")
-            (@arg session_dir: --session_dir + takes_value "Session store directory to use")
+            (@arg session_dir: --session_dir +takes_value "Session store directory to use")
+            (@arg tls: --tls "Use TLS to serve.")
+            (@arg cert_path: --cert +takes_value "Certificate path. Required if you specified --tls.")
+            (@arg key_path: --cert_key +takes_value "Certificate key path. Required if you specified --tls")
             (@arg listen: --listen +takes_value "address and port to listen on 0.0.0.0:3030")
         )
         (@subcommand add_user =>
@@ -136,7 +139,22 @@ fn main() {
         };
         info!(listen=%listen_socket, "Launching web interface...");
         async_std::task::block_on(async {
-            web::ui_main(recipe_dir_path, session_store_path, listen_socket).await
+            if matches.contains_id("tls") {
+                web::ui_main_tls(
+                    recipe_dir_path,
+                    session_store_path,
+                    listen_socket,
+                    matches
+                        .value_of("cert_path")
+                        .expect("You must provide a cert path with --cert"),
+                    matches
+                        .value_of("key_path")
+                        .expect("You must provide a key path with --cert_key"),
+                )
+                .await
+            } else {
+                web::ui_main(recipe_dir_path, session_store_path, listen_socket).await
+            }
         });
     } else if let Some(matches) = matches.subcommand_matches("add_user") {
         let recipe_dir_path = matches.value_of("recipe_dir").map(|dir| PathBuf::from(dir));
