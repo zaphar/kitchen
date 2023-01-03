@@ -34,9 +34,10 @@ pub fn LoginForm<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View
                     spawn_local_scoped(cx, async move {
                         let store = crate::api::HttpStore::get_from_context(cx);
                         debug!("authenticating against ui");
-                        // TODO(jwall): Navigate to plan if the below is successful.
                         if let Some(user_data) = store.authenticate(username, password).await {
                             sh.dispatch(cx, Message::SetUserData(user_data));
+                            sh.dispatch(cx, Message::LoadState);
+                            sycamore_router::navigate("/ui/planning/plan");
                         }
                     });
                 }
