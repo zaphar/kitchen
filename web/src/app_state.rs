@@ -159,6 +159,9 @@ impl StateMachine {
             state.staples = staples;
             state.recipes = recipes;
         };
+        if let Some(recipe_entries) = recipe_entries {
+            local_store.set_all_recipes(recipe_entries);
+        }
 
         let plan = store.get_plan().await?;
         if let Some(plan) = plan {
@@ -176,6 +179,12 @@ impl StateMachine {
                 }
             }
         }
+        let plan = state
+            .recipe_counts
+            .iter()
+            .map(|(k, v)| (k.clone(), *v as i32))
+            .collect::<Vec<(String, i32)>>();
+        local_store.save_plan(&plan);
         info!("Checking for user_data in local storage");
         let user_data = local_store.get_user_data();
         state.auth = user_data;
@@ -183,10 +192,12 @@ impl StateMachine {
         match store.get_categories().await {
             Ok(Some(categories_content)) => {
                 debug!(categories=?categories_content);
+                local_store.set_categories(Some(&categories_content));
                 state.category_map = categories_content;
             }
             Ok(None) => {
                 warn!("There is no category file");
+                local_store.set_categories(None);
             }
             Err(e) => {
                 error!("{:?}", e);
@@ -195,6 +206,11 @@ impl StateMachine {
         info!("Synchronizing inventory data");
         match store.get_inventory_data().await {
             Ok((filtered_ingredients, modified_amts, extra_items)) => {
+                local_store.set_inventory_data((
+                    &filtered_ingredients,
+                    &modified_amts,
+                    &extra_items,
+                ));
                 state.modified_amts = modified_amts;
                 state.filtered_ingredients = filtered_ingredients;
                 state.extras = extra_items;
@@ -322,6 +338,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 ));
             }
             Message::SetUserData(user_data) => {
+                self.local_store.set_user_data(Some(&user_data));
                 original_copy.auth = Some(user_data);
             }
             Message::SaveState(f) => {
