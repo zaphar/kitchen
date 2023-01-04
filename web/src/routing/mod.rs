@@ -12,62 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::{
+    app_state::StateHandler,
+    components::{Footer, Header},
+    pages::*,
+};
 use sycamore::prelude::*;
 use sycamore_router::{HistoryIntegration, Route, Router};
 use tracing::{debug, instrument};
-
-use crate::pages::*;
-
-#[instrument]
-fn route_switch<'a, G: Html>(cx: Scope<'a>, route: &'a ReadSignal<Routes>) -> View<G> {
-    // NOTE(jwall): This needs to not be a dynamic node. The rules around
-    // this are somewhat unclear and underdocumented for Sycamore. But basically
-    // avoid conditionals in the `view!` macro calls here.
-
-    let switcher = |cx: Scope, route: &Routes| {
-        debug!(?route, "Dispatching for route");
-        match route {
-            Routes::Planning(Plan) => view! {cx,
-                PlanPage()
-            },
-            Routes::Planning(Inventory) => view! {cx,
-                InventoryPage()
-            },
-            Routes::Planning(Cook) => view! {cx,
-                CookPage()
-            },
-            Routes::Login => view! {cx,
-                LoginPage()
-            },
-            Routes::Recipe(RecipeRoutes::View(id)) => view! {cx,
-                RecipeViewPage(recipe=id.clone())
-            },
-            Routes::Recipe(RecipeRoutes::Edit(id)) => view! {cx,
-                RecipeEditPage(recipe=id.clone())
-            },
-            Routes::Manage(ManageRoutes::Categories) => view! {cx,
-                CategoryPage()
-            },
-            Routes::Manage(ManageRoutes::NewRecipe) => view! {cx,
-                AddRecipePage()
-            },
-            Routes::Manage(ManageRoutes::Staples) => view! {cx,
-                StaplesPage()
-            },
-            Routes::NotFound
-            | Routes::Manage(ManageRoutes::NotFound)
-            | Routes::Planning(PlanningRoutes::NotFound)
-            | Routes::Recipe(RecipeRoutes::NotFound) => view! {cx,
-                // TODO(Create a real one)
-                PlanPage()
-            },
-        }
-    };
-    use PlanningRoutes::*;
-    view! {cx,
-        (switcher(cx, route.get().as_ref()))
-    }
-}
 
 #[derive(Route, Debug)]
 pub enum Routes {
@@ -117,12 +69,69 @@ pub enum PlanningRoutes {
     NotFound,
 }
 
+#[derive(Props)]
+pub struct HandlerProps<'ctx> {
+    sh: StateHandler<'ctx>,
+}
+
+#[instrument(skip_all, fields(?route))]
+fn route_switch<'ctx, G: Html>(route: &Routes, cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
+    debug!("Handling route change");
+    use ManageRoutes::*;
+    use PlanningRoutes::*;
+    match route {
+        Routes::Planning(Plan) => view! {cx,
+            PlanPage(sh)
+        },
+        Routes::Planning(Inventory) => view! {cx,
+            InventoryPage(sh)
+        },
+        Routes::Planning(Cook) => view! {cx,
+            CookPage(sh)
+        },
+        Routes::Login => view! {cx,
+            LoginPage(sh)
+        },
+        Routes::Recipe(RecipeRoutes::View(id)) => view! {cx,
+            RecipeViewPage(recipe=id.clone(), sh=sh)
+        },
+        Routes::Recipe(RecipeRoutes::Edit(id)) => view! {cx,
+            RecipeEditPage(recipe=id.clone(), sh=sh)
+        },
+        Routes::Manage(Categories) => view! {cx,
+            CategoryPage(sh)
+        },
+        Routes::Manage(NewRecipe) => view! {cx,
+            AddRecipePage(sh)
+        },
+        Routes::Manage(Staples) => view! {cx,
+            StaplesPage(sh)
+        },
+        Routes::NotFound
+        | Routes::Manage(ManageRoutes::NotFound)
+        | Routes::Planning(PlanningRoutes::NotFound)
+        | Routes::Recipe(RecipeRoutes::NotFound) => view! {cx,
+            // TODO(Create a real one)
+            PlanPage(sh)
+        },
+    }
+}
+
 #[component]
-pub fn Handler<G: Html>(cx: Scope) -> View<G> {
+pub fn Handler<'ctx, G: Html>(cx: Scope<'ctx>, props: HandlerProps<'ctx>) -> View<G> {
+    let HandlerProps { sh } = props;
     view! {cx,
         Router(
             integration=HistoryIntegration::new(),
-            view=route_switch,
+            view=move |cx: Scope, route: &ReadSignal<Routes>| {
+                view!{cx,
+                    div(class="app") {
+                        Header(sh)
+                        (route_switch(route.get().as_ref(), cx, sh))
+                        Footer { }
+                    }
+                }
+            },
         )
     }
 }

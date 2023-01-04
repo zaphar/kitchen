@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use super::PlanningPage;
-use crate::components::recipe_plan::*;
+use crate::{app_state::StateHandler, components::recipe_plan::*};
 
 use sycamore::prelude::*;
 
 #[component]
-pub fn PlanPage<G: Html>(cx: Scope) -> View<G> {
+pub fn PlanPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
     view! {cx,
         PlanningPage(
             selected=Some("Plan".to_owned()),
-        ) { RecipePlan() }
+        ) { RecipePlan(sh) }
     }
 }

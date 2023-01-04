@@ -43,12 +43,3 @@ pub fn get_storage() -> Storage {
         .expect("Failed to get storage")
         .expect("No storage available")
 }
-
-pub fn get_storage_keys() -> Vec<String> {
-    let storage = get_storage();
-    let mut keys = Vec::new();
-    for idx in 0..storage.length().unwrap() {
-        keys.push(get_storage().key(idx).unwrap().unwrap())
-    }
-    keys
-}

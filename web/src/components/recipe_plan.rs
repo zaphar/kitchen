@@ -12,22 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use recipes::Recipe;
-use sycamore::{futures::spawn_local_scoped, prelude::*};
-use tracing::{error, instrument};
+use sycamore::prelude::*;
+use tracing::instrument;
 
+use crate::app_state::{Message, StateHandler};
 use crate::components::recipe_selection::*;
-use crate::{api::*, app_state};
 
 #[allow(non_snake_case)]
-#[instrument]
-pub fn RecipePlan<G: Html>(cx: Scope) -> View<G> {
-    let rows = create_memo(cx, move || {
-        let state = app_state::State::get_from_context(cx);
+#[instrument(skip_all)]
+pub fn RecipePlan<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
+    let rows = sh.get_selector(cx, move |state| {
         let mut rows = Vec::new();
         for row in state
-            .recipes
             .get()
-            .as_ref()
+            .recipes
             .iter()
             .map(|(k, v)| create_signal(cx, (k.clone(), v.clone())))
             .collect::<Vec<&Signal<(String, Recipe)>>>()
@@ -37,30 +35,6 @@ pub fn RecipePlan<G: Html>(cx: Scope) -> View<G> {
         }
         rows
     });
-    let refresh_click = create_signal(cx, false);
-    let save_click = create_signal(cx, false);
-    create_effect(cx, move || {
-        refresh_click.track();
-        let store = HttpStore::get_from_context(cx);
-        let state = app_state::State::get_from_context(cx);
-        spawn_local_scoped(cx, {
-            async move {
-                if let Err(err) = init_page_state(store.as_ref(), state.as_ref()).await {
-                    error!(?err);
-                };
-            }
-        });
-    });
-    create_effect(cx, move || {
-        save_click.track();
-        let store = HttpStore::get_from_context(cx);
-        let state = app_state::State::get_from_context(cx);
-        spawn_local_scoped(cx, {
-            async move {
-                store.save_state(state).await.expect("Failed to save plan");
-            }
-        })
-    });
     view! {cx,
         table(class="recipe_selector no-print") {
             (View::new_fragment(
@@ -68,10 +42,10 @@ pub fn RecipePlan<G: Html>(cx: Scope) -> View<G> {
                     view ! {cx,
                         tr { Keyed(
                             iterable=r,
-                            view=|cx, sig| {
+                            view=move |cx, sig| {
                                 let title = create_memo(cx, move || sig.get().1.title.clone());
                                 view! {cx,
-                                    td { RecipeSelection(i=sig.get().0.to_owned(), title=title) }
+                                    td { RecipeSelection(i=sig.get().0.to_owned(), title=title, sh=sh) }
                                 }
                             },
                             key=|sig| sig.get().0.to_owned(),
@@ -81,18 +55,14 @@ pub fn RecipePlan<G: Html>(cx: Scope) -> View<G> {
             ))
         }
         input(type="button", value="Reset", on:click=move |_| {
-            // Poor man's click event signaling.
-            let toggle = !*refresh_click.get();
-            refresh_click.set(toggle);
+            sh.dispatch(cx, Message::LoadState(None));
         })
         input(type="button", value="Clear All", on:click=move |_| {
-            let state = app_state::State::get_from_context(cx);
-            state.reset_recipe_counts();
+            sh.dispatch(cx, Message::ResetRecipeCounts);
         })
         input(type="button", value="Save Plan", on:click=move |_| {
             // Poor man's click event signaling.
-            let toggle = !*save_click.get();
-            save_click.set(toggle);
+            sh.dispatch(cx, Message::SaveState(None));
         })
     }
 }

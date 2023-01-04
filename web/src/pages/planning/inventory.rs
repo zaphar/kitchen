@@ -14,13 +14,13 @@
 use sycamore::prelude::*;
 
 use super::PlanningPage;
-use crate::components::shopping_list::*;
+use crate::{app_state::StateHandler, components::shopping_list::*};
 
 #[component]
-pub fn InventoryPage<G: Html>(cx: Scope) -> View<G> {
+pub fn InventoryPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
     view! {cx,
         PlanningPage(
             selected=Some("Inventory".to_owned()),
-        ) { ShoppingList() }
+        ) { ShoppingList(sh) }
     }
 }

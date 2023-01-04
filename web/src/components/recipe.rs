@@ -14,7 +14,7 @@
 use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{debug, error};
 
-use crate::app_state;
+use crate::app_state::{Message, StateHandler};
 use recipes::{self, RecipeEntry};
 
 fn check_recipe_parses(
@@ -34,8 +34,15 @@ fn check_recipe_parses(
     }
 }
 
+#[derive(Props)]
+pub struct RecipeComponentProps<'ctx> {
+    recipe_id: String,
+    sh: StateHandler<'ctx>,
+}
+
 #[component]
-pub fn Editor<G: Html>(cx: Scope, recipe_id: String) -> View<G> {
+pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>) -> View<G> {
+    let RecipeComponentProps { recipe_id, sh } = props;
     let store = crate::api::HttpStore::get_from_context(cx);
     let recipe: &Signal<RecipeEntry> =
         create_signal(cx, RecipeEntry::new(&recipe_id, String::new()));
@@ -60,44 +67,7 @@ pub fn Editor<G: Html>(cx: Scope, recipe_id: String) -> View<G> {
     });
 
     let id = create_memo(cx, || recipe.get().recipe_id().to_owned());
-    let save_signal = create_signal(cx, ());
     let dirty = create_signal(cx, false);
-
-    debug!("Creating effect");
-    create_effect(cx, move || {
-        save_signal.track();
-        if !*dirty.get_untracked() {
-            debug!("Recipe text is unchanged");
-            return;
-        }
-        debug!("Recipe text is changed");
-        spawn_local_scoped(cx, {
-            let store = crate::api::HttpStore::get_from_context(cx);
-            let state = app_state::State::get_from_context(cx);
-            async move {
-                debug!("Attempting to save recipe");
-                if let Err(e) = store
-                    .save_recipes(vec![RecipeEntry(
-                        id.get_untracked().as_ref().clone(),
-                        text.get_untracked().as_ref().clone(),
-                    )])
-                    .await
-                {
-                    error!(?e, "Failed to save recipe");
-                    error_text.set(format!("{:?}", e));
-                } else {
-                    // We also need to set recipe in our state
-                    dirty.set(false);
-                    if let Ok(recipe) = recipes::parse::as_recipe(text.get_untracked().as_ref()) {
-                        state
-                            .recipes
-                            .modify()
-                            .insert(id.get_untracked().as_ref().to_owned(), recipe);
-                    }
-                };
-            }
-        });
-    });
 
     debug!("creating editor view");
     view! {cx,
@@ -115,7 +85,36 @@ pub fn Editor<G: Html>(cx: Scope, recipe_id: String) -> View<G> {
             let unparsed = text.get();
             if check_recipe_parses(unparsed.as_str(), error_text, aria_hint) {
                 debug!("triggering a save");
-                save_signal.trigger_subscribers();
+                if !*dirty.get_untracked() {
+                    debug!("Recipe text is unchanged");
+                    return;
+                }
+                debug!("Recipe text is changed");
+                spawn_local_scoped(cx, {
+                    let store = crate::api::HttpStore::get_from_context(cx);
+                    async move {
+                        debug!("Attempting to save recipe");
+                        if let Err(e) = store
+                            .save_recipes(vec![RecipeEntry(
+                                id.get_untracked().as_ref().clone(),
+                                text.get_untracked().as_ref().clone(),
+                            )])
+                            .await
+                        {
+                            error!(?e, "Failed to save recipe");
+                            error_text.set(format!("{:?}", e));
+                        } else {
+                            // We also need to set recipe in our state
+                            dirty.set(false);
+                            if let Ok(recipe) = recipes::parse::as_recipe(text.get_untracked().as_ref()) {
+                                sh.dispatch(
+                                    cx,
+                                    Message::SetRecipe(id.get_untracked().as_ref().to_owned(), recipe),
+                                );
+                            }
+                        };
+                    }
+                });
             } else {
             }
         }) { "Save" }
@@ -154,13 +153,20 @@ fn Steps<G: Html>(cx: Scope, steps: Vec<recipes::Step>) -> View<G> {
 }
 
 #[component]
-pub fn Viewer<G: Html>(cx: Scope, recipe_id: String) -> View<G> {
-    let state = app_state::State::get_from_context(cx);
+pub fn Viewer<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>) -> View<G> {
+    let RecipeComponentProps { recipe_id, sh } = props;
     let view = create_signal(cx, View::empty());
-    if let Some(recipe) = state.recipes.get_untracked().get(&recipe_id) {
-        let title = recipe.title.clone();
-        let desc = recipe.desc.clone().unwrap_or_else(|| String::new());
-        let steps = recipe.steps.clone();
+    let recipe_signal = sh.get_selector(cx, move |state| {
+        if let Some(recipe) = state.get().recipes.get(&recipe_id) {
+            let title = recipe.title.clone();
+            let desc = recipe.desc.clone().unwrap_or_else(|| String::new());
+            let steps = recipe.steps.clone();
+            Some((title, desc, steps))
+        } else {
+            None
+        }
+    });
+    if let Some((title, desc, steps)) = recipe_signal.get().as_ref().clone() {
         debug!("Viewing recipe.");
         view.set(view! {cx,
             div(class="recipe") {

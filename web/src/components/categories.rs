@@ -11,13 +11,15 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use crate::{
+    app_state::{Message, StateHandler},
+    js_lib::get_element_by_id,
+};
 use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{debug, error, instrument};
 use web_sys::HtmlDialogElement;
 
 use recipes::parse;
-
-use crate::js_lib::get_element_by_id;
 
 fn get_error_dialog() -> HtmlDialogElement {
     get_element_by_id::<HtmlDialogElement>("error-dialog")
@@ -38,10 +40,9 @@ fn check_category_text_parses(unparsed: &str, error_text: &Signal<String>) -> bo
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 #[component]
-pub fn Categories<G: Html>(cx: Scope) -> View<G> {
-    let save_signal = create_signal(cx, ());
+pub fn Categories<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
     let error_text = create_signal(cx, String::new());
     let category_text: &Signal<String> = create_signal(cx, String::new());
     let dirty = create_signal(cx, false);
@@ -57,28 +58,6 @@ pub fn Categories<G: Html>(cx: Scope) -> View<G> {
                 category_text.set(js);
             };
         }
-    });
-
-    create_effect(cx, move || {
-        save_signal.track();
-        if !*dirty.get() {
-            return;
-        }
-        spawn_local_scoped(cx, {
-            let store = crate::api::HttpStore::get_from_context(cx);
-            async move {
-                // TODO(jwall): Save the categories.
-                if let Err(e) = store
-                    .save_categories(category_text.get_untracked().as_ref().clone())
-                    .await
-                {
-                    error!(?e, "Failed to save categories");
-                    error_text.set(format!("{:?}", e));
-                } else {
-                    dirty.set(false);
-                }
-            }
-        });
     });
 
     let dialog_view = view! {cx,
@@ -107,10 +86,15 @@ pub fn Categories<G: Html>(cx: Scope) -> View<G> {
             check_category_text_parses(category_text.get().as_str(), error_text);
         }) { "Check" } " "
         span(role="button", on:click=move |_| {
-            // TODO(jwall): check and then save the categories.
+            if !*dirty.get() {
+                return;
+            }
             if check_category_text_parses(category_text.get().as_str(), error_text) {
                 debug!("triggering category save");
-                save_signal.trigger_subscribers();
+                sh.dispatch(
+                    cx,
+                    Message::SetCategoryMap(category_text.get_untracked().as_ref().clone()),
+                );
             }
         }) { "Save" }
     }

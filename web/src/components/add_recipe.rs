@@ -14,6 +14,7 @@
 use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{error, info};
 
+use crate::app_state::{Message, StateHandler};
 use recipes::RecipeEntry;
 
 const STARTER_RECIPE: &'static str = "title: TITLE_PLACEHOLDER
@@ -28,7 +29,7 @@ Instructions here
 ";
 
 #[component]
-pub fn AddRecipe<G: Html>(cx: Scope) -> View<G> {
+pub fn AddRecipe<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
     let recipe_title = create_signal(cx, String::new());
     let create_recipe_signal = create_signal(cx, ());
     let dirty = create_signal(cx, false);
@@ -47,39 +48,6 @@ pub fn AddRecipe<G: Html>(cx: Scope) -> View<G> {
         )
     });
 
-    create_effect(cx, move || {
-        create_recipe_signal.track();
-        if !*dirty.get_untracked() {
-            return;
-        }
-        spawn_local_scoped(cx, {
-            let store = crate::api::HttpStore::get_from_context(cx);
-            async move {
-                let entry = entry.get_untracked();
-                // TODO(jwall): Better error reporting here.
-                match store.get_recipe_text(entry.recipe_id()).await {
-                    Ok(Some(_)) => {
-                        // TODO(jwall): We should tell the user that this id already exists
-                        info!(recipe_id = entry.recipe_id(), "Recipe already exists");
-                        return;
-                    }
-                    Ok(None) => {
-                        // noop
-                    }
-                    Err(err) => {
-                        // TODO(jwall): We should tell the user that this is failing
-                        error!(?err)
-                    }
-                }
-                store
-                    .save_recipes(vec![entry.as_ref().clone()])
-                    .await
-                    .expect("Unable to save New Recipe");
-                crate::js_lib::navigate_to_path(&format!("/ui/recipe/{}", entry.recipe_id()))
-                    .expect("Unable to navigate to recipe");
-            }
-        });
-    });
     view! {cx,
         label(for="recipe_title") { "Recipe Title" }
         input(bind:value=recipe_title, type="text", name="recipe_title", id="recipe_title", on:change=move |_| {
@@ -87,6 +55,33 @@ pub fn AddRecipe<G: Html>(cx: Scope) -> View<G> {
         })
         button(on:click=move |_| {
             create_recipe_signal.trigger_subscribers();
+            if !*dirty.get_untracked() {
+                return;
+            }
+            spawn_local_scoped(cx, {
+                let store = crate::api::HttpStore::get_from_context(cx);
+                async move {
+                    let entry = entry.get_untracked();
+                    // TODO(jwall): Better error reporting here.
+                    match store.get_recipe_text(entry.recipe_id()).await {
+                        Ok(Some(_)) => {
+                            // TODO(jwall): We should tell the user that this id already exists
+                            info!(recipe_id = entry.recipe_id(), "Recipe already exists");
+                            return;
+                        }
+                        Ok(None) => {
+                            // noop
+                        }
+                        Err(err) => {
+                            // TODO(jwall): We should tell the user that this is failing
+                            error!(?err)
+                        }
+                    }
+                    sh.dispatch(cx, Message::SaveRecipe((*entry).clone()));
+                    crate::js_lib::navigate_to_path(&format!("/ui/recipe/edit/{}", entry.recipe_id()))
+                        .expect("Unable to navigate to recipe");
+                }
+            });
         }) { "Create" }
     }
 }

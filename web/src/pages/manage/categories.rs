@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use super::ManagePage;
-use crate::components::categories::*;
+use crate::{app_state::StateHandler, components::categories::*};
 
 use sycamore::prelude::*;
 
 #[component()]
-pub fn CategoryPage<G: Html>(cx: Scope) -> View<G> {
+pub fn CategoryPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
     view! {cx,
         ManagePage(
             selected=Some("Categories".to_owned()),
-        ) { Categories() }
+        ) { Categories(sh) }
     }
 }

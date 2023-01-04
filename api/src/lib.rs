@@ -103,7 +103,7 @@ pub type CategoryResponse = Response<String>;
 
 pub type EmptyResponse = Response<()>;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct UserData {
     pub user_id: String,
 }

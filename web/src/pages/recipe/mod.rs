@@ -13,16 +13,17 @@
 // limitations under the License.
 use sycamore::prelude::*;
 
-use crate::components::tabs::*;
+use crate::{app_state::StateHandler, components::tabs::*};
 
 mod edit;
 mod view;
 pub use edit::*;
 pub use view::*;
 
-#[derive(Debug, Props)]
-pub struct RecipePageProps {
+#[derive(Props)]
+pub struct RecipePageProps<'ctx> {
     pub recipe: String,
+    pub sh: StateHandler<'ctx>,
 }
 
 #[derive(Props)]

@@ -43,7 +43,6 @@ pub fn TabbedView<'a, G: Html>(cx: Scope<'a>, state: TabState<'a, G>) -> View<G>
                 view! {cx,
                     li(class=class) { a(href=href) { (show) } }
                 }
-                // TODO
             })
             .collect(),
     );
