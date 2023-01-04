@@ -333,6 +333,15 @@ async fn api_save_inventory(
     }
 }
 
+async fn api_user_account(session: storage::UserIdFromSession) -> api::AccountResponse {
+    use storage::{UserId, UserIdFromSession::FoundUserId};
+    if let FoundUserId(UserId(user_id)) = session {
+        api::AccountResponse::from(api::UserData { user_id })
+    } else {
+        api::Response::Unauthorized
+    }
+}
+
 fn mk_v1_routes() -> Router {
     Router::new()
         .route("/recipes", get(api_recipes).post(api_save_recipes))
@@ -349,10 +358,21 @@ fn mk_v1_routes() -> Router {
 }
 
 fn mk_v2_routes() -> Router {
-    Router::new().route(
-        "/inventory",
-        get(api_inventory_v2).post(api_save_inventory_v2),
-    )
+    Router::new()
+        .route("/recipes", get(api_recipes).post(api_save_recipes))
+        // recipe entry api path route
+        .route("/recipe/:recipe_id", get(api_recipe_entry))
+        // mealplan api path routes
+        .route("/plan", get(api_plan).post(api_save_plan))
+        .route("/plan/:date", get(api_plan_since))
+        .route(
+            "/inventory",
+            get(api_inventory_v2).post(api_save_inventory_v2),
+        )
+        .route("/categories", get(api_categories).post(api_save_categories))
+        // All the routes above require a UserId.
+        .route("/auth", get(auth::handler).post(auth::handler))
+        .route("/account", get(api_user_account))
 }
 
 #[instrument(fields(recipe_dir=?recipe_dir_path), skip_all)]

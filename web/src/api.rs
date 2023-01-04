@@ -377,6 +377,27 @@ impl HttpStore {
         return None;
     }
 
+    #[instrument]
+    pub async fn get_user_data(&self) -> Option<UserData> {
+        debug!("Retrieving User Account data");
+        let mut path = self.v2_path();
+        path.push_str("/account");
+        let result = reqwasm::http::Request::get(&path).send().await;
+        if let Ok(resp) = &result {
+            if resp.status() == 200 {
+                let user_data = resp
+                    .json::<AccountResponse>()
+                    .await
+                    .expect("Unparseable authentication response")
+                    .as_success();
+                return user_data;
+            }
+            error!(status = resp.status(), "Login was unsuccessful")
+        } else {
+            error!(err=?result.unwrap_err(), "Failed to send auth request");
+        }
+        return None;
+    }
     //#[instrument]
     pub async fn get_categories(&self) -> Result<Option<String>, Error> {
         let mut path = self.v1_path();

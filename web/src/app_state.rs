@@ -185,9 +185,16 @@ impl StateMachine {
             .map(|(k, v)| (k.clone(), *v as i32))
             .collect::<Vec<(String, i32)>>();
         local_store.save_plan(&plan);
-        info!("Checking for user_data in local storage");
-        let user_data = local_store.get_user_data();
-        state.auth = user_data;
+        info!("Checking for user account data");
+        if let Some(user_data) = store.get_user_data().await {
+            debug!("Successfully got account data from server");
+            local_store.set_user_data(Some(&user_data));
+            state.auth = Some(user_data);
+        } else {
+            debug!("Using account data from local store");
+            let user_data = local_store.get_user_data();
+            state.auth = user_data;
+        }
         info!("Synchronizing categories");
         match store.get_categories().await {
             Ok(Some(categories_content)) => {
