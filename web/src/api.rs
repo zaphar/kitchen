@@ -328,12 +328,6 @@ impl HttpStore {
         }
     }
 
-    pub fn v1_path(&self) -> String {
-        let mut path = self.root.clone();
-        path.push_str("/v1");
-        path
-    }
-
     pub fn v2_path(&self) -> String {
         let mut path = self.root.clone();
         path.push_str("/v2");
@@ -352,7 +346,7 @@ impl HttpStore {
     #[instrument(skip_all, fields(?self, user))]
     pub async fn authenticate(&self, user: String, pass: String) -> Option<UserData> {
         debug!("attempting login request against api.");
-        let mut path = self.v1_path();
+        let mut path = self.v2_path();
         path.push_str("/auth");
         let result = reqwasm::http::Request::get(&path)
             .header(
@@ -400,7 +394,7 @@ impl HttpStore {
     }
     //#[instrument]
     pub async fn get_categories(&self) -> Result<Option<String>, Error> {
-        let mut path = self.v1_path();
+        let mut path = self.v2_path();
         path.push_str("/categories");
         let resp = match reqwasm::http::Request::get(&path).send().await {
             Ok(resp) => resp,
@@ -426,7 +420,7 @@ impl HttpStore {
 
     #[instrument]
     pub async fn get_recipes(&self) -> Result<Option<Vec<RecipeEntry>>, Error> {
-        let mut path = self.v1_path();
+        let mut path = self.v2_path();
         path.push_str("/recipes");
         let resp = match reqwasm::http::Request::get(&path).send().await {
             Ok(resp) => resp,
@@ -455,7 +449,7 @@ impl HttpStore {
         &self,
         id: S,
     ) -> Result<Option<RecipeEntry>, Error> {
-        let mut path = self.v1_path();
+        let mut path = self.v2_path();
         path.push_str("/recipe/");
         path.push_str(id.as_ref());
         let resp = match reqwasm::http::Request::get(&path).send().await {
@@ -490,7 +484,7 @@ impl HttpStore {
 
     #[instrument(skip(recipes), fields(count=recipes.len()))]
     pub async fn save_recipes(&self, recipes: Vec<RecipeEntry>) -> Result<(), Error> {
-        let mut path = self.v1_path();
+        let mut path = self.v2_path();
         path.push_str("/recipes");
         for r in recipes.iter() {
             if r.recipe_id().is_empty() {
@@ -513,7 +507,7 @@ impl HttpStore {
 
     #[instrument(skip(categories))]
     pub async fn save_categories(&self, categories: String) -> Result<(), Error> {
-        let mut path = self.v1_path();
+        let mut path = self.v2_path();
         path.push_str("/categories");
         let resp = reqwasm::http::Request::post(&path)
             .body(to_string(&categories).expect("Unable to encode categories as json"))
@@ -550,7 +544,7 @@ impl HttpStore {
     }
 
     pub async fn save_plan(&self, plan: Vec<(String, i32)>) -> Result<(), Error> {
-        let mut path = self.v1_path();
+        let mut path = self.v2_path();
         path.push_str("/plan");
         let resp = reqwasm::http::Request::post(&path)
             .body(to_string(&plan).expect("Unable to encode plan as json"))
@@ -566,7 +560,7 @@ impl HttpStore {
     }
 
     pub async fn get_plan(&self) -> Result<Option<Vec<(String, i32)>>, Error> {
-        let mut path = self.v1_path();
+        let mut path = self.v2_path();
         path.push_str("/plan");
         let resp = reqwasm::http::Request::get(&path).send().await?;
         if resp.status() != 200 {
@@ -582,7 +576,6 @@ impl HttpStore {
         }
     }
 
-    pub async fn get_inventory_data(
         &self,
     ) -> Result<
         (
