@@ -1,0 +1,1 @@
+select ingredient_name, category_name from category_mappings where user_id = ?

@@ -179,3 +179,11 @@ impl From<InventoryData> for InventoryResponse {
         Response::Success(inventory_data)
     }
 }
+
+pub type CategoryMappingResponse = Response<Vec<(String, String)>>;
+
+impl From<Vec<(String, String)>> for CategoryMappingResponse {
+    fn from(mappings: Vec<(String, String)>) -> Self {
+        Response::Success(mappings)
+    }
+}

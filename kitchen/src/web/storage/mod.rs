@@ -90,6 +90,17 @@ fn check_pass(payload: &String, pass: &Secret<String>) -> bool {
 pub trait APIStore {
     async fn get_categories_for_user(&self, user_id: &str) -> Result<Option<String>>;
 
+    async fn get_category_mappings_for_user(
+        &self,
+        user_id: &str,
+    ) -> Result<Option<Vec<(String, String)>>>;
+
+    async fn save_category_mappings_for_user(
+        &self,
+        user_id: &str,
+        mappings: &Vec<(String, String)>,
+    ) -> Result<()>;
+
     async fn get_recipes_for_user(&self, user_id: &str) -> Result<Option<Vec<RecipeEntry>>>;
 
     async fn store_recipes_for_user(&self, user_id: &str, recipes: &Vec<RecipeEntry>)
@@ -324,6 +335,50 @@ impl APIStore for SqliteStore {
             Some(result) => Ok(result),
             None => Ok(None),
         }
+    }
+
+    async fn get_category_mappings_for_user(
+        &self,
+        user_id: &str,
+    ) -> Result<Option<Vec<(String, String)>>> {
+        struct Row {
+            ingredient_name: String,
+            category_name: String,
+        }
+        let rows: Vec<Row> = sqlx::query_file_as!(
+            Row,
+            "src/web/storage/fetch_category_mappings_for_user.sql",
+            user_id
+        )
+        .fetch_all(self.pool.as_ref())
+        .await?;
+        if rows.is_empty() {
+            Ok(None)
+        } else {
+            let mut mappings = Vec::new();
+            for r in rows {
+                mappings.push((r.ingredient_name, r.category_name));
+            }
+            Ok(Some(mappings))
+        }
+    }
+
+    async fn save_category_mappings_for_user(
+        &self,
+        user_id: &str,
+        mappings: &Vec<(String, String)>,
+    ) -> Result<()> {
+        for (name, category) in mappings.iter() {
+            sqlx::query_file!(
+                "src/web/storage/save_category_mappings_for_user.sql",
+                user_id,
+                name,
+                category,
+            )
+            .execute(self.pool.as_ref())
+            .await?;
+        }
+        Ok(())
     }
 
     async fn get_recipe_entry_for_user<S: AsRef<str> + Send>(

@@ -121,6 +121,47 @@ async fn api_recipes(
 }
 
 #[instrument]
+async fn api_category_mappings(
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+) -> api::CategoryMappingResponse {
+    use storage::UserIdFromSession::*;
+    match session {
+        NoUserId => api::Response::Unauthorized,
+        FoundUserId(user_id) => match app_store.get_category_mappings_for_user(&user_id.0).await {
+            Ok(Some(mappings)) => api::CategoryMappingResponse::from(mappings),
+            Ok(None) => api::CategoryMappingResponse::from(Vec::new()),
+            Err(e) => api::CategoryMappingResponse::error(
+                StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                format!("{:?}", e),
+            ),
+        },
+    }
+}
+
+#[instrument]
+async fn api_save_category_mappings(
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+    Json(mappings): Json<Vec<(String, String)>>,
+) -> api::EmptyResponse {
+    use storage::UserIdFromSession::*;
+    match session {
+        NoUserId => api::Response::Unauthorized,
+        FoundUserId(user_id) => match app_store
+            .save_category_mappings_for_user(&user_id.0, &mappings)
+            .await
+        {
+            Ok(_) => api::EmptyResponse::success(()),
+            Err(e) => api::EmptyResponse::error(
+                StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                format!("{:?}", e),
+            ),
+        },
+    }
+}
+
+#[instrument]
 async fn api_categories(
     Extension(store): Extension<Arc<storage::file_store::AsyncFileStore>>,
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
@@ -369,7 +410,12 @@ fn mk_v2_routes() -> Router {
             "/inventory",
             get(api_inventory_v2).post(api_save_inventory_v2),
         )
+        // TODO(jwall): This is now deprecated but will still work
         .route("/categories", get(api_categories).post(api_save_categories))
+        .route(
+            "/category_map",
+            get(api_category_mappings).post(api_save_category_mappings),
+        )
         // All the routes above require a UserId.
         .route("/auth", get(auth::handler).post(auth::handler))
         .route("/account", get(api_user_account))
