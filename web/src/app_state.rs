@@ -153,6 +153,7 @@ impl StateMachine {
     ) -> Result<(), crate::api::Error> {
         let mut state = original.get().as_ref().clone();
         info!("Synchronizing Recipes");
+        let recipe_entries = &store.fetch_recipes().await?;
         let (staples, recipes) = filter_recipes(&recipe_entries)?;
         if let Some(recipes) = recipes {
             state.staples = staples;
@@ -162,6 +163,7 @@ impl StateMachine {
             local_store.set_all_recipes(recipe_entries);
         }
 
+        let plan = store.fetch_plan().await?;
         if let Some(plan) = plan {
             // set the counts.
             let mut plan_map = BTreeMap::new();
@@ -184,6 +186,7 @@ impl StateMachine {
             .collect::<Vec<(String, i32)>>();
         local_store.save_plan(&plan);
         info!("Checking for user account data");
+        if let Some(user_data) = store.fetch_user_data().await {
             debug!("Successfully got account data from server");
             local_store.set_user_data(Some(&user_data));
             state.auth = Some(user_data);
@@ -193,6 +196,7 @@ impl StateMachine {
             state.auth = user_data;
         }
         info!("Synchronizing categories");
+        match store.fetch_categories().await {
             Ok(Some(categories_content)) => {
                 debug!(categories=?categories_content);
                 local_store.set_categories(Some(&categories_content));
@@ -207,6 +211,7 @@ impl StateMachine {
             }
         }
         info!("Synchronizing inventory data");
+        match store.fetch_inventory_data().await {
             Ok((filtered_ingredients, modified_amts, extra_items)) => {
                 local_store.set_inventory_data((
                     &filtered_ingredients,

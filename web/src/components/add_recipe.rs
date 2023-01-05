@@ -63,7 +63,7 @@ pub fn AddRecipe<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View
                 async move {
                     let entry = entry.get_untracked();
                     // TODO(jwall): Better error reporting here.
-                    match store.get_recipe_text(entry.recipe_id()).await {
+                    match store.fetch_recipe_text(entry.recipe_id()).await {
                         Ok(Some(_)) => {
                             // TODO(jwall): We should tell the user that this id already exists
                             info!(recipe_id = entry.recipe_id(), "Recipe already exists");

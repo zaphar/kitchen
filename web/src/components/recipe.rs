@@ -54,7 +54,7 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
         let store = store.clone();
         async move {
             let entry = store
-                .get_recipe_text(recipe_id.as_str())
+                .fetch_recipe_text(recipe_id.as_str())
                 .await
                 .expect("Failure getting recipe");
             if let Some(entry) = entry {

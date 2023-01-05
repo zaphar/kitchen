@@ -372,7 +372,7 @@ impl HttpStore {
     }
 
     #[instrument]
-    pub async fn get_user_data(&self) -> Option<UserData> {
+    pub async fn fetch_user_data(&self) -> Option<UserData> {
         debug!("Retrieving User Account data");
         let mut path = self.v2_path();
         path.push_str("/account");
@@ -393,7 +393,7 @@ impl HttpStore {
         return None;
     }
     //#[instrument]
-    pub async fn get_categories(&self) -> Result<Option<String>, Error> {
+    pub async fn fetch_categories(&self) -> Result<Option<String>, Error> {
         let mut path = self.v2_path();
         path.push_str("/categories");
         let resp = match reqwasm::http::Request::get(&path).send().await {
@@ -419,7 +419,7 @@ impl HttpStore {
     }
 
     #[instrument]
-    pub async fn get_recipes(&self) -> Result<Option<Vec<RecipeEntry>>, Error> {
+    pub async fn fetch_recipes(&self) -> Result<Option<Vec<RecipeEntry>>, Error> {
         let mut path = self.v2_path();
         path.push_str("/recipes");
         let resp = match reqwasm::http::Request::get(&path).send().await {
@@ -445,7 +445,7 @@ impl HttpStore {
         }
     }
 
-    pub async fn get_recipe_text<S: AsRef<str> + std::fmt::Display>(
+    pub async fn fetch_recipe_text<S: AsRef<str> + std::fmt::Display>(
         &self,
         id: S,
     ) -> Result<Option<RecipeEntry>, Error> {
@@ -559,7 +559,7 @@ impl HttpStore {
         }
     }
 
-    pub async fn get_plan(&self) -> Result<Option<Vec<(String, i32)>>, Error> {
+    pub async fn fetch_plan(&self) -> Result<Option<Vec<(String, i32)>>, Error> {
         let mut path = self.v2_path();
         path.push_str("/plan");
         let resp = reqwasm::http::Request::get(&path).send().await?;
@@ -576,6 +576,7 @@ impl HttpStore {
         }
     }
 
+    pub async fn fetch_inventory_data(
         &self,
     ) -> Result<
         (

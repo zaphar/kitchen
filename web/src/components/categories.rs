@@ -51,7 +51,7 @@ pub fn Categories<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
         let store = crate::api::HttpStore::get_from_context(cx);
         async move {
             if let Some(js) = store
-                .get_categories()
+                .fetch_categories()
                 .await
                 .expect("Failed to get categories.")
             {
