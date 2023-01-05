@@ -95,7 +95,7 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
                     async move {
                         debug!("Attempting to save recipe");
                         if let Err(e) = store
-                            .save_recipes(vec![RecipeEntry(
+                            .store_recipes(vec![RecipeEntry(
                                 id.get_untracked().as_ref().clone(),
                                 text.get_untracked().as_ref().clone(),
                             )])

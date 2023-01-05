@@ -244,7 +244,7 @@ impl LocalStore {
     }
 
     /// Save working plan to local storage.
-    pub fn save_plan(&self, plan: &Vec<(String, i32)>) {
+    pub fn store_plan(&self, plan: &Vec<(String, i32)>) {
         self.store
             .set("plan", &to_string(&plan).expect("Failed to serialize plan"))
             .expect("Failed to store plan'");
@@ -483,7 +483,7 @@ impl HttpStore {
     }
 
     #[instrument(skip(recipes), fields(count=recipes.len()))]
-    pub async fn save_recipes(&self, recipes: Vec<RecipeEntry>) -> Result<(), Error> {
+    pub async fn store_recipes(&self, recipes: Vec<RecipeEntry>) -> Result<(), Error> {
         let mut path = self.v2_path();
         path.push_str("/recipes");
         for r in recipes.iter() {
@@ -506,7 +506,7 @@ impl HttpStore {
     }
 
     #[instrument(skip(categories))]
-    pub async fn save_categories(&self, categories: String) -> Result<(), Error> {
+    pub async fn store_categories(&self, categories: String) -> Result<(), Error> {
         let mut path = self.v2_path();
         path.push_str("/categories");
         let resp = reqwasm::http::Request::post(&path)
@@ -523,15 +523,15 @@ impl HttpStore {
     }
 
     #[instrument(skip_all)]
-    pub async fn save_app_state(&self, state: AppState) -> Result<(), Error> {
+    pub async fn store_app_state(&self, state: AppState) -> Result<(), Error> {
         let mut plan = Vec::new();
         for (key, count) in state.recipe_counts.iter() {
             plan.push((key.clone(), *count as i32));
         }
         debug!("Saving plan data");
-        self.save_plan(plan).await?;
+        self.store_plan(plan).await?;
         debug!("Saving inventory data");
-        self.save_inventory_data(
+        self.store_inventory_data(
             state.filtered_ingredients,
             state.modified_amts,
             state
@@ -543,7 +543,7 @@ impl HttpStore {
         .await
     }
 
-    pub async fn save_plan(&self, plan: Vec<(String, i32)>) -> Result<(), Error> {
+    pub async fn store_plan(&self, plan: Vec<(String, i32)>) -> Result<(), Error> {
         let mut path = self.v2_path();
         path.push_str("/plan");
         let resp = reqwasm::http::Request::post(&path)
@@ -616,7 +616,7 @@ impl HttpStore {
     }
 
     #[instrument]
-    pub async fn save_inventory_data(
+    pub async fn store_inventory_data(
         &self,
         filtered_ingredients: BTreeSet<IngredientKey>,
         modified_amts: BTreeMap<IngredientKey, String>,

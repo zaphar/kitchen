@@ -184,7 +184,7 @@ impl StateMachine {
             .iter()
             .map(|(k, v)| (k.clone(), *v as i32))
             .collect::<Vec<(String, i32)>>();
-        local_store.save_plan(&plan);
+        local_store.store_plan(&plan);
         info!("Checking for user account data");
         if let Some(user_data) = store.fetch_user_data().await {
             debug!("Successfully got account data from server");
@@ -244,7 +244,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 }
                 let plan: Vec<(String, i32)> =
                     map.iter().map(|(s, i)| (s.clone(), *i as i32)).collect();
-                self.local_store.save_plan(&plan);
+                self.local_store.store_plan(&plan);
                 original_copy.recipe_counts = map;
             }
             Message::UpdateRecipeCount(id, count) => {
@@ -254,7 +254,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                     .iter()
                     .map(|(s, i)| (s.clone(), *i as i32))
                     .collect();
-                self.local_store.save_plan(&plan);
+                self.local_store.store_plan(&plan);
             }
             Message::AddExtra(amt, name) => {
                 original_copy.extras.push((amt, name));
@@ -303,7 +303,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 let store = self.store.clone();
                 self.local_store.set_recipe_entry(&entry);
                 spawn_local_scoped(cx, async move {
-                    if let Err(e) = store.save_recipes(vec![entry]).await {
+                    if let Err(e) = store.store_recipes(vec![entry]).await {
                         error!(err=?e, "Unable to save Recipe");
                     }
                 });
@@ -313,7 +313,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 self.local_store.set_categories(Some(&category_text));
                 let store = self.store.clone();
                 spawn_local_scoped(cx, async move {
-                    if let Err(e) = store.save_categories(category_text).await {
+                    if let Err(e) = store.store_categories(category_text).await {
                         error!(?e, "Failed to save categories");
                     }
                 });
@@ -352,7 +352,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 let original_copy = original_copy.clone();
                 let store = self.store.clone();
                 spawn_local_scoped(cx, async move {
-                    if let Err(e) = store.save_app_state(original_copy).await {
+                    if let Err(e) = store.store_app_state(original_copy).await {
                         error!(err=?e, "Error saving app state")
                     };
                     f.map(|f| f());
