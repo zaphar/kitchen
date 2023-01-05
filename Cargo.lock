@@ -1282,7 +1282,7 @@ dependencies = [
 
 [[package]]
 name = "kitchen"
-version = "0.2.12"
+version = "0.2.13"
 dependencies = [
  "api",
  "argon2",
@@ -1312,7 +1312,7 @@ dependencies = [
 
 [[package]]
 name = "kitchen-wasm"
-version = "0.2.12"
+version = "0.2.13"
 dependencies = [
  "api",
  "async-trait",
@@ -2214,7 +2214,8 @@ dependencies = [
 [[package]]
 name = "sycamore-state"
 version = "0.1.0"
-source = "git+https://github.com/zaphar/sycamore-state?rev=v0.1.0#bc8854b4dde1294915b2aa7f3fcd710515f3dfd8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d062eab83a67073c6b39e4a7fa9901558333946729d63cfcb7d0e97f0bf4d75"
 dependencies = [
  "sycamore",
  "wasm-bindgen",

@@ -14,7 +14,6 @@ let
             # incorrect. We override those here.
             "sycamore-0.8.2" = "sha256-D968+8C5EelGGmot9/LkAlULZOf/Cr+1WYXRCMwb1nQ=";
             "sqlx-0.6.2" = "sha256-X/LFvtzRfiOIEZJiVzmFvvULPpjhqvI99pSwH7a//GM=";
-            "sycamore-state-0.0.1" = "sha256-RatNr1b6r7eP3fOVatHA44D9xhDAljqSIWtFpMeBA9Y=";
         };
      });
 in
