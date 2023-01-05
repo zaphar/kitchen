@@ -447,7 +447,7 @@ make_fn!(
         name => ingredient_name,
         modifier => optional!(ingredient_modifier),
         _ => optional!(ws),
-        (Ingredient::new(name, modifier.map(|s| s.to_owned()), measure, String::new()))
+        (Ingredient::new(name, modifier.map(|s| s.to_owned()), measure))
     )
 );
 

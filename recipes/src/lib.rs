@@ -231,17 +231,15 @@ pub struct Ingredient {
     pub name: String,
     pub form: Option<String>,
     pub amt: Measure,
-    pub category: String,
 }
 
 impl Ingredient {
-    pub fn new<S: Into<String>>(name: S, form: Option<String>, amt: Measure, category: S) -> Self {
+    pub fn new<S: Into<String>>(name: S, form: Option<String>, amt: Measure) -> Self {
         Self {
             id: None,
             name: name.into(),
             form,
             amt,
-            category: category.into(),
         }
     }
 
@@ -250,14 +248,12 @@ impl Ingredient {
         name: S,
         form: Option<String>,
         amt: Measure,
-        category: S,
     ) -> Self {
         Self {
             id: Some(id),
             name: name.into(),
             form,
             amt,
-            category: category.into(),
         }
     }
 

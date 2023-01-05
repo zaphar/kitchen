@@ -112,6 +112,16 @@
     },
     "query": "select plan_date as \"plan_date: NaiveDate\", recipe_id, count\nfrom plan_recipes\nwhere\n    user_id = ?\n    and date(plan_date) > ?\norder by user_id, plan_date"
   },
+  "2582522f8ca9f12eccc70a3b339d9030aee0f52e62d6674cfd3862de2a68a177": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 3
+      }
+    },
+    "query": "insert into category_mappings\n    (user_id, ingredient_name, category_name)\n    values (?, ?, ?)\n    on conflict (user_id, ingredient_name)\n        do update set category_name=excluded.category_name\n"
+  },
   "37f382be1b53efd2f79a0d59ae6a8717f88a86908a7a4128d5ed7339147ca59d": {
     "describe": {
       "columns": [
@@ -341,16 +351,6 @@
       }
     },
     "query": "select category_text from categories where user_id = ?"
-  },
-  "d73e4bfb1fbee6d2dd35fc787141a1c2909a77cf4b19950671f87e694289c242": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Right": 3
-      }
-    },
-    "query": "insert into category_mappings\n    (user_id, ingredient_name, category_name)\n    values (?, ?, ?)"
   },
   "d84685a82585c5e4ae72c86ba1fe6e4a7241c4c3c9e948213e5849d956132bad": {
     "describe": {

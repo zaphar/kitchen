@@ -26,35 +26,6 @@ use web_sys::Storage;
 
 use crate::{app_state::AppState, js_lib};
 
-// FIXME(jwall): We should be able to delete this now.
-#[instrument]
-fn filter_recipes(
-    recipe_entries: &Option<Vec<RecipeEntry>>,
-) -> Result<(Option<Recipe>, Option<BTreeMap<String, Recipe>>), String> {
-    match recipe_entries {
-        Some(parsed) => {
-            let mut staples = None;
-            let mut parsed_map = BTreeMap::new();
-            for r in parsed {
-                let recipe = match parse::as_recipe(&r.recipe_text()) {
-                    Ok(r) => r,
-                    Err(e) => {
-                        error!("Error parsing recipe {}", e);
-                        continue;
-                    }
-                };
-                if recipe.title == "Staples" {
-                    staples = Some(recipe);
-                } else {
-                    parsed_map.insert(r.recipe_id().to_owned(), recipe);
-                }
-            }
-            Ok((staples, Some(parsed_map)))
-        }
-        None => Ok((None, None)),
-    }
-}
-
 #[derive(Debug)]
 pub struct Error(String);
 
@@ -104,6 +75,10 @@ fn recipe_key<S: std::fmt::Display>(id: S) -> String {
     format!("recipe:{}", id)
 }
 
+fn category_key<S: std::fmt::Display>(id: S) -> String {
+    format!("category:{}", id)
+}
+
 fn token68(user: String, pass: String) -> String {
     base64::encode(format!("{}:{}", user, pass))
 }
@@ -145,22 +120,39 @@ impl LocalStore {
     }
 
     /// Gets categories from local storage.
-    pub fn get_categories(&self) -> Option<String> {
-        self.store
-            .get("categories")
-            .expect("Failed go get categories")
+    pub fn get_categories(&self) -> Option<Vec<(String, String)>> {
+        let mut mappings = Vec::new();
+        for k in self.get_category_keys() {
+            if let Some(mut cat_map) = self
+                .store
+                .get(&k)
+                .expect(&format!("Failed to get category key {}", k))
+                .map(|v| {
+                    from_str::<Vec<(String, String)>>(&v)
+                        .expect(&format!("Failed to parse category key {}", k))
+                })
+            {
+                mappings.extend(cat_map.drain(0..));
+            }
+        }
+        if mappings.is_empty() {
+            None
+        } else {
+            Some(mappings)
+        }
     }
 
     /// Set the categories to the given string.
-    pub fn set_categories(&self, categories: Option<&String>) {
-        if let Some(c) = categories {
-            self.store
-                .set("categories", c)
-                .expect("Failed to set categories");
-        } else {
-            self.store
-                .delete("categories")
-                .expect("Failed to delete categories")
+    pub fn set_categories(&self, mappings: Option<&Vec<(String, String)>>) {
+        if let Some(mappings) = mappings {
+            for (i, cat) in mappings.iter() {
+                self.store
+                    .set(
+                        &category_key(i),
+                        &to_string(&(i, cat)).expect("Failed to serialize category mapping"),
+                    )
+                    .expect("Failed to store category mapping");
+            }
         }
     }
 
@@ -172,6 +164,12 @@ impl LocalStore {
             }
         }
         keys
+    }
+
+    fn get_category_keys(&self) -> impl Iterator<Item = String> {
+        self.get_storage_keys()
+            .into_iter()
+            .filter(|k| k.starts_with("category:"))
     }
 
     fn get_recipe_keys(&self) -> impl Iterator<Item = String> {
@@ -392,10 +390,11 @@ impl HttpStore {
         }
         return None;
     }
+
     //#[instrument]
-    pub async fn fetch_categories(&self) -> Result<Option<String>, Error> {
+    pub async fn fetch_categories(&self) -> Result<Option<Vec<(String, String)>>, Error> {
         let mut path = self.v2_path();
-        path.push_str("/categories");
+        path.push_str("/category_map");
         let resp = match reqwasm::http::Request::get(&path).send().await {
             Ok(resp) => resp,
             Err(reqwasm::Error::JsError(err)) => {
@@ -413,7 +412,11 @@ impl HttpStore {
             Err(format!("Status: {}", resp.status()).into())
         } else {
             debug!("We got a valid response back!");
-            let resp = resp.json::<CategoryResponse>().await?.as_success().unwrap();
+            let resp = resp
+                .json::<CategoryMappingResponse>()
+                .await?
+                .as_success()
+                .unwrap();
             Ok(Some(resp))
         }
     }
@@ -506,9 +509,9 @@ impl HttpStore {
     }
 
     #[instrument(skip(categories))]
-    pub async fn store_categories(&self, categories: String) -> Result<(), Error> {
+    pub async fn store_categories(&self, categories: &Vec<(String, String)>) -> Result<(), Error> {
         let mut path = self.v2_path();
-        path.push_str("/categories");
+        path.push_str("/category_map");
         let resp = reqwasm::http::Request::post(&path)
             .body(to_string(&categories).expect("Unable to encode categories as json"))
             .header("content-type", "application/json")

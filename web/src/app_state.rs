@@ -32,7 +32,7 @@ pub struct AppState {
     pub extras: Vec<(String, String)>,
     pub staples: Option<Recipe>,
     pub recipes: BTreeMap<String, Recipe>,
-    pub category_map: String,
+    pub category_map: BTreeMap<String, String>,
     pub filtered_ingredients: BTreeSet<IngredientKey>,
     pub modified_amts: BTreeMap<IngredientKey, String>,
     pub auth: Option<UserData>,
@@ -45,7 +45,7 @@ impl AppState {
             extras: Vec::new(),
             staples: None,
             recipes: BTreeMap::new(),
-            category_map: String::new(),
+            category_map: BTreeMap::new(),
             filtered_ingredients: BTreeSet::new(),
             modified_amts: BTreeMap::new(),
             auth: None,
@@ -61,7 +61,8 @@ pub enum Message {
     UpdateExtra(usize, String, String),
     SaveRecipe(RecipeEntry),
     SetRecipe(String, Recipe),
-    SetCategoryMap(String),
+    SetCategoryMap(BTreeMap<String, String>),
+    UpdateCategory(String, String),
     ResetInventory,
     AddFilteredIngredient(IngredientKey),
     UpdateAmt(IngredientKey, String),
@@ -94,6 +95,9 @@ impl Debug for Message {
                 f.debug_tuple("SetRecipe").field(arg0).field(arg1).finish()
             }
             Self::SetCategoryMap(arg0) => f.debug_tuple("SetCategoryMap").field(arg0).finish(),
+            Self::UpdateCategory(i, c) => {
+                f.debug_tuple("UpdateCategory").field(i).field(c).finish()
+            }
             Self::ResetInventory => write!(f, "ResetInventory"),
             Self::AddFilteredIngredient(arg0) => {
                 f.debug_tuple("AddFilteredIngredient").field(arg0).finish()
@@ -197,10 +201,11 @@ impl StateMachine {
         }
         info!("Synchronizing categories");
         match store.fetch_categories().await {
-            Ok(Some(categories_content)) => {
+            Ok(Some(mut categories_content)) => {
                 debug!(categories=?categories_content);
                 local_store.set_categories(Some(&categories_content));
-                state.category_map = categories_content;
+                let category_map = BTreeMap::from_iter(categories_content.drain(0..));
+                state.category_map = category_map;
             }
             Ok(None) => {
                 warn!("There is no category file");
@@ -308,12 +313,26 @@ impl MessageMapper<Message, AppState> for StateMachine {
                     }
                 });
             }
-            Message::SetCategoryMap(category_text) => {
-                original_copy.category_map = category_text.clone();
-                self.local_store.set_categories(Some(&category_text));
+            Message::SetCategoryMap(map) => {
+                original_copy.category_map = map.clone();
+                let list = map.iter().map(|(i, c)| (i.clone(), c.clone())).collect();
+                self.local_store.set_categories(Some(&list));
                 let store = self.store.clone();
                 spawn_local_scoped(cx, async move {
-                    if let Err(e) = store.store_categories(category_text).await {
+                    if let Err(e) = store.store_categories(&list).await {
+                        error!(?e, "Failed to save categories");
+                    }
+                });
+            }
+            Message::UpdateCategory(ingredient, category) => {
+                self.local_store
+                    .set_categories(Some(&vec![(ingredient.clone(), category.clone())]));
+                original_copy
+                    .category_map
+                    .insert(ingredient.clone(), category.clone());
+                let store = self.store.clone();
+                spawn_local_scoped(cx, async move {
+                    if let Err(e) = store.store_categories(&vec![(ingredient, category)]).await {
                         error!(?e, "Failed to save categories");
                     }
                 });

@@ -11,91 +11,154 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{
-    app_state::{Message, StateHandler},
-    js_lib::get_element_by_id,
-};
-use sycamore::{futures::spawn_local_scoped, prelude::*};
-use tracing::{debug, error, instrument};
-use web_sys::HtmlDialogElement;
+use std::collections::{BTreeMap, BTreeSet};
 
-use recipes::parse;
+use crate::app_state::{Message, StateHandler};
+use sycamore::prelude::*;
+use tracing::instrument;
 
-fn get_error_dialog() -> HtmlDialogElement {
-    get_element_by_id::<HtmlDialogElement>("error-dialog")
-        .expect("error-dialog isn't an html dialog element!")
-        .expect("No error-dialog element present")
+#[derive(Props)]
+struct CategoryRowProps<'ctx> {
+    sh: StateHandler<'ctx>,
+    ingredient: String,
+    category: String,
+    ingredient_recipe_map: &'ctx ReadSignal<BTreeMap<String, BTreeSet<String>>>,
 }
 
-fn check_category_text_parses(unparsed: &str, error_text: &Signal<String>) -> bool {
-    let el = get_error_dialog();
-    if let Err(e) = parse::as_categories(unparsed) {
-        error!(?e, "Error parsing categories");
-        error_text.set(e);
-        el.show();
-        false
-    } else {
-        el.close();
-        true
+#[instrument(skip_all)]
+#[component]
+fn CategoryRow<'ctx, G: Html>(cx: Scope<'ctx>, props: CategoryRowProps<'ctx>) -> View<G> {
+    let CategoryRowProps {
+        sh,
+        ingredient,
+        category,
+        ingredient_recipe_map,
+    } = props;
+    let category = create_signal(cx, category);
+    let ingredient_clone = ingredient.clone();
+    let ingredient_clone2 = ingredient.clone();
+    let recipes = create_memo(cx, move || {
+        ingredient_recipe_map
+            .get()
+            .get(&ingredient_clone2)
+            .cloned()
+            .unwrap_or_else(|| BTreeSet::new())
+            .iter()
+            .cloned()
+            .collect::<Vec<String>>()
+    });
+    view! {cx,
+        tr() {
+            td() {
+                (ingredient_clone) br()
+                Indexed(
+                    iterable=recipes,
+                    view=|cx, r| {
+                        let recipe_name = r.clone();
+                        view!{cx,
+                            a(href=format!("/ui/recipe/edit/{}", r)) { (recipe_name) } br()
+                        }
+                    }
+                )
+            }
+            td() { input(type="text", list="category_options", bind:value=category, on:change={
+                let ingredient_clone = ingredient.clone();
+                move |_| {
+                    sh.dispatch(cx, Message::UpdateCategory(ingredient_clone.clone(), category.get_untracked().as_ref().clone()));
+                }
+            }) }
+        }
     }
 }
 
 #[instrument(skip_all)]
 #[component]
 pub fn Categories<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
-    let error_text = create_signal(cx, String::new());
-    let category_text: &Signal<String> = create_signal(cx, String::new());
-    let dirty = create_signal(cx, false);
-
-    spawn_local_scoped(cx, {
-        let store = crate::api::HttpStore::get_from_context(cx);
-        async move {
-            if let Some(js) = store
-                .fetch_categories()
-                .await
-                .expect("Failed to get categories.")
-            {
-                category_text.set(js);
-            };
-        }
+    let category_list = sh.get_selector(cx, |state| {
+        let mut categories = state
+            .get()
+            .category_map
+            .iter()
+            .map(|(_, v)| v.clone())
+            .collect::<Vec<String>>();
+        categories.sort();
+        categories.dedup();
+        categories
     });
 
-    let dialog_view = view! {cx,
-        dialog(id="error-dialog") {
-            article{
-                header {
-                    a(href="#", on:click=|_| {
-                        let el = get_error_dialog();
-                        el.close();
-                    }, class="close")
-                    "Invalid Categories"
-                }
-                p {
-                    (error_text.get().clone())
-                }
+    let ingredient_recipe_map = sh.get_selector(cx, |state| {
+        let state = state.get();
+        let mut ingredients: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        for (recipe_id, r) in state.recipes.iter() {
+            for (_, i) in r.get_ingredients().iter() {
+                let ingredient_name = i.name.clone();
+                ingredients
+                    .entry(ingredient_name)
+                    .or_insert(BTreeSet::new())
+                    .insert(recipe_id.clone());
             }
         }
-    };
+        if let Some(staples) = &state.staples {
+            for (_, i) in staples.get_ingredients().iter() {
+                let ingredient_name = i.name.clone();
+                ingredients
+                    .entry(ingredient_name)
+                    .or_insert(BTreeSet::new())
+                    .insert("Staples".to_owned());
+            }
+        }
+        ingredients
+    });
 
+    let rows = sh.get_selector(cx, |state| {
+        let state = state.get();
+        let category_map = state.category_map.clone();
+        let mut ingredients = BTreeSet::new();
+        for (_, r) in state.recipes.iter() {
+            for (_, i) in r.get_ingredients().iter() {
+                ingredients.insert(i.name.clone());
+            }
+        }
+        if let Some(staples) = &state.staples {
+            for (_, i) in staples.get_ingredients().iter() {
+                ingredients.insert(i.name.clone());
+            }
+        }
+        let mut mapping_list = Vec::new();
+        for i in ingredients.iter() {
+            let cat = category_map
+                .get(i)
+                .map(|v| v.clone())
+                .unwrap_or_else(|| "None".to_owned());
+            mapping_list.push((i.clone(), cat));
+        }
+        mapping_list.sort_by(|tpl1, tpl2| tpl1.1.cmp(&tpl2.1));
+        mapping_list
+    });
     view! {cx,
-        (dialog_view)
-        textarea(bind:value=category_text, rows=20, on:change=move |_| {
-            dirty.set(true);
-        })
-        span(role="button", on:click=move |_| {
-            check_category_text_parses(category_text.get().as_str(), error_text);
-        }) { "Check" } " "
-        span(role="button", on:click=move |_| {
-            if !*dirty.get() {
-                return;
+        table() {
+            tr {
+                th { "Ingredient" }
+                th { "Category" }
             }
-            if check_category_text_parses(category_text.get().as_str(), error_text) {
-                debug!("triggering category save");
-                sh.dispatch(
-                    cx,
-                    Message::SetCategoryMap(category_text.get_untracked().as_ref().clone()),
-                );
-            }
-        }) { "Save" }
+            Keyed(
+                iterable=rows,
+                view=move |cx, (i, c)| {
+                    view! {cx, CategoryRow(sh=sh, ingredient=i, category=c, ingredient_recipe_map=ingredient_recipe_map)}
+                },
+                key=|(i, _)| i.clone()
+            )
+        }
+        datalist(id="category_options") {
+            Keyed(
+                iterable=category_list,
+                view=move |cx, c| {
+                    view!{cx,
+                        option(value=c)
+                    }
+                },
+                key=|c| c.clone(),
+            )
+        }
     }
 }

@@ -28,6 +28,7 @@ fn make_ingredients_rows<'ctx, G: Html>(
     debug!("Making ingredients rows");
     let ingredients = sh.get_selector(cx, move |state| {
         let state = state.get();
+        let category_map = &state.category_map;
         debug!("building ingredient list from state");
         let mut acc = IngredientAccumulator::new();
         for (id, count) in state.recipe_counts.iter() {
@@ -45,19 +46,24 @@ fn make_ingredients_rows<'ctx, G: Html>(
                 acc.accumulate_from(staples);
             }
         }
-        acc.ingredients()
+        let mut ingredients = acc
+            .ingredients()
             .into_iter()
             // First we filter out any filtered ingredients
             .filter(|(i, _)| !state.filtered_ingredients.contains(i))
             // Then we take into account our modified amts
             .map(|(k, (i, rs))| {
+                let category = category_map
+                    .get(&i.name)
+                    .cloned()
+                    .unwrap_or_else(|| String::new());
                 if state.modified_amts.contains_key(&k) {
                     (
                         k.clone(),
                         (
                             i.name,
                             i.form,
-                            i.category,
+                            category,
                             state.modified_amts.get(&k).unwrap().clone(),
                             rs,
                         ),
@@ -68,7 +74,7 @@ fn make_ingredients_rows<'ctx, G: Html>(
                         (
                             i.name,
                             i.form,
-                            i.category,
+                            category,
                             format!("{}", i.amt.normalize()),
                             rs,
                         ),
@@ -78,7 +84,9 @@ fn make_ingredients_rows<'ctx, G: Html>(
             .collect::<Vec<(
                 IngredientKey,
                 (String, Option<String>, String, String, BTreeSet<String>),
-            )>>()
+            )>>();
+        ingredients.sort_by(|tpl1, tpl2| (&tpl1.1 .2, &tpl1.1 .0).cmp(&(&tpl2.1 .2, &tpl2.1 .0)));
+        ingredients
     });
     view!(
         cx,
