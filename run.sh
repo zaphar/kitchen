@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 EXAMPLES=${EXAMPLES:-../examples}
-make clean wasm kitchen
 echo Starting api server serving ${EXAMPLES}
-cargo run -- --verbose debug serve --dir ${EXAMPLES} --tls --cert ~/tls-certs/localhost+2.pem --cert_key ~/tls-certs/localhost+2-key.pem
+nix run .\#kitchen -- --verbose debug serve --dir ${EXAMPLES} --tls --cert ~/tls-certs/localhost+2.pem --cert_key ~/tls-certs/localhost+2-key.pem
 # This is ghetto but I'm doing it anyway
