@@ -423,7 +423,7 @@ pub async fn ui_main_tls(
 ) {
     let router = make_router(recipe_dir_path, store_path).await;
     info!(
-        http = format!("http://{}", listen_socket),
+        http = format!("https://{}", listen_socket),
         "Starting server"
     );
     let config = axum_server::tls_rustls::RustlsConfig::from_pem_file(cert_path, key_path)
