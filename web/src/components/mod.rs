@@ -20,6 +20,7 @@ pub mod recipe_list;
 pub mod recipe_plan;
 pub mod recipe_selection;
 pub mod shopping_list;
+pub mod staples;
 pub mod tabs;
 
 pub use add_recipe::*;
@@ -31,4 +32,5 @@ pub use recipe_list::*;
 pub use recipe_plan::*;
 pub use recipe_selection::*;
 pub use shopping_list::*;
+pub use staples::*;
 pub use tabs::*;

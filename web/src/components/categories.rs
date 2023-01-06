@@ -104,7 +104,7 @@ pub fn Categories<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
             }
         }
         if let Some(staples) = &state.staples {
-            for (_, i) in staples.get_ingredients().iter() {
+            for i in staples.iter() {
                 let ingredient_name = i.name.clone();
                 ingredients
                     .entry(ingredient_name)
@@ -125,7 +125,7 @@ pub fn Categories<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
             }
         }
         if let Some(staples) = &state.staples {
-            for (_, i) in staples.get_ingredients().iter() {
+            for i in staples.iter() {
                 ingredients.insert(i.name.clone());
             }
         }

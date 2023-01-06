@@ -28,7 +28,7 @@ use recipes::{IngredientKey, RecipeEntry};
 use rust_embed::RustEmbed;
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
-use tracing::{debug, info, instrument};
+use tracing::{debug, error, info, instrument};
 
 use client_api as api;
 use storage::{APIStore, AuthStore};
@@ -383,6 +383,49 @@ async fn api_user_account(session: storage::UserIdFromSession) -> api::AccountRe
     }
 }
 
+async fn api_staples(
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+) -> api::Response<Option<String>> {
+    use storage::{UserId, UserIdFromSession::FoundUserId};
+    if let FoundUserId(UserId(user_id)) = session {
+        match app_store.fetch_staples(user_id).await {
+            Ok(staples) => api::Response::success(staples),
+            Err(err) => {
+                error!(?err);
+                api::Response::error(
+                    StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                    format!("{:?}", err),
+                )
+            }
+        }
+    } else {
+        api::Response::Unauthorized
+    }
+}
+
+async fn api_save_staples(
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+    Json(content): Json<String>,
+) -> api::Response<()> {
+    use storage::{UserId, UserIdFromSession::FoundUserId};
+    if let FoundUserId(UserId(user_id)) = session {
+        match app_store.save_staples(user_id, content).await {
+            Ok(_) => api::EmptyResponse::success(()),
+            Err(err) => {
+                error!(?err);
+                api::EmptyResponse::error(
+                    StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+                    format!("{:?}", err),
+                )
+            }
+        }
+    } else {
+        api::EmptyResponse::Unauthorized
+    }
+}
+
 fn mk_v1_routes() -> Router {
     Router::new()
         .route("/recipes", get(api_recipes).post(api_save_recipes))
@@ -416,6 +459,7 @@ fn mk_v2_routes() -> Router {
             "/category_map",
             get(api_category_mappings).post(api_save_category_mappings),
         )
+        .route("/staples", get(api_staples).post(api_save_staples))
         // All the routes above require a UserId.
         .route("/auth", get(auth::handler).post(auth::handler))
         .route("/account", get(api_user_account))

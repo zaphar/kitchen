@@ -17,10 +17,10 @@ use base64;
 use reqwasm;
 use serde_json::{from_str, to_string};
 use sycamore::prelude::*;
-use tracing::{debug, error, instrument, warn};
+use tracing::{debug, error, instrument};
 
 use client_api::*;
-use recipes::{parse, IngredientKey, Recipe, RecipeEntry};
+use recipes::{IngredientKey, RecipeEntry};
 use wasm_bindgen::JsValue;
 use web_sys::Storage;
 
@@ -309,6 +309,18 @@ impl LocalStore {
                 )),
             )
             .expect("Failed to set inventory");
+    }
+
+    pub fn set_staples(&self, content: &String) {
+        self.store
+            .set("staples", content)
+            .expect("Failed to set staples in local store");
+    }
+
+    pub fn get_staples(&self) -> Option<String> {
+        self.store
+            .get("staples")
+            .expect("Failed to retreive staples from local store")
     }
 }
 
@@ -635,6 +647,43 @@ impl HttpStore {
         debug!("Storing inventory data via API");
         let resp = reqwasm::http::Request::post(&path)
             .body(&serialized_inventory)
+            .header("content-type", "application/json")
+            .send()
+            .await?;
+        if resp.status() != 200 {
+            debug!("Invalid response back");
+            Err(format!("Status: {}", resp.status()).into())
+        } else {
+            debug!("We got a valid response back!");
+            Ok(())
+        }
+    }
+
+    pub async fn fetch_staples(&self) -> Result<Option<String>, Error> {
+        let mut path = self.v2_path();
+        path.push_str("/staples");
+        let resp = reqwasm::http::Request::get(&path).send().await?;
+        if resp.status() != 200 {
+            debug!("Invalid response back");
+            Err(format!("Status: {}", resp.status()).into())
+        } else {
+            Ok(resp
+                .json::<Response<Option<String>>>()
+                .await
+                .expect("Failed to parse staples json")
+                .as_success()
+                .unwrap())
+        }
+    }
+
+    pub async fn store_staples<S: AsRef<str>>(&self, content: S) -> Result<(), Error> {
+        let mut path = self.v2_path();
+        path.push_str("/staples");
+        let serialized_staples: String =
+            to_string(content.as_ref()).expect("Failed to serialize staples to json");
+
+        let resp = reqwasm::http::Request::post(&path)
+            .body(&serialized_staples)
             .header("content-type", "application/json")
             .send()
             .await?;

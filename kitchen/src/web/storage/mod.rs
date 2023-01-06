@@ -148,6 +148,10 @@ pub trait APIStore {
         modified_amts: BTreeMap<IngredientKey, String>,
         extra_items: Vec<(String, String)>,
     ) -> Result<()>;
+
+    async fn fetch_staples<S: AsRef<str> + Send>(&self, user_id: S) -> Result<Option<String>>;
+
+    async fn save_staples<S: AsRef<str> + Send>(&self, user_id: S, content: S) -> Result<()>;
 }
 
 #[async_trait]
@@ -693,5 +697,25 @@ impl APIStore for SqliteStore {
         }
         transaction.commit().await?;
         Ok(())
+    }
+
+    async fn save_staples<S: AsRef<str> + Send>(&self, user_id: S, content: S) -> Result<()> {
+        let (user_id, content) = (user_id.as_ref(), content.as_ref());
+        sqlx::query_file!("src/web/storage/save_staples.sql", user_id, content)
+            .execute(self.pool.as_ref())
+            .await?;
+        Ok(())
+    }
+
+    async fn fetch_staples<S: AsRef<str> + Send>(&self, user_id: S) -> Result<Option<String>> {
+        let user_id = user_id.as_ref();
+        if let Some(content) =
+            sqlx::query_file_scalar!("src/web/storage/fetch_staples.sql", user_id)
+                .fetch_optional(self.pool.as_ref())
+                .await?
+        {
+            return Ok(Some(content));
+        }
+        Ok(None)
     }
 }

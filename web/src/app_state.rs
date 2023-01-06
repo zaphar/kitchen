@@ -17,7 +17,7 @@ use std::{
 };
 
 use client_api::UserData;
-use recipes::{parse, IngredientKey, Recipe, RecipeEntry};
+use recipes::{parse, Ingredient, IngredientKey, Recipe, RecipeEntry};
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore_state::{Handler, MessageMapper};
@@ -30,7 +30,7 @@ use crate::api::{HttpStore, LocalStore};
 pub struct AppState {
     pub recipe_counts: BTreeMap<String, usize>,
     pub extras: Vec<(String, String)>,
-    pub staples: Option<Recipe>,
+    pub staples: Option<BTreeSet<Ingredient>>,
     pub recipes: BTreeMap<String, Recipe>,
     pub category_map: BTreeMap<String, String>,
     pub filtered_ingredients: BTreeSet<IngredientKey>,
@@ -69,6 +69,7 @@ pub enum Message {
     SetUserData(UserData),
     SaveState(Option<Box<dyn FnOnce()>>),
     LoadState(Option<Box<dyn FnOnce()>>),
+    UpdateStaples(String),
 }
 
 impl Debug for Message {
@@ -108,6 +109,7 @@ impl Debug for Message {
             Self::SetUserData(arg0) => f.debug_tuple("SetUserData").field(arg0).finish(),
             Self::SaveState(_) => write!(f, "SaveState"),
             Self::LoadState(_) => write!(f, "LoadState"),
+            Self::UpdateStaples(arg) => f.debug_tuple("UpdateStaples").field(arg).finish(),
         }
     }
 }
@@ -158,11 +160,25 @@ impl StateMachine {
         let mut state = original.get().as_ref().clone();
         info!("Synchronizing Recipes");
         let recipe_entries = &store.fetch_recipes().await?;
-        let (staples, recipes) = filter_recipes(&recipe_entries)?;
+        let (_old_staples, recipes) = filter_recipes(&recipe_entries)?;
         if let Some(recipes) = recipes {
-            state.staples = staples;
             state.recipes = recipes;
         };
+
+        state.staples = if let Some(content) = store.fetch_staples().await? {
+            local_store.set_staples(&content);
+            // now we need to parse staples as ingredients
+            let mut staples = parse::as_ingredient_list(&content)?;
+            Some(staples.drain(0..).collect())
+        } else {
+            if let Some(content) = local_store.get_staples() {
+                let mut staples = parse::as_ingredient_list(&content)?;
+                Some(staples.drain(0..).collect())
+            } else {
+                None
+            }
+        };
+
         if let Some(recipe_entries) = recipe_entries {
             local_store.set_all_recipes(recipe_entries);
         }
@@ -390,6 +406,18 @@ impl MessageMapper<Message, AppState> for StateMachine {
                         &original.get().extras,
                     ));
                     f.map(|f| f());
+                });
+                return;
+            }
+            Message::UpdateStaples(content) => {
+                let store = self.store.clone();
+                let local_store = self.local_store.clone();
+                spawn_local_scoped(cx, async move {
+                    local_store.set_staples(&content);
+                    store
+                        .store_staples(content)
+                        .await
+                        .expect("Failed to store staples");
                 });
                 return;
             }

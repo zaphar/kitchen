@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use super::ManagePage;
-use crate::{app_state::StateHandler, components::recipe::Editor};
+use crate::{app_state::StateHandler, components::staples::IngredientsEditor};
 
 use sycamore::prelude::*;
 use tracing::instrument;
@@ -23,6 +23,6 @@ pub fn StaplesPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vi
     view! {cx,
         ManagePage(
             selected=Some("Staples".to_owned()),
-        ) { Editor(recipe_id="staples.txt".to_owned(), sh=sh) }
+        ) { IngredientsEditor(sh=sh) }
     }
 }

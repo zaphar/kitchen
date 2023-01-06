@@ -59,6 +59,14 @@ pub fn as_measure(i: &str) -> std::result::Result<Measure, String> {
     }
 }
 
+pub fn as_ingredient_list(i: &str) -> std::result::Result<Vec<Ingredient>, String> {
+    match ingredient_list(StrIter::new(i)) {
+        Result::Abort(e) | Result::Fail(e) => Err(format_err(e)),
+        Result::Incomplete(_) => Err(format!("Incomplete categories list can not parse")),
+        Result::Complete(_, m) => Ok(m),
+    }
+}
+
 make_fn!(
     pub categories<StrIter, BTreeMap<String, String>>,
     do_each!(

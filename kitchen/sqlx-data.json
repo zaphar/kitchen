@@ -112,6 +112,16 @@
     },
     "query": "select plan_date as \"plan_date: NaiveDate\", recipe_id, count\nfrom plan_recipes\nwhere\n    user_id = ?\n    and date(plan_date) > ?\norder by user_id, plan_date"
   },
+  "1b4a7250e451991ee7e642c6389656814e0dd00c94e59383c02af6313bc76213": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "insert into staples (user_id, content) values (?, ?)\n    on conflict(user_id) do update set content = excluded.content"
+  },
   "2582522f8ca9f12eccc70a3b339d9030aee0f52e62d6674cfd3862de2a68a177": {
     "describe": {
       "columns": [],
@@ -211,6 +221,24 @@
       }
     },
     "query": "insert into users (id, password_hashed) values (?, ?)"
+  },
+  "64af3f713eb4c61ac02cab2dfea83d0ed197e602e99079d4d32cb38d677edf2e": {
+    "describe": {
+      "columns": [
+        {
+          "name": "content",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select content from staples where user_id = ?"
   },
   "6e28698330e42fd6c87ba1e6f1deb664c0d3995caa2b937ceac8c908e98aded6": {
     "describe": {
