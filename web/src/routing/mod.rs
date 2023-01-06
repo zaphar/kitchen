@@ -49,8 +49,11 @@ pub enum RecipeRoutes {
 pub enum ManageRoutes {
     #[to("/new_recipe")]
     NewRecipe,
+    // TODO(jwall): This route is now deprecated. Remove when safe to do so.
     #[to("/categories")]
     Categories,
+    #[to("/ingredients")]
+    Ingredients,
     #[to("/staples")]
     Staples,
     #[not_found]
@@ -99,7 +102,10 @@ fn route_switch<'ctx, G: Html>(route: &Routes, cx: Scope<'ctx>, sh: StateHandler
             RecipeEditPage(recipe=id.clone(), sh=sh)
         },
         Routes::Manage(Categories) => view! {cx,
-            CategoryPage(sh)
+            IngredientsPage(sh)
+        },
+        Routes::Manage(Ingredients) => view! {cx,
+            IngredientsPage(sh)
         },
         Routes::Manage(NewRecipe) => view! {cx,
             AddRecipePage(sh)

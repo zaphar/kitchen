@@ -15,11 +15,11 @@ use crate::components::tabs::*;
 use sycamore::prelude::*;
 
 pub mod add_recipe;
-pub mod categories;
+pub mod ingredients;
 pub mod staples;
 
 pub use add_recipe::*;
-pub use categories::*;
+pub use ingredients::*;
 pub use staples::*;
 
 #[derive(Props)]
@@ -33,7 +33,7 @@ pub fn ManagePage<'a, G: Html>(cx: Scope<'a>, state: PageState<'a, G>) -> View<G
     let PageState { children, selected } = state;
     let children = children.call(cx);
     let manage_tabs: Vec<(String, &'static str)> = vec![
-        ("/ui/manage/categories".to_owned(), "Categories"),
+        ("/ui/manage/ingredients".to_owned(), "Ingredients"),
         ("/ui/manage/staples".to_owned(), "Staples"),
         ("/ui/manage/new_recipe".to_owned(), "New Recipe"),
     ];

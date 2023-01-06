@@ -17,10 +17,10 @@ use crate::{app_state::StateHandler, components::categories::*};
 use sycamore::prelude::*;
 
 #[component()]
-pub fn CategoryPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
+pub fn IngredientsPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
     view! {cx,
         ManagePage(
-            selected=Some("Categories".to_owned()),
+            selected=Some("Ingredients".to_owned()),
         ) { Categories(sh) }
     }
 }
