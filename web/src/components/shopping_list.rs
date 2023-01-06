@@ -42,9 +42,7 @@ fn make_ingredients_rows<'ctx, G: Html>(
             }
         }
         if *show_staples.get() {
-            if let Some(staples) = &state.staples {
-                acc.accumulate_from(staples);
-            }
+            acc.accumulate_ingredients("Staples", state.staples.iter());
         }
         let mut ingredients = acc
             .ingredients()

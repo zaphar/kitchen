@@ -135,12 +135,17 @@ impl IngredientAccumulator {
         }
     }
 
-    pub fn accumulate_from(&mut self, r: &Recipe) {
-        for i in r.steps.iter().map(|s| s.ingredients.iter()).flatten() {
+    pub fn accumulate_ingredients<'a, I, S>(&'a mut self, recipe_title: S, ingredients: I)
+    where
+        I: Iterator<Item = &'a Ingredient>,
+        S: Into<String>,
+    {
+        let recipe_title = recipe_title.into();
+        for i in ingredients {
             let key = i.key();
             if !self.inner.contains_key(&key) {
                 let mut set = BTreeSet::new();
-                set.insert(r.title.clone());
+                set.insert(recipe_title.clone());
                 self.inner.insert(key, (i.clone(), set));
             } else {
                 let amt = match (self.inner[&key].0.amt, i.amt) {
@@ -151,10 +156,17 @@ impl IngredientAccumulator {
                 };
                 self.inner.get_mut(&key).map(|(i, set)| {
                     i.amt = amt;
-                    set.insert(r.title.clone());
+                    set.insert(recipe_title.clone());
                 });
             }
         }
+    }
+
+    pub fn accumulate_from(&mut self, r: &Recipe) {
+        self.accumulate_ingredients(
+            &r.title,
+            r.steps.iter().map(|s| s.ingredients.iter()).flatten(),
+        );
     }
 
     pub fn ingredients(self) -> BTreeMap<IngredientKey, (Ingredient, BTreeSet<String>)> {

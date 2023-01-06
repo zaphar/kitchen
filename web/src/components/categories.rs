@@ -103,14 +103,12 @@ pub fn Categories<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
                     .insert(recipe_id.clone());
             }
         }
-        if let Some(staples) = &state.staples {
-            for (_, i) in staples.get_ingredients().iter() {
-                let ingredient_name = i.name.clone();
-                ingredients
-                    .entry(ingredient_name)
-                    .or_insert(BTreeSet::new())
-                    .insert("Staples".to_owned());
-            }
+        for i in state.staples.iter() {
+            let ingredient_name = i.name.clone();
+            ingredients
+                .entry(ingredient_name)
+                .or_insert(BTreeSet::new())
+                .insert("Staples".to_owned());
         }
         ingredients
     });
@@ -124,10 +122,8 @@ pub fn Categories<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
                 ingredients.insert(i.name.clone());
             }
         }
-        if let Some(staples) = &state.staples {
-            for (_, i) in staples.get_ingredients().iter() {
-                ingredients.insert(i.name.clone());
-            }
+        for i in state.staples.iter() {
+            ingredients.insert(i.name.clone());
         }
         let mut mapping_list = Vec::new();
         for i in ingredients.iter() {

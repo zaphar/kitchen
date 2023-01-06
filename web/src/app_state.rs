@@ -17,7 +17,7 @@ use std::{
 };
 
 use client_api::UserData;
-use recipes::{parse, IngredientKey, Recipe, RecipeEntry};
+use recipes::{parse, Ingredient, IngredientKey, Recipe, RecipeEntry};
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore_state::{Handler, MessageMapper};
@@ -30,7 +30,7 @@ use crate::api::{HttpStore, LocalStore};
 pub struct AppState {
     pub recipe_counts: BTreeMap<String, usize>,
     pub extras: Vec<(String, String)>,
-    pub staples: Option<Recipe>,
+    pub staples: BTreeSet<Ingredient>,
     pub recipes: BTreeMap<String, Recipe>,
     pub category_map: BTreeMap<String, String>,
     pub filtered_ingredients: BTreeSet<IngredientKey>,
@@ -43,7 +43,7 @@ impl AppState {
         Self {
             recipe_counts: BTreeMap::new(),
             extras: Vec::new(),
-            staples: None,
+            staples: BTreeSet::new(),
             recipes: BTreeMap::new(),
             category_map: BTreeMap::new(),
             filtered_ingredients: BTreeSet::new(),
@@ -160,9 +160,9 @@ impl StateMachine {
         let recipe_entries = &store.fetch_recipes().await?;
         let (staples, recipes) = filter_recipes(&recipe_entries)?;
         if let Some(recipes) = recipes {
-            state.staples = staples;
             state.recipes = recipes;
         };
+        state.staples = BTreeSet::new();
         if let Some(recipe_entries) = recipe_entries {
             local_store.set_all_recipes(recipe_entries);
         }
