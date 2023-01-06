@@ -55,8 +55,13 @@ fn CategoryRow<'ctx, G: Html>(cx: Scope<'ctx>, props: CategoryRowProps<'ctx>) ->
                     iterable=recipes,
                     view=|cx, r| {
                         let recipe_name = r.clone();
+                        let href = if recipe_name == "Staples" {
+                            "/ui/manage/staples".to_owned()
+                        } else {
+                            format!("/ui/recipe/edit/{}", r)
+                        };
                         view!{cx,
-                            a(href=format!("/ui/recipe/edit/{}", r)) { (recipe_name) } br()
+                            a(href=href) { (recipe_name) } br()
                         }
                     }
                 )
