@@ -240,6 +240,16 @@
     },
     "query": "select content from staples where user_id = ?"
   },
+  "6c43908d90f229b32ed8b1b076be9b452a995e1b42ba2554e947c515b031831a": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "delete from recipes where user_id = ? and recipe_id = ?"
+  },
   "6e28698330e42fd6c87ba1e6f1deb664c0d3995caa2b937ceac8c908e98aded6": {
     "describe": {
       "columns": [],

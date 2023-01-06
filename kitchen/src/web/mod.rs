@@ -99,6 +99,29 @@ async fn api_recipe_entry(
     result.into()
 }
 
+async fn api_recipe_delete(
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+    Path(recipe_id): Path<String>,
+) -> api::EmptyResponse {
+    use storage::{UserId, UserIdFromSession::*};
+    let result = match session {
+        NoUserId => api::EmptyResponse::Unauthorized,
+        FoundUserId(UserId(id)) => {
+            if let Err(e) = app_store
+                .delete_recipes_for_user(&id, &vec![recipe_id])
+                .await
+                .map_err(|e| format!("Error: {:?}", e))
+            {
+                api::EmptyResponse::error(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
+            } else {
+                api::EmptyResponse::success(())
+            }
+        }
+    };
+    result.into()
+}
+
 #[instrument]
 async fn api_recipes(
     Extension(store): Extension<Arc<storage::file_store::AsyncFileStore>>,
@@ -445,7 +468,10 @@ fn mk_v2_routes() -> Router {
     Router::new()
         .route("/recipes", get(api_recipes).post(api_save_recipes))
         // recipe entry api path route
-        .route("/recipe/:recipe_id", get(api_recipe_entry))
+        .route(
+            "/recipe/:recipe_id",
+            get(api_recipe_entry).delete(api_recipe_delete),
+        )
         // mealplan api path routes
         .route("/plan", get(api_plan).post(api_save_plan))
         .route("/plan/:date", get(api_plan_since))

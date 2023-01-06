@@ -103,6 +103,8 @@ pub trait APIStore {
 
     async fn get_recipes_for_user(&self, user_id: &str) -> Result<Option<Vec<RecipeEntry>>>;
 
+    async fn delete_recipes_for_user(&self, user_id: &str, recipes: &Vec<String>) -> Result<()>;
+
     async fn store_recipes_for_user(&self, user_id: &str, recipes: &Vec<RecipeEntry>)
         -> Result<()>;
 
@@ -464,6 +466,21 @@ impl APIStore for SqliteStore {
             .execute(self.pool.as_ref())
             .await?;
         }
+        Ok(())
+    }
+
+    async fn delete_recipes_for_user(&self, user_id: &str, recipes: &Vec<String>) -> Result<()> {
+        let mut transaction = self.pool.as_ref().begin().await?;
+        for recipe_id in recipes {
+            sqlx::query!(
+                "delete from recipes where user_id = ? and recipe_id = ?",
+                user_id,
+                recipe_id,
+            )
+            .execute(&mut transaction)
+            .await?;
+        }
+        transaction.commit().await?;
         Ok(())
     }
 
