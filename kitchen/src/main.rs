@@ -22,7 +22,6 @@ use clap::{clap_app, crate_authors, crate_version};
 use tracing::{error, info, instrument, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 
-pub mod api;
 mod cli;
 mod web;
 
