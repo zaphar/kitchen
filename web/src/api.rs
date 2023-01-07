@@ -278,12 +278,6 @@ impl LocalStore {
         return None;
     }
 
-    pub fn delete_inventory_data(&self) {
-        self.store
-            .delete("inventory")
-            .expect("Failed to delete inventory data");
-    }
-
     pub fn set_inventory_data(
         &self,
         inventory: (
