@@ -69,7 +69,7 @@ fn CategoryRow<'ctx, G: Html>(cx: Scope<'ctx>, props: CategoryRowProps<'ctx>) ->
             td() { input(type="text", list="category_options", bind:value=category, on:change={
                 let ingredient_clone = ingredient.clone();
                 move |_| {
-                    sh.dispatch(cx, Message::UpdateCategory(ingredient_clone.clone(), category.get_untracked().as_ref().clone()));
+                    sh.dispatch(cx, Message::UpdateCategory(ingredient_clone.clone(), category.get_untracked().as_ref().clone(), None));
                 }
             }) }
         }

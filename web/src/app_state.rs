@@ -59,17 +59,17 @@ pub enum Message {
     AddExtra(String, String),
     RemoveExtra(usize),
     UpdateExtra(usize, String, String),
-    SaveRecipe(RecipeEntry),
+    SaveRecipe(RecipeEntry, Option<Box<dyn FnOnce()>>),
     SetRecipe(String, Recipe),
-    RemoveRecipe(String),
-    UpdateCategory(String, String),
+    RemoveRecipe(String, Option<Box<dyn FnOnce()>>),
+    UpdateCategory(String, String, Option<Box<dyn FnOnce()>>),
     ResetInventory,
     AddFilteredIngredient(IngredientKey),
     UpdateAmt(IngredientKey, String),
     SetUserData(UserData),
     SaveState(Option<Box<dyn FnOnce()>>),
     LoadState(Option<Box<dyn FnOnce()>>),
-    UpdateStaples(String),
+    UpdateStaples(String, Option<Box<dyn FnOnce()>>),
 }
 
 impl Debug for Message {
@@ -91,12 +91,12 @@ impl Debug for Message {
                 .field(arg1)
                 .field(arg2)
                 .finish(),
-            Self::SaveRecipe(arg0) => f.debug_tuple("SaveRecipe").field(arg0).finish(),
+            Self::SaveRecipe(arg0, _) => f.debug_tuple("SaveRecipe").field(arg0).finish(),
             Self::SetRecipe(arg0, arg1) => {
                 f.debug_tuple("SetRecipe").field(arg0).field(arg1).finish()
             }
-            Self::RemoveRecipe(arg0) => f.debug_tuple("SetCategoryMap").field(arg0).finish(),
-            Self::UpdateCategory(i, c) => {
+            Self::RemoveRecipe(arg0, _) => f.debug_tuple("SetCategoryMap").field(arg0).finish(),
+            Self::UpdateCategory(i, c, _) => {
                 f.debug_tuple("UpdateCategory").field(i).field(c).finish()
             }
             Self::ResetInventory => write!(f, "ResetInventory"),
@@ -109,7 +109,7 @@ impl Debug for Message {
             Self::SetUserData(arg0) => f.debug_tuple("SetUserData").field(arg0).finish(),
             Self::SaveState(_) => write!(f, "SaveState"),
             Self::LoadState(_) => write!(f, "LoadState"),
-            Self::UpdateStaples(arg) => f.debug_tuple("UpdateStaples").field(arg).finish(),
+            Self::UpdateStaples(arg, _) => f.debug_tuple("UpdateStaples").field(arg).finish(),
         }
     }
 }
@@ -312,7 +312,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
             Message::SetRecipe(id, recipe) => {
                 original_copy.recipes.insert(id, recipe);
             }
-            Message::SaveRecipe(entry) => {
+            Message::SaveRecipe(entry, callback) => {
                 let recipe =
                     parse::as_recipe(entry.recipe_text()).expect("Failed to parse RecipeEntry");
                 original_copy
@@ -327,9 +327,10 @@ impl MessageMapper<Message, AppState> for StateMachine {
                     if let Err(e) = store.store_recipes(vec![entry]).await {
                         error!(err=?e, "Unable to save Recipe");
                     }
+                    callback.map(|f| f());
                 });
             }
-            Message::RemoveRecipe(recipe) => {
+            Message::RemoveRecipe(recipe, callback) => {
                 original_copy.recipe_counts.remove(&recipe);
                 original_copy.recipes.remove(&recipe);
                 self.local_store.delete_recipe_entry(&recipe);
@@ -338,9 +339,10 @@ impl MessageMapper<Message, AppState> for StateMachine {
                     if let Err(err) = store.delete_recipe(&recipe).await {
                         error!(?err, "Failed to delete recipe");
                     }
+                    callback.map(|f| f());
                 });
             }
-            Message::UpdateCategory(ingredient, category) => {
+            Message::UpdateCategory(ingredient, category, callback) => {
                 self.local_store
                     .set_categories(Some(&vec![(ingredient.clone(), category.clone())]));
                 original_copy
@@ -351,6 +353,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                     if let Err(e) = store.store_categories(&vec![(ingredient, category)]).await {
                         error!(?e, "Failed to save categories");
                     }
+                    callback.map(|f| f());
                 });
             }
             Message::ResetInventory => {
@@ -409,7 +412,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 });
                 return;
             }
-            Message::UpdateStaples(content) => {
+            Message::UpdateStaples(content, callback) => {
                 let store = self.store.clone();
                 let local_store = self.local_store.clone();
                 spawn_local_scoped(cx, async move {
@@ -418,6 +421,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                         .store_staples(content)
                         .await
                         .expect("Failed to store staples");
+                    callback.map(|f| f());
                 });
                 return;
             }

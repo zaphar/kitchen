@@ -14,7 +14,10 @@
 use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{debug, error};
 
-use crate::app_state::{Message, StateHandler};
+use crate::{
+    app_state::{Message, StateHandler},
+    js_lib,
+};
 use recipes::{self, RecipeEntry};
 
 fn check_recipe_parses(
@@ -68,21 +71,25 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
 
     let id = create_memo(cx, || recipe.get().recipe_id().to_owned());
     let dirty = create_signal(cx, false);
+    let ts = create_signal(cx, js_lib::get_ms_timestamp());
 
     debug!("creating editor view");
     view! {cx,
         div(class="grid") {
             textarea(bind:value=text, aria-invalid=aria_hint.get(), rows=20, on:change=move |_| {
                 dirty.set(true);
+                check_recipe_parses(text.get_untracked().as_str(), error_text, aria_hint);
+            }, on:input=move |_| {
+                let current_ts = js_lib::get_ms_timestamp();
+                if (current_ts - *ts.get_untracked()) > 100 {
+                    check_recipe_parses(text.get_untracked().as_str(), error_text, aria_hint);
+                    ts.set(current_ts);
+                }
             })
             div(class="parse") { (error_text.get()) }
         }
         span(role="button", on:click=move |_| {
-            let unparsed = text.get();
-            check_recipe_parses(unparsed.as_str(), error_text, aria_hint);
-        }) { "Check" } " "
-        span(role="button", on:click=move |_| {
-            let unparsed = text.get();
+            let unparsed = text.get_untracked();
             if check_recipe_parses(unparsed.as_str(), error_text, aria_hint) {
                 debug!("triggering a save");
                 if !*dirty.get_untracked() {
@@ -119,9 +126,8 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
             }
         }) { "Save" } " "
         span(role="button", on:click=move |_| {
-            sh.dispatch(cx, Message::RemoveRecipe(id.get_untracked().as_ref().to_owned()));
-            sycamore_router::navigate("/ui/planning/plan")
-        }) { "delete" }
+            sh.dispatch(cx, Message::RemoveRecipe(id.get_untracked().as_ref().to_owned(), Some(Box::new(|| sycamore_router::navigate("/ui/planning/plan")))));
+        }) { "delete" } " "
     }
 }
 

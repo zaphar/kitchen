@@ -23,6 +23,7 @@ tracing = "0.1.35"
 async-trait = "0.1.57"
 base64 = "0.20.0"
 sycamore-router = "0.8"
+js-sys = "0.3.60"
 
 [dependencies.tracing-subscriber]
 version = "0.3.16"

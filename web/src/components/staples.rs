@@ -15,6 +15,7 @@ use sycamore::{futures::spawn_local_scoped, prelude::*};
 use tracing::{debug, error};
 
 use crate::app_state::{Message, StateHandler};
+use crate::js_lib;
 use recipes::{self, parse};
 
 fn check_ingredients_parses(
@@ -67,19 +68,22 @@ pub fn IngredientsEditor<'ctx, G: Html>(
     });
 
     let dirty = create_signal(cx, false);
+    let ts = create_signal(cx, js_lib::get_ms_timestamp());
 
     debug!("creating editor view");
     view! {cx,
         div(class="grid") {
             textarea(bind:value=text, aria-invalid=aria_hint.get(), rows=20, on:change=move |_| {
                 dirty.set(true);
+            }, on:input=move |_| {
+                let current_ts = js_lib::get_ms_timestamp();
+                if (current_ts - *ts.get_untracked()) > 100 {
+                    check_ingredients_parses(text.get_untracked().as_str(), error_text, aria_hint);
+                    ts.set(current_ts);
+                }
             })
             div(class="parse") { (error_text.get()) }
         }
-        span(role="button", on:click=move |_| {
-            let unparsed = text.get();
-            check_ingredients_parses(unparsed.as_str(), error_text, aria_hint);
-        }) { "Check" } " "
         span(role="button", on:click=move |_| {
             let unparsed = text.get();
             if !*dirty.get_untracked() {
@@ -89,7 +93,7 @@ pub fn IngredientsEditor<'ctx, G: Html>(
             debug!("triggering a save");
             if check_ingredients_parses(unparsed.as_str(), error_text, aria_hint) {
                 debug!("Staples text is changed");
-                sh.dispatch(cx, Message::UpdateStaples(unparsed.as_ref().clone()));
+                sh.dispatch(cx, Message::UpdateStaples(unparsed.as_ref().clone(), None));
             }
         }) { "Save" }
     }

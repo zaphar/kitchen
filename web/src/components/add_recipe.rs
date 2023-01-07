@@ -77,9 +77,10 @@ pub fn AddRecipe<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View
                             error!(?err)
                         }
                     }
-                    sh.dispatch(cx, Message::SaveRecipe((*entry).clone()));
-                    crate::js_lib::navigate_to_path(&format!("/ui/recipe/edit/{}", entry.recipe_id()))
-                        .expect("Unable to navigate to recipe");
+                    sh.dispatch(cx, Message::SaveRecipe((*entry).clone(), Some(Box::new({
+                        let path = format!("/ui/recipe/edit/{}", entry.recipe_id());
+                        move || sycamore_router::navigate(path.as_str())
+                    }))));
                 }
             });
         }) { "Create" }

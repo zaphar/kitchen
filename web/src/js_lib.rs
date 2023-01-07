@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use js_sys::Date;
 use wasm_bindgen::JsValue;
 use web_sys::{window, Storage};
 
@@ -27,4 +28,8 @@ pub fn get_storage() -> Storage {
         .local_storage()
         .expect("Failed to get storage")
         .expect("No storage available")
+}
+
+pub fn get_ms_timestamp() -> u32 {
+    Date::new_0().get_milliseconds()
 }
