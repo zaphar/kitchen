@@ -12,15 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use js_sys::Date;
-use wasm_bindgen::JsValue;
 use web_sys::{window, Storage};
-
-pub fn navigate_to_path(path: &str) -> Result<(), JsValue> {
-    window()
-        .expect("No window present")
-        .location()
-        .set_pathname(path)
-}
 
 pub fn get_storage() -> Storage {
     window()
