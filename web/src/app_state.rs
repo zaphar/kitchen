@@ -188,10 +188,14 @@ impl StateMachine {
             }
             state.recipe_counts = plan_map;
         } else {
-            // Initialize things to zero
-            if let Some(rs) = recipe_entries {
-                for r in rs {
-                    state.recipe_counts.insert(r.recipe_id().to_owned(), 0);
+            if let Some(plan) = local_store.get_plan() {
+                state.recipe_counts = plan.iter().map(|(k, v)| (k.clone(), *v as usize)).collect();
+            } else {
+                // Initialize things to zero.
+                if let Some(rs) = recipe_entries {
+                    for r in rs {
+                        state.recipe_counts.insert(r.recipe_id().to_owned(), 0);
+                    }
                 }
             }
         }
