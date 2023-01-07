@@ -1,5 +1,6 @@
 {pkgs? (import <nixpkgs>) {},
  version ? "0.2.1",
+ features ? "",
  rust-wasm,
 }:
 with pkgs;
@@ -35,7 +36,8 @@ stdenv.mkDerivation {
         mkdir -p $out
         cd web
         cp -r static $out
-        RUST_LOG=info wasm-pack build --mode no-install --release --target web --out-dir $out;
+        RUST_LOG=info wasm-pack build --mode no-install --release --target web --out-dir $out ${features};
         cp -r index.html $out
+        cp -r favicon.ico $out
     '';
 }

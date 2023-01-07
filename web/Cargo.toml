@@ -7,6 +7,7 @@ edition = "2021"
 ssr = []
 web = []
 default = ["web"]
+debug_logs = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]

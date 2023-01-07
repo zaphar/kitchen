@@ -26,19 +26,23 @@ use web::UI;
 
 fn configure_tracing() {
     console_error_panic_hook::set_once();
-    use tracing_subscriber::fmt::format::Pretty;
-    use tracing_subscriber::prelude::*;
+    use tracing::Level;
+    use tracing_subscriber::{filter::LevelFilter, fmt::format::Pretty, prelude::*};
     use tracing_web::{performance_layer, MakeConsoleWriter};
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_ansi(false)
         .without_time()
-        //.with_timer(UtcTime::rfc_3339()) // std::time is not available in browsers
-        .with_writer(MakeConsoleWriter); // write events to the console
+        .with_writer(MakeConsoleWriter) // write events to the console
+        .with_filter(LevelFilter::from(if cfg!(feature = "debug_logs") {
+            Level::DEBUG
+        } else {
+            Level::INFO
+        }));
     let perf_layer = performance_layer().with_details_from_fields(Pretty::default());
 
     tracing_subscriber::registry()
-        .with(fmt_layer)
         .with(perf_layer)
+        .with(fmt_layer)
         .init();
 }
 

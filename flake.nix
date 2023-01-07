@@ -44,12 +44,26 @@
                     #root = (pkgs.callPackage gitignore { }).gitignoreSource ./.;
                     root = ./.;
                 });
+                kitchenWasmDebug = kitchenWasmGen {
+                    inherit pkgs rust-wasm version;
+                    features = "--features debug_logs";
+                };
+                kitchenDebug = (kitchenGen {
+                    inherit pkgs version naersk-lib rust-wasm;
+                    kitchenWasm = kitchenWasmDebug;
+                    # Because it's a workspace we need the other crates available as source
+                    # TODO(jwall): gitignoreSource is broken right now due to being impure.
+                    #root = (pkgs.callPackage gitignore { }).gitignoreSource ./.;
+                    root = ./.;
+                });
                 module = moduleGen {inherit kitchen;};
             in
             {
                 packages = {
                     inherit kitchenWasm
                             kitchen
+                            kitchenWasmDebug
+                            kitchenDebug
                             ;
                 };
                 defaultPackage = kitchen;
