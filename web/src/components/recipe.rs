@@ -117,7 +117,11 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
                 });
             } else {
             }
-        }) { "Save" }
+        }) { "Save" } " "
+        span(role="button", on:click=move |_| {
+            sh.dispatch(cx, Message::RemoveRecipe(id.get_untracked().as_ref().to_owned()));
+            sycamore_router::navigate("/ui/planning/plan")
+        }) { "delete" }
     }
 }
 

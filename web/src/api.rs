@@ -497,6 +497,23 @@ impl HttpStore {
         }
     }
 
+    #[instrument]
+    pub async fn delete_recipe<S>(&self, recipe: S) -> Result<(), Error>
+    where
+        S: AsRef<str> + std::fmt::Debug,
+    {
+        let mut path = self.v2_path();
+        path.push_str("/recipe");
+        path.push_str(&format!("/{}", recipe.as_ref()));
+        let resp = reqwasm::http::Request::delete(&path).send().await?;
+        if resp.status() != 200 {
+            Err(format!("Status: {}", resp.status()).into())
+        } else {
+            debug!("We got a valid response back!");
+            Ok(())
+        }
+    }
+
     #[instrument(skip(recipes), fields(count=recipes.len()))]
     pub async fn store_recipes(&self, recipes: Vec<RecipeEntry>) -> Result<(), Error> {
         let mut path = self.v2_path();

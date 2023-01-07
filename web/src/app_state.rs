@@ -61,7 +61,7 @@ pub enum Message {
     UpdateExtra(usize, String, String),
     SaveRecipe(RecipeEntry),
     SetRecipe(String, Recipe),
-    SetCategoryMap(BTreeMap<String, String>),
+    RemoveRecipe(String),
     UpdateCategory(String, String),
     ResetInventory,
     AddFilteredIngredient(IngredientKey),
@@ -95,7 +95,7 @@ impl Debug for Message {
             Self::SetRecipe(arg0, arg1) => {
                 f.debug_tuple("SetRecipe").field(arg0).field(arg1).finish()
             }
-            Self::SetCategoryMap(arg0) => f.debug_tuple("SetCategoryMap").field(arg0).finish(),
+            Self::RemoveRecipe(arg0) => f.debug_tuple("SetCategoryMap").field(arg0).finish(),
             Self::UpdateCategory(i, c) => {
                 f.debug_tuple("UpdateCategory").field(i).field(c).finish()
             }
@@ -120,12 +120,11 @@ pub struct StateMachine {
 }
 
 #[instrument]
-fn filter_recipes(
+fn parse_recipes(
     recipe_entries: &Option<Vec<RecipeEntry>>,
-) -> Result<(Option<Recipe>, Option<BTreeMap<String, Recipe>>), String> {
+) -> Result<Option<BTreeMap<String, Recipe>>, String> {
     match recipe_entries {
         Some(parsed) => {
-            let mut staples = None;
             let mut parsed_map = BTreeMap::new();
             for r in parsed {
                 let recipe = match parse::as_recipe(&r.recipe_text()) {
@@ -135,15 +134,11 @@ fn filter_recipes(
                         continue;
                     }
                 };
-                if recipe.title == "Staples" {
-                    staples = Some(recipe);
-                } else {
-                    parsed_map.insert(r.recipe_id().to_owned(), recipe);
-                }
+                parsed_map.insert(r.recipe_id().to_owned(), recipe);
             }
-            Ok((staples, Some(parsed_map)))
+            Ok(Some(parsed_map))
         }
-        None => Ok((None, None)),
+        None => Ok(None),
     }
 }
 
@@ -160,7 +155,8 @@ impl StateMachine {
         let mut state = original.get().as_ref().clone();
         info!("Synchronizing Recipes");
         let recipe_entries = &store.fetch_recipes().await?;
-        let (_old_staples, recipes) = filter_recipes(&recipe_entries)?;
+        let recipes = parse_recipes(&recipe_entries)?;
+
         if let Some(recipes) = recipes {
             state.recipes = recipes;
         };
@@ -329,14 +325,14 @@ impl MessageMapper<Message, AppState> for StateMachine {
                     }
                 });
             }
-            Message::SetCategoryMap(map) => {
-                original_copy.category_map = map.clone();
-                let list = map.iter().map(|(i, c)| (i.clone(), c.clone())).collect();
-                self.local_store.set_categories(Some(&list));
+            Message::RemoveRecipe(recipe) => {
+                original_copy.recipe_counts.remove(&recipe);
+                original_copy.recipes.remove(&recipe);
+                self.local_store.delete_recipe_entry(&recipe);
                 let store = self.store.clone();
                 spawn_local_scoped(cx, async move {
-                    if let Err(e) = store.store_categories(&list).await {
-                        error!(?e, "Failed to save categories");
+                    if let Err(err) = store.delete_recipe(&recipe).await {
+                        error!(?err, "Failed to delete recipe");
                     }
                 });
             }
