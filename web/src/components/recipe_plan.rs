@@ -54,15 +54,15 @@ pub fn RecipePlan<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
                 }).collect()
             ))
         }
-        input(type="button", value="Reset", on:click=move |_| {
+        span(role="button", on:click=move |_| {
             sh.dispatch(cx, Message::LoadState(None));
-        })
-        input(type="button", value="Clear All", on:click=move |_| {
+        }) { "Reset" } " "
+        span(role="button", on:click=move |_| {
             sh.dispatch(cx, Message::ResetRecipeCounts);
-        })
-        input(type="button", value="Save Plan", on:click=move |_| {
+        }) { "Clear All" } " "
+        span(role="button", on:click=move |_| {
             // Poor man's click event signaling.
             sh.dispatch(cx, Message::SaveState(None));
-        })
+        }) { "Save Plan" } " "
     }
 }

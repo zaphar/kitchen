@@ -200,17 +200,17 @@ pub fn ShoppingList<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> V
         label(for="show_staples_cb") { "Show staples" }
         input(id="show_staples_cb", type="checkbox", bind:checked=show_staples)
         (make_shopping_table(cx, sh, show_staples))
-        input(type="button", value="Add Item", class="no-print", on:click=move |_| {
+        span(role="button", class="no-print", on:click=move |_| {
             info!("Registering add item request for inventory");
             sh.dispatch(cx, Message::AddExtra(String::new(), String::new()));
-        })
-        input(type="button", value="Reset", class="no-print", on:click=move |_| {
+        }) { "Add Item" } " "
+        span(role="button", class="no-print", on:click=move |_| {
             info!("Registering reset request for inventory");
             sh.dispatch(cx, Message::ResetInventory);
-        })
-        input(type="button", value="Save", class="no-print", on:click=move |_| {
+        }) { "Reset" } " "
+        span(role="button", class="no-print", on:click=move |_| {
             info!("Registering save request for inventory");
             sh.dispatch(cx, Message::SaveState(None));
-        })
+        }) { "Save" } " "
     }
 }

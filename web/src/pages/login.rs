@@ -27,7 +27,7 @@ pub fn LoginForm<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View
             input(type="text", id="username", bind:value=username)
             label(for="password") { "Password" }
             input(type="password", bind:value=password)
-            input(type="button", value="Login", on:click=move |_| {
+            span(role="button", on:click=move |_| {
                 info!("Attempting login request");
                 let (username, password) = ((*username.get_untracked()).clone(), (*password.get_untracked()).clone());
                 if username != "" && password != "" {
@@ -41,7 +41,7 @@ pub fn LoginForm<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View
                     });
                 }
                 debug!("triggering login click subscribers");
-            }) {  }
+            }) { "Login" } " "
         }
     }
 }
