@@ -161,6 +161,7 @@ impl StateMachine {
             state.recipes = recipes;
         };
 
+        info!("Synchronizing staples");
         state.staples = if let Some(content) = store.fetch_staples().await? {
             local_store.set_staples(&content);
             // now we need to parse staples as ingredients
@@ -179,6 +180,7 @@ impl StateMachine {
             local_store.set_all_recipes(recipe_entries);
         }
 
+        info!("Synchronizing meal plan");
         let plan = store.fetch_plan().await?;
         if let Some(plan) = plan {
             // set the counts.
