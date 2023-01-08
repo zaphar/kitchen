@@ -1282,7 +1282,7 @@ dependencies = [
 
 [[package]]
 name = "kitchen"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "api",
  "argon2",
@@ -1312,7 +1312,7 @@ dependencies = [
 
 [[package]]
 name = "kitchen-wasm"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "api",
  "async-trait",
@@ -1698,7 +1698,7 @@ dependencies = [
 
 [[package]]
 name = "recipes"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "Inflector",
  "abortable_parser",

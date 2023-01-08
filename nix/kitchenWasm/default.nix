@@ -1,5 +1,5 @@
 {pkgs? (import <nixpkgs>) {},
- version ? "0.2.1",
+ version,
  features ? "",
  rust-wasm,
 }:
