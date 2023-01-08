@@ -13,5 +13,5 @@
 # limitations under the License.
 EXAMPLES=${EXAMPLES:-../examples}
 echo Starting api server serving ${EXAMPLES}
-nix run .\#kitchenDebug -- --verbose debug serve --dir ${EXAMPLES} --tls --cert ~/tls-certs/localhost+2.pem --cert_key ~/tls-certs/localhost+2-key.pem
+nix run .\#kitchenDebug -- --verbose debug serve --dir ${EXAMPLES} --tls --cert ~/tls-certs/localhost+2.pem --cert_key ~/tls-certs/localhost+2-key.pem $@
 # This is ghetto but I'm doing it anyway
