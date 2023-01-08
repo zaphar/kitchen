@@ -77,24 +77,28 @@ where
     }
 }
 
-impl<T> From<Result<T, String>> for Response<T> {
-    fn from(val: Result<T, String>) -> Self {
+impl<T, E> From<Result<Option<T>, E>> for Response<T>
+where
+    T: Default,
+    E: std::fmt::Debug,
+{
+    fn from(val: Result<Option<T>, E>) -> Self {
         match val {
-            Ok(val) => Response::Success(val),
-            Err(e) => Response::error(500, e),
+            Ok(Some(val)) => Response::Success(val),
+            Ok(None) => Response::Success(T::default()),
+            Err(e) => Response::error(500, format!("{:?}", e)),
         }
     }
 }
 
-impl<T> From<Result<Option<T>, String>> for Response<T>
+impl<T, E> From<Result<T, E>> for Response<T>
 where
-    T: Default,
+    E: std::fmt::Debug,
 {
-    fn from(val: Result<Option<T>, String>) -> Self {
+    fn from(val: Result<T, E>) -> Self {
         match val {
-            Ok(Some(val)) => Response::Success(val),
-            Ok(None) => Response::Success(T::default()),
-            Err(e) => Response::error(500, e),
+            Ok(v) => Response::success(v),
+            Err(e) => Response::error(500, format!("{:?}", e)),
         }
     }
 }

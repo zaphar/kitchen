@@ -28,7 +28,7 @@ use recipes::{IngredientKey, RecipeEntry};
 use rust_embed::RustEmbed;
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, info, instrument};
 
 use client_api as api;
 use storage::{APIStore, AuthStore};
@@ -86,17 +86,13 @@ async fn api_recipe_entry(
     Path(recipe_id): Path<String>,
 ) -> api::Response<Option<RecipeEntry>> {
     use storage::{UserId, UserIdFromSession::*};
-    let result = match session {
-        NoUserId => store
-            .get_recipe_entry(recipe_id)
-            .await
-            .map_err(|e| format!("Error: {:?}", e)),
+    match session {
+        NoUserId => store.get_recipe_entry(recipe_id).await.into(),
         FoundUserId(UserId(id)) => app_store
             .get_recipe_entry_for_user(id, recipe_id)
             .await
-            .map_err(|e| format!("Error: {:?}", e)),
-    };
-    result.into()
+            .into(),
+    }
 }
 
 async fn api_recipe_delete(
@@ -105,21 +101,13 @@ async fn api_recipe_delete(
     Path(recipe_id): Path<String>,
 ) -> api::EmptyResponse {
     use storage::{UserId, UserIdFromSession::*};
-    let result = match session {
+    match session {
         NoUserId => api::EmptyResponse::Unauthorized,
-        FoundUserId(UserId(id)) => {
-            if let Err(e) = app_store
-                .delete_recipes_for_user(&id, &vec![recipe_id])
-                .await
-                .map_err(|e| format!("Error: {:?}", e))
-            {
-                api::EmptyResponse::error(StatusCode::INTERNAL_SERVER_ERROR.as_u16(), e)
-            } else {
-                api::EmptyResponse::success(())
-            }
-        }
-    };
-    result.into()
+        FoundUserId(UserId(id)) => app_store
+            .delete_recipes_for_user(&id, &vec![recipe_id])
+            .await
+            .into(),
+    }
 }
 
 #[instrument]
@@ -130,17 +118,10 @@ async fn api_recipes(
 ) -> api::RecipeEntryResponse {
     // Select recipes based on the user-id if it exists or serve the default if it does not.
     use storage::{UserId, UserIdFromSession::*};
-    let result = match session {
-        NoUserId => store
-            .get_recipes()
-            .await
-            .map_err(|e| format!("Error: {:?}", e)),
-        FoundUserId(UserId(id)) => app_store
-            .get_recipes_for_user(id.as_str())
-            .await
-            .map_err(|e| format!("Error: {:?}", e)),
-    };
-    result.into()
+    match session {
+        NoUserId => api::RecipeEntryResponse::from(store.get_recipes().await),
+        FoundUserId(UserId(id)) => app_store.get_recipes_for_user(id.as_str()).await.into(),
+    }
 }
 
 #[instrument]
@@ -151,14 +132,10 @@ async fn api_category_mappings(
     use storage::UserIdFromSession::*;
     match session {
         NoUserId => api::Response::Unauthorized,
-        FoundUserId(user_id) => match app_store.get_category_mappings_for_user(&user_id.0).await {
-            Ok(Some(mappings)) => api::CategoryMappingResponse::from(mappings),
-            Ok(None) => api::CategoryMappingResponse::from(Vec::new()),
-            Err(e) => api::CategoryMappingResponse::error(
-                StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-                format!("{:?}", e),
-            ),
-        },
+        FoundUserId(user_id) => app_store
+            .get_category_mappings_for_user(&user_id.0)
+            .await
+            .into(),
     }
 }
 
@@ -192,38 +169,25 @@ async fn api_categories(
 ) -> api::Response<String> {
     // Select Categories based on the user-id if it exists or serve the default if it does not.
     use storage::{UserId, UserIdFromSession::*};
-    let categories_result = match session {
-        NoUserId => store
-            .get_categories()
-            .await
-            .map_err(|e| format!("Error: {:?}", e)),
-        FoundUserId(UserId(id)) => app_store
-            .get_categories_for_user(id.as_str())
-            .await
-            .map_err(|e| format!("Error: {:?}", e)),
-    };
-    categories_result.into()
+    match session {
+        NoUserId => store.get_categories().await.into(),
+        FoundUserId(UserId(id)) => app_store.get_categories_for_user(id.as_str()).await.into(),
+    }
 }
 
 async fn api_save_categories(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
     Json(categories): Json<String>,
-) -> api::CategoryResponse {
+) -> api::EmptyResponse {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
-        if let Err(e) = app_store
+        app_store
             .store_categories_for_user(id.as_str(), categories.as_str())
             .await
-        {
-            return api::Response::error(
-                StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-                format!("{:?}", e),
-            );
-        }
-        api::CategoryResponse::success("Successfully saved categories".into())
+            .into()
     } else {
-        api::CategoryResponse::Unauthorized
+        api::EmptyResponse::Unauthorized
     }
 }
 
@@ -234,10 +198,10 @@ async fn api_save_recipes(
 ) -> api::EmptyResponse {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
-        let result = app_store
+        app_store
             .store_recipes_for_user(id.as_str(), &recipes)
-            .await;
-        result.map_err(|e| format!("Error: {:?}", e)).into()
+            .await
+            .into()
     } else {
         api::EmptyResponse::Unauthorized
     }
@@ -249,11 +213,7 @@ async fn api_plan(
 ) -> api::PlanDataResponse {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
-        app_store
-            .fetch_latest_meal_plan(&id)
-            .await
-            .map_err(|e| format!("Error: {:?}", e))
-            .into()
+        app_store.fetch_latest_meal_plan(&id).await.into()
     } else {
         api::Response::Unauthorized
     }
@@ -266,11 +226,7 @@ async fn api_plan_since(
 ) -> api::PlanHistoryResponse {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(id)) = session {
-        app_store
-            .fetch_meal_plans_since(&id, date)
-            .await
-            .map_err(|e| format!("Error: {:?}", e))
-            .into()
+        app_store.fetch_meal_plans_since(&id, date).await.into()
     } else {
         api::PlanHistoryResponse::Unauthorized
     }
@@ -286,7 +242,6 @@ async fn api_save_plan(
         app_store
             .save_meal_plan(id.as_str(), &meal_plan, chrono::Local::now().date_naive())
             .await
-            .map_err(|e| format!("{:?}", e))
             .into()
     } else {
         api::EmptyResponse::Unauthorized
@@ -302,7 +257,6 @@ async fn api_inventory_v2(
         app_store
             .fetch_latest_inventory_data(id)
             .await
-            .map_err(|e| format!("{:?}", e))
             .map(|d| {
                 let data: api::InventoryData = d.into();
                 data
@@ -322,7 +276,6 @@ async fn api_inventory(
         app_store
             .fetch_latest_inventory_data(id)
             .await
-            .map_err(|e| format!("{:?}", e))
             .map(|(filtered, modified, _)| (filtered, modified))
             .into()
     } else {
@@ -340,7 +293,6 @@ async fn save_inventory_data(
     app_store
         .save_inventory_data(id, filtered_ingredients, modified_amts, extra_items)
         .await
-        .map_err(|e| format!("{:?}", e))
         .into()
 }
 
@@ -412,16 +364,7 @@ async fn api_staples(
 ) -> api::Response<Option<String>> {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(user_id)) = session {
-        match app_store.fetch_staples(user_id).await {
-            Ok(staples) => api::Response::success(staples),
-            Err(err) => {
-                error!(?err);
-                api::Response::error(
-                    StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-                    format!("{:?}", err),
-                )
-            }
-        }
+        app_store.fetch_staples(user_id).await.into()
     } else {
         api::Response::Unauthorized
     }
@@ -434,16 +377,7 @@ async fn api_save_staples(
 ) -> api::Response<()> {
     use storage::{UserId, UserIdFromSession::FoundUserId};
     if let FoundUserId(UserId(user_id)) = session {
-        match app_store.save_staples(user_id, content).await {
-            Ok(_) => api::EmptyResponse::success(()),
-            Err(err) => {
-                error!(?err);
-                api::EmptyResponse::error(
-                    StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
-                    format!("{:?}", err),
-                )
-            }
-        }
+        app_store.save_staples(user_id, content).await.into()
     } else {
         api::EmptyResponse::Unauthorized
     }
