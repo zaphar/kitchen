@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use js_sys::Date;
-use web_sys::{window, Storage};
+use wasm_bindgen::JsCast;
+use web_sys::{window, Element, Storage};
 
 pub fn get_storage() -> Storage {
     window()
@@ -24,4 +25,19 @@ pub fn get_storage() -> Storage {
 
 pub fn get_ms_timestamp() -> u32 {
     Date::new_0().get_milliseconds()
+}
+
+pub fn get_element_by_id<E>(id: &str) -> Result<Option<E>, Element>
+where
+    E: JsCast,
+{
+    match window()
+        .expect("No window present")
+        .document()
+        .expect("No document in window")
+        .get_element_by_id(id)
+    {
+        Some(e) => e.dyn_into::<E>().map(|e| Some(e)),
+        None => Ok(None),
+    }
 }

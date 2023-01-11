@@ -18,6 +18,7 @@
     --tab-border-width: 3px;
     --tab-border-style: solid;
     --tab-border-radius: 15px;
+    --unicode-button-size: 2em;
 }
 
 @media print {
@@ -71,4 +72,8 @@ nav>h1 {
 
 .destructive {
     background-color: firebrick !important;
+}
+
+.item-count-inc-dec {
+    font-size: var(--unicode-button-size);
 }
