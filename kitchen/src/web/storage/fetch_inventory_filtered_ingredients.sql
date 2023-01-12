@@ -1,9 +1,6 @@
 with latest_dates as (
     select
         user_id,
-        name,
-        form,
-        measure_type,
         max(plan_date) as plan_date
     from filtered_ingredients
     where user_id = ?
@@ -16,7 +13,4 @@ select
 from latest_dates
 inner join filtered_ingredients on
      latest_dates.user_id = filtered_ingredients.user_id
-     and latest_dates.name = filtered_ingredients.name
-     and latest_dates.form = filtered_ingredients.form
-     and latest_dates.measure_type = filtered_ingredients.measure_type
      and latest_dates.plan_date = filtered_ingredients.plan_date
