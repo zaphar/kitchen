@@ -37,8 +37,14 @@ pub fn RecipeSelection<'ctx, G: Html>(
 ) -> View<G> {
     let RecipeCheckBoxProps { i, title, sh } = props;
     let id = Rc::new(i);
-    let id_clone = id.clone();
     let id_for_count = id.clone();
+    // NOTE(jwall): The below get's a little tricky. We need a separate signal to bind for the
+    // this recipes count. But we also want it to automatically update if the app_state
+    // recipe count updates. We need to avoid signal update cycles so we have to do this
+    // in two steps. We have a read signal that represents changes in the value of the
+    // app_states count. We have a Signal that represents the value of this components count.
+    // If the app_states count changes and is also different from the components count then we
+    // and only then do we set the components count to the app states count.
     let current_count = sh.get_selector(cx, move |state| {
         *state
             .get()
@@ -49,10 +55,11 @@ pub fn RecipeSelection<'ctx, G: Html>(
     let count = create_signal(cx, format!("{}", *current_count.get_untracked()));
     create_effect(cx, || {
         let updated_count = format!("{}", current_count.get());
-        if updated_count != count.get_untracked().as_ref() {
+        if &updated_count != count.get_untracked().as_ref() {
             count.set(updated_count);
         }
     });
+
     let title = title.get().clone();
     let href = format!("/ui/recipe/view/{}", id);
     let name = format!("recipe_id:{}", id);
