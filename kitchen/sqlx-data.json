@@ -18,6 +18,30 @@
     },
     "query": "select password_hashed from users where id = ?"
   },
+  "10de1e9950d7d3ae7f017b9175a1cee4ff7fcbc7403a39ea02930c75b4b9160a": {
+    "describe": {
+      "columns": [
+        {
+          "name": "name",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "amt",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "with latest_dates as (\n    select user_id, max(date(plan_date)) as plan_date from plan_recipes\n    where user_id = ?\n    group by user_id\n)\n\nselect\n    extra_items.name,\n    extra_items.amt\nfrom latest_dates\ninner join extra_items on\n    latest_dates.user_id = extra_items.user_id\n    and latest_dates.plan_date = extra_items.plan_date"
+  },
   "160a9dfccf2e91a37d81f75eba21ec73105a7453c4f1fe76a430d04e525bc6cd": {
     "describe": {
       "columns": [],
@@ -102,30 +126,6 @@
     },
     "query": "insert into category_mappings\n    (user_id, ingredient_name, category_name)\n    values (?, ?, ?)\n    on conflict (user_id, ingredient_name)\n        do update set category_name=excluded.category_name\n"
   },
-  "3493b265a2f13a4f9ca487f240d5dcfdf387478d2e401dc0e1a91bbd0ef69b36": {
-    "describe": {
-      "columns": [
-        {
-          "name": "name",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "amt",
-          "ordinal": 1,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false
-      ],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "with latest_dates as (\n    select\n        user_id,\n        max(plan_date) as plan_date\n    from extra_items\n    where user_id = ?\n    group by user_id, name\n)\n\nselect\n    extra_items.name,\n    extra_items.amt\nfrom latest_dates\ninner join extra_items on\n    latest_dates.user_id = extra_items.user_id\n    and latest_dates.plan_date= extra_items.plan_date"
-  },
   "37f382be1b53efd2f79a0d59ae6a8717f88a86908a7a4128d5ed7339147ca59d": {
     "describe": {
       "columns": [
@@ -159,6 +159,42 @@
       }
     },
     "query": "insert into extra_items (user_id, name, plan_date, amt)\nvalues (?, ?, date(), ?)\non conflict (user_id, name, plan_date) do update set amt=excluded.amt"
+  },
+  "3e43f06f5c2e959f66587c8d74696d6db27d89fd2f7d7e1ed6fa5016b4bd1a91": {
+    "describe": {
+      "columns": [
+        {
+          "name": "name",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "form",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "measure_type",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "amt",
+          "ordinal": 3,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "with latest_dates as (\n    select user_id, max(date(plan_date)) as plan_date from plan_recipes\n    where user_id = ?\n    group by user_id\n)\n\nselect\n    modified_amts.name,\n    modified_amts.form,\n    modified_amts.measure_type,\n    modified_amts.amt\nfrom latest_dates\ninner join modified_amts on\n    latest_dates.user_id = modified_amts.user_id\n    and latest_dates.plan_date = modified_amts.plan_date"
   },
   "3fd4017569dca4fe73e97e0e2bd612027a8c1b17b0b10faabd6459f56ca1c0bb": {
     "describe": {
@@ -330,42 +366,6 @@
     },
     "query": "with max_date as (\n    select user_id, max(date(plan_date)) as plan_date from plan_recipes group by user_id\n)\n\nselect plan_recipes.plan_date as \"plan_date: NaiveDate\", plan_recipes.recipe_id, plan_recipes.count\n    from plan_recipes\n    inner join max_date on plan_recipes.user_id = max_date.user_id\nwhere\n    plan_recipes.user_id = ?\n    and plan_recipes.plan_date = max_date.plan_date"
   },
-  "b5a4bfffc9a2cd14e8cadc7ccff925a950a4a7cbea5cf28323cf2cc0f843209e": {
-    "describe": {
-      "columns": [
-        {
-          "name": "name",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "form",
-          "ordinal": 1,
-          "type_info": "Text"
-        },
-        {
-          "name": "measure_type",
-          "ordinal": 2,
-          "type_info": "Text"
-        },
-        {
-          "name": "amt",
-          "ordinal": 3,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false,
-        false
-      ],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "with latest_dates as (\n    select\n        user_id,\n        max(plan_date) as plan_date\n    from modified_amts\n    where user_id = ?\n)\n\nselect\n    modified_amts.name,\n    modified_amts.form,\n    modified_amts.measure_type,\n    modified_amts.amt\nfrom latest_dates\ninner join modified_amts on\n    latest_dates.user_id = modified_amts.user_id\n    and latest_dates.plan_date = modified_amts.plan_date"
-  },
   "c988364f9f83f4fa8bd0e594bab432ee7c9ec47ca40f4d16e5e2a8763653f377": {
     "describe": {
       "columns": [
@@ -394,7 +394,7 @@
     },
     "query": "delete from sessions"
   },
-  "e8eb76386f514f92792c5b1882bbc98afbde62ec0a665fbc8cce7db3b123ad14": {
+  "e38183e2e16afa308672044e5d314296d7cd84c1ffedcbfe790743547dc62de8": {
     "describe": {
       "columns": [
         {
@@ -422,6 +422,6 @@
         "Right": 1
       }
     },
-    "query": "with latest_dates as (\n    select\n        user_id,\n        max(plan_date) as plan_date\n    from filtered_ingredients\n    where user_id = ?\n)\n\nselect\n    filtered_ingredients.name,\n    filtered_ingredients.form,\n    filtered_ingredients.measure_type\nfrom latest_dates\ninner join filtered_ingredients on\n     latest_dates.user_id = filtered_ingredients.user_id\n     and latest_dates.plan_date = filtered_ingredients.plan_date"
+    "query": "with latest_dates as (\n    select user_id, max(date(plan_date)) as plan_date from plan_recipes\n    where user_id = ?\n    group by user_id\n)\n\nselect\n    filtered_ingredients.name,\n    filtered_ingredients.form,\n    filtered_ingredients.measure_type\nfrom latest_dates\ninner join filtered_ingredients on\n     latest_dates.user_id = filtered_ingredients.user_id\n     and latest_dates.plan_date = filtered_ingredients.plan_date"
   }
 }

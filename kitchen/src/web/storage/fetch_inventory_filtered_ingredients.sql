@@ -1,9 +1,7 @@
 with latest_dates as (
-    select
-        user_id,
-        max(plan_date) as plan_date
-    from filtered_ingredients
+    select user_id, max(date(plan_date)) as plan_date from plan_recipes
     where user_id = ?
+    group by user_id
 )
 
 select

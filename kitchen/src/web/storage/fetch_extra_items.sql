@@ -1,10 +1,7 @@
 with latest_dates as (
-    select
-        user_id,
-        max(plan_date) as plan_date
-    from extra_items
+    select user_id, max(date(plan_date)) as plan_date from plan_recipes
     where user_id = ?
-    group by user_id, name
+    group by user_id
 )
 
 select
@@ -13,4 +10,4 @@ select
 from latest_dates
 inner join extra_items on
     latest_dates.user_id = extra_items.user_id
-    and latest_dates.plan_date= extra_items.plan_date
+    and latest_dates.plan_date = extra_items.plan_date
