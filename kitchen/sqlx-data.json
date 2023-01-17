@@ -116,6 +116,16 @@
     },
     "query": "insert into staples (user_id, content) values (?, ?)\n    on conflict(user_id) do update set content = excluded.content"
   },
+  "1b6fd91460bef61cf02f210404a4ca57b520c969d1f9613e7101ee6aa7a9962a": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 6
+      }
+    },
+    "query": "insert into modified_amts(user_id, name, form, measure_type, amt, plan_date)\n    values (?, ?, ?, ?, ?, ?) on conflict (user_id, name, form, measure_type, plan_date) do update set amt=excluded.amt"
+  },
   "2582522f8ca9f12eccc70a3b339d9030aee0f52e62d6674cfd3862de2a68a177": {
     "describe": {
       "columns": [],
@@ -236,6 +246,40 @@
     },
     "query": "insert into recipes (user_id, recipe_id, recipe_text) values (?, ?, ?)\n    on conflict(user_id, recipe_id) do update set recipe_text=excluded.recipe_text"
   },
+  "4237ff804f254c122a36a14135b90434c6576f48d3a83245503d702552ea9f30": {
+    "describe": {
+      "columns": [
+        {
+          "name": "name",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "amt",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "select\n    name,\n    amt\nfrom extra_items\nwhere\n    user_id = ?\n    and plan_date = ?"
+  },
+  "5883c4a57def93cca45f8f9d81c8bba849547758217cd250e7ab28cc166ab42b": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 5
+      }
+    },
+    "query": "insert into filtered_ingredients(user_id, name, form, measure_type, plan_date)\n    values (?, ?, ?, ?, ?) on conflict(user_id, name, form, measure_type, plan_date) DO NOTHING"
+  },
   "5d743897fb0d8fd54c3708f1b1c6e416346201faa9e28823c1ba5a421472b1fa": {
     "describe": {
       "columns": [],
@@ -263,6 +307,42 @@
       }
     },
     "query": "select content from staples where user_id = ?"
+  },
+  "699ff0f0d4d4c6e26a21c1922a5b5249d89ed1677680a2276899a7f8b26344ee": {
+    "describe": {
+      "columns": [
+        {
+          "name": "name",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "form",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "measure_type",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "amt",
+          "ordinal": 3,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "select\n    modified_amts.name,\n    modified_amts.form,\n    modified_amts.measure_type,\n    modified_amts.amt\nfrom modified_amts\nwhere\n    user_id = ?\n    and plan_date = ?"
   },
   "6c43908d90f229b32ed8b1b076be9b452a995e1b42ba2554e947c515b031831a": {
     "describe": {
@@ -293,6 +373,36 @@
       }
     },
     "query": "delete from sessions where id = ?"
+  },
+  "7695a0602395006f9b76ecd4d0cb5ecd5dee419b71b3b0b9ea4f47a83f3df41a": {
+    "describe": {
+      "columns": [
+        {
+          "name": "name",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "form",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "measure_type",
+          "ordinal": 2,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "select\n    filtered_ingredients.name,\n    filtered_ingredients.form,\n    filtered_ingredients.measure_type\nfrom filtered_ingredients\nwhere\n     user_id = ?\n     and plan_date = ?"
   },
   "7f4abc448b16e8b6b2bb74f8e810e245e81b38e1407085a20d28bfddfc06891f": {
     "describe": {
@@ -413,6 +523,16 @@
       }
     },
     "query": "with max_date as (\n    select user_id, max(date(plan_date)) as plan_date from plan_recipes group by user_id\n)\n\nselect plan_recipes.plan_date as \"plan_date: NaiveDate\", plan_recipes.recipe_id, plan_recipes.count\n    from plan_recipes\n    inner join max_date on plan_recipes.user_id = max_date.user_id\nwhere\n    plan_recipes.user_id = ?\n    and plan_recipes.plan_date = max_date.plan_date"
+  },
+  "ba07658eb11f9d6cfdb5dbee4496b2573f1e51f4b4d9ae760eca3b977649b5c7": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 4
+      }
+    },
+    "query": "insert into extra_items (user_id, name, amt, plan_date)\nvalues (?, ?, ?, ?)\non conflict (user_id, name, plan_date) do update set amt=excluded.amt"
   },
   "c988364f9f83f4fa8bd0e594bab432ee7c9ec47ca40f4d16e5e2a8763653f377": {
     "describe": {

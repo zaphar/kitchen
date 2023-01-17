@@ -17,10 +17,12 @@ use sycamore::prelude::*;
 pub mod cook;
 pub mod inventory;
 pub mod plan;
+pub mod select;
 
 pub use cook::*;
 pub use inventory::*;
 pub use plan::*;
+pub use select::*;
 
 #[derive(Props)]
 pub struct PageState<'a, G: Html> {
@@ -33,6 +35,7 @@ pub fn PlanningPage<'a, G: Html>(cx: Scope<'a>, state: PageState<'a, G>) -> View
     let PageState { children, selected } = state;
     let children = children.call(cx);
     let planning_tabs: Vec<(String, &'static str)> = vec![
+        ("/ui/planning/select".to_owned(), "Select"),
         ("/ui/planning/plan".to_owned(), "Plan"),
         ("/ui/planning/inventory".to_owned(), "Inventory"),
         ("/ui/planning/cook".to_owned(), "Cook"),

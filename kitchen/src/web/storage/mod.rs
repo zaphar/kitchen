@@ -145,6 +145,16 @@ pub trait APIStore {
         date: NaiveDate,
     ) -> Result<()>;
 
+    async fn fetch_inventory_for_date<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+        date: NaiveDate,
+    ) -> Result<(
+        Vec<IngredientKey>,
+        Vec<(IngredientKey, String)>,
+        Vec<(String, String)>,
+    )>;
+
     async fn fetch_latest_inventory_data<S: AsRef<str> + Send>(
         &self,
         user_id: S,
@@ -153,6 +163,15 @@ pub trait APIStore {
         Vec<(IngredientKey, String)>,
         Vec<(String, String)>,
     )>;
+
+    async fn save_inventory_data_for_date<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+        date: &NaiveDate,
+        filtered_ingredients: BTreeSet<IngredientKey>,
+        modified_amts: BTreeMap<IngredientKey, String>,
+        extra_items: Vec<(String, String)>,
+    ) -> Result<()>;
 
     async fn save_inventory_data<S: AsRef<str> + Send>(
         &self,
@@ -652,7 +671,89 @@ impl APIStore for SqliteStore {
         Ok(Some(result))
     }
 
-    // TODO(jwall): Do we need fetch for date variants of this.
+    async fn fetch_inventory_for_date<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+        date: NaiveDate,
+    ) -> Result<(
+        Vec<IngredientKey>,
+        Vec<(IngredientKey, String)>,
+        Vec<(String, String)>,
+    )> {
+        let user_id = user_id.as_ref();
+        struct FilteredIngredientRow {
+            name: String,
+            form: String,
+            measure_type: String,
+        }
+        let filtered_ingredient_rows: Vec<FilteredIngredientRow> = sqlx::query_file_as!(
+            FilteredIngredientRow,
+            "src/web/storage/fetch_filtered_ingredients_for_date.sql",
+            user_id,
+            date,
+        )
+        .fetch_all(self.pool.as_ref())
+        .await?;
+        let mut filtered_ingredients = Vec::new();
+        for row in filtered_ingredient_rows {
+            filtered_ingredients.push(IngredientKey::new(
+                row.name,
+                if row.form.is_empty() {
+                    None
+                } else {
+                    Some(row.form)
+                },
+                row.measure_type,
+            ));
+        }
+        struct ModifiedAmtRow {
+            name: String,
+            form: String,
+            measure_type: String,
+            amt: String,
+        }
+        let modified_amt_rows = sqlx::query_file_as!(
+            ModifiedAmtRow,
+            "src/web/storage/fetch_modified_amts_for_date.sql",
+            user_id,
+            date,
+        )
+        .fetch_all(self.pool.as_ref())
+        .await?;
+        let mut modified_amts = Vec::new();
+        for row in modified_amt_rows {
+            modified_amts.push((
+                IngredientKey::new(
+                    row.name,
+                    if row.form.is_empty() {
+                        None
+                    } else {
+                        Some(row.form)
+                    },
+                    row.measure_type,
+                ),
+                row.amt,
+            ));
+        }
+        pub struct ExtraItemRow {
+            name: String,
+            amt: String,
+        }
+        let extra_items_rows = sqlx::query_file_as!(
+            ExtraItemRow,
+            "src/web/storage/fetch_extra_items_for_date.sql",
+            user_id,
+            date,
+        )
+        .fetch_all(self.pool.as_ref())
+        .await?;
+        let mut extra_items = Vec::new();
+        for row in extra_items_rows {
+            extra_items.push((row.name, row.amt));
+        }
+        Ok((filtered_ingredients, modified_amts, extra_items))
+    }
+
     async fn fetch_latest_inventory_data<S: AsRef<str> + Send>(
         &self,
         user_id: S,
@@ -730,6 +831,66 @@ impl APIStore for SqliteStore {
             extra_items.push((row.name, row.amt));
         }
         Ok((filtered_ingredients, modified_amts, extra_items))
+    }
+
+    async fn save_inventory_data_for_date<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+        date: &NaiveDate,
+        filtered_ingredients: BTreeSet<IngredientKey>,
+        modified_amts: BTreeMap<IngredientKey, String>,
+        extra_items: Vec<(String, String)>,
+    ) -> Result<()> {
+        let user_id = user_id.as_ref();
+        let mut transaction = self.pool.as_ref().begin().await?;
+        // store the filtered_ingredients
+        for key in filtered_ingredients {
+            let name = key.name();
+            let form = key.form();
+            let measure_type = key.measure_type();
+            sqlx::query_file!(
+                "src/web/storage/save_filtered_ingredients_for_date.sql",
+                user_id,
+                name,
+                form,
+                measure_type,
+                date,
+            )
+            .execute(&mut transaction)
+            .await?;
+        }
+        // store the modified amts
+        for (key, amt) in modified_amts {
+            let name = key.name();
+            let form = key.form();
+            let measure_type = key.measure_type();
+            let amt = &amt;
+            sqlx::query_file!(
+                "src/web/storage/save_modified_amts_for_date.sql",
+                user_id,
+                name,
+                form,
+                measure_type,
+                amt,
+                date,
+            )
+            .execute(&mut transaction)
+            .await?;
+        }
+        // Store the extra items
+        for (name, amt) in extra_items {
+            sqlx::query_file!(
+                "src/web/storage/store_extra_items_for_date.sql",
+                user_id,
+                name,
+                amt,
+                date
+            )
+            .execute(&mut transaction)
+            .await?;
+        }
+        transaction.commit().await?;
+        Ok(())
     }
 
     async fn save_inventory_data<S: AsRef<str> + Send>(

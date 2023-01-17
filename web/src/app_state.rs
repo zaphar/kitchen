@@ -38,6 +38,7 @@ pub struct AppState {
     pub modified_amts: BTreeMap<IngredientKey, String>,
     pub auth: Option<UserData>,
     pub plan_dates: BTreeSet<NaiveDate>,
+    pub selected_plan_date: Option<NaiveDate>,
 }
 
 impl AppState {
@@ -52,6 +53,7 @@ impl AppState {
             modified_amts: BTreeMap::new(),
             auth: None,
             plan_dates: BTreeSet::new(),
+            selected_plan_date: None,
         }
     }
 }
@@ -73,6 +75,7 @@ pub enum Message {
     SaveState(Option<Box<dyn FnOnce()>>),
     LoadState(Option<Box<dyn FnOnce()>>),
     UpdateStaples(String, Option<Box<dyn FnOnce()>>),
+    SelectPlanDate(NaiveDate),
 }
 
 impl Debug for Message {
@@ -113,6 +116,7 @@ impl Debug for Message {
             Self::SaveState(_) => write!(f, "SaveState"),
             Self::LoadState(_) => write!(f, "LoadState"),
             Self::UpdateStaples(arg, _) => f.debug_tuple("UpdateStaples").field(arg).finish(),
+            Self::SelectPlanDate(arg) => f.debug_tuple("SelectPlanDate").field(arg).finish(),
         }
     }
 }
@@ -189,8 +193,15 @@ impl StateMachine {
             debug!(?plan_dates, "meal plan list");
             state.plan_dates = BTreeSet::from_iter(plan_dates.drain(0..));
         }
+
         info!("Synchronizing meal plan");
-        let plan = store.fetch_plan().await?;
+        let plan = if let Some(cached_plan_date) = local_store.get_plan_date() {
+            let plan = store.fetch_plan_for_date(&cached_plan_date).await?;
+            state.selected_plan_date = Some(cached_plan_date);
+            plan
+        } else {
+            store.fetch_plan().await?
+        };
         if let Some(plan) = plan {
             // set the counts.
             let mut plan_map = BTreeMap::new();
@@ -242,8 +253,13 @@ impl StateMachine {
                 error!("{:?}", e);
             }
         }
+        let inventory_data = if let Some(cached_plan_date) = &state.selected_plan_date {
+            store.fetch_inventory_for_date(cached_plan_date).await
+        } else {
+            store.fetch_inventory_data().await
+        };
         info!("Synchronizing inventory data");
-        match store.fetch_inventory_data().await {
+        match inventory_data {
             Ok((filtered_ingredients, modified_amts, extra_items)) => {
                 local_store.set_inventory_data((
                     &filtered_ingredients,
@@ -434,6 +450,36 @@ impl MessageMapper<Message, AppState> for StateMachine {
                         .expect("Failed to store staples");
                     callback.map(|f| f());
                 });
+                return;
+            }
+            Message::SelectPlanDate(date) => {
+                let store = self.store.clone();
+                let local_store = self.local_store.clone();
+                spawn_local_scoped(cx, async move {
+                    if let Some(mut plan) = store
+                        .fetch_plan_for_date(&date)
+                        .await
+                        .expect("Failed to fetch plan for date")
+                    {
+                        // Note(jwall): This is a little unusual but because this
+                        // is async code we can't rely on the set below.
+                        original_copy.recipe_counts =
+                            BTreeMap::from_iter(plan.drain(0..).map(|(k, v)| (k, v as usize)));
+                    }
+                    let (filtered, modified, extras) = store
+                        .fetch_inventory_for_date(&date)
+                        .await
+                        .expect("Failed to fetch inventory_data for date");
+                    original_copy.modified_amts = modified;
+                    original_copy.filtered_ingredients = filtered;
+                    original_copy.extras = extras;
+                    local_store.set_plan_date(&date);
+
+                    original.set(original_copy);
+                });
+                // NOTE(jwall): Because we do our signal set above in the async block
+                // we have to return here to avoid lifetime issues and double setting
+                // the original signal.
                 return;
             }
         }

@@ -293,6 +293,26 @@ async fn api_inventory_v2(
     }
 }
 
+async fn api_inventory_for_date(
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+    Path(date): Path<chrono::NaiveDate>,
+) -> api::InventoryResponse {
+    use storage::{UserId, UserIdFromSession::FoundUserId};
+    if let FoundUserId(UserId(id)) = session {
+        app_store
+            .fetch_inventory_for_date(id, date)
+            .await
+            .map(|d| {
+                let data: api::InventoryData = d.into();
+                data
+            })
+            .into()
+    } else {
+        api::Response::Unauthorized
+    }
+}
+
 async fn api_inventory(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
@@ -306,6 +326,35 @@ async fn api_inventory(
             .into()
     } else {
         api::Response::Unauthorized
+    }
+}
+
+async fn api_save_inventory_for_date(
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+    Path(date): Path<NaiveDate>,
+    Json((filtered_ingredients, modified_amts, extra_items)): Json<(
+        Vec<IngredientKey>,
+        Vec<(IngredientKey, String)>,
+        Vec<(String, String)>,
+    )>,
+) -> api::EmptyResponse {
+    use storage::{UserId, UserIdFromSession::FoundUserId};
+    if let FoundUserId(UserId(id)) = session {
+        let filtered_ingredients = filtered_ingredients.into_iter().collect();
+        let modified_amts = modified_amts.into_iter().collect();
+        app_store
+            .save_inventory_data_for_date(
+                id,
+                &date,
+                filtered_ingredients,
+                modified_amts,
+                extra_items,
+            )
+            .await
+            .into()
+    } else {
+        api::EmptyResponse::Unauthorized
     }
 }
 
@@ -440,6 +489,10 @@ fn mk_v2_routes() -> Router {
         .route(
             "/inventory",
             get(api_inventory_v2).post(api_save_inventory_v2),
+        )
+        .route(
+            "/inventory/at/:date",
+            get(api_inventory_for_date).post(api_save_inventory_for_date),
         )
         // TODO(jwall): This is now deprecated but will still work
         .route("/categories", get(api_categories).post(api_save_categories))

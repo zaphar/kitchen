@@ -62,6 +62,8 @@ pub enum ManageRoutes {
 
 #[derive(Route, Debug)]
 pub enum PlanningRoutes {
+    #[to("/select")]
+    Select,
     #[to("/plan")]
     Plan,
     #[to("/inventory")]
@@ -83,6 +85,9 @@ fn route_switch<'ctx, G: Html>(route: &Routes, cx: Scope<'ctx>, sh: StateHandler
     use ManageRoutes::*;
     use PlanningRoutes::*;
     match route {
+        Routes::Planning(Select) => view! {cx,
+            SelectPage(sh)
+        },
         Routes::Planning(Plan) => view! {cx,
             PlanPage(sh)
         },

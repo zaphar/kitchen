@@ -257,6 +257,27 @@ impl LocalStore {
         }
     }
 
+    pub fn set_plan_date(&self, date: &NaiveDate) {
+        self.store
+            .set(
+                "plan:date",
+                &to_string(&date).expect("Failed to serialize plan:date"),
+            )
+            .expect("Failed to store plan:date");
+    }
+
+    pub fn get_plan_date(&self) -> Option<NaiveDate> {
+        if let Some(date) = self
+            .store
+            .get("plan:date")
+            .expect("Failed to get plan date")
+        {
+            Some(from_str(&date).expect("Failed to deserialize plan_date"))
+        } else {
+            None
+        }
+    }
+
     pub fn get_inventory_data(
         &self,
     ) -> Option<(
@@ -606,7 +627,7 @@ impl HttpStore {
 
     pub async fn fetch_plan_for_date(
         &self,
-        date: NaiveDate,
+        date: &NaiveDate,
     ) -> Result<Option<Vec<(String, i32)>>, Error> {
         let mut path = self.v2_path();
         path.push_str("/plan");
@@ -640,6 +661,48 @@ impl HttpStore {
                 .map_err(|e| format!("{}", e))?
                 .as_success();
             Ok(plan)
+        }
+    }
+
+    pub async fn fetch_inventory_for_date(
+        &self,
+        date: &NaiveDate,
+    ) -> Result<
+        (
+            BTreeSet<IngredientKey>,
+            BTreeMap<IngredientKey, String>,
+            Vec<(String, String)>,
+        ),
+        Error,
+    > {
+        let mut path = self.v2_path();
+        path.push_str("/inventory");
+        path.push_str("/at");
+        path.push_str(&format!("/{}", date));
+        let resp = reqwasm::http::Request::get(&path).send().await?;
+        if resp.status() != 200 {
+            let err = Err(format!("Status: {}", resp.status()).into());
+            Ok(match self.local_store.get_inventory_data() {
+                Some(val) => val,
+                None => return err,
+            })
+        } else {
+            debug!("We got a valid response back");
+            let InventoryData {
+                filtered_ingredients,
+                modified_amts,
+                extra_items,
+            } = resp
+                .json::<InventoryResponse>()
+                .await
+                .map_err(|e| format!("{}", e))?
+                .as_success()
+                .unwrap();
+            Ok((
+                filtered_ingredients.into_iter().collect(),
+                modified_amts.into_iter().collect(),
+                extra_items,
+            ))
         }
     }
 
