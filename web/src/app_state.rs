@@ -16,6 +16,7 @@ use std::{
     fmt::Debug,
 };
 
+use chrono::NaiveDate;
 use client_api::UserData;
 use recipes::{parse, Ingredient, IngredientKey, Recipe, RecipeEntry};
 use sycamore::futures::spawn_local_scoped;
@@ -36,6 +37,7 @@ pub struct AppState {
     pub filtered_ingredients: BTreeSet<IngredientKey>,
     pub modified_amts: BTreeMap<IngredientKey, String>,
     pub auth: Option<UserData>,
+    pub plan_dates: BTreeSet<NaiveDate>,
 }
 
 impl AppState {
@@ -49,6 +51,7 @@ impl AppState {
             filtered_ingredients: BTreeSet::new(),
             modified_amts: BTreeMap::new(),
             auth: None,
+            plan_dates: BTreeSet::new(),
         }
     }
 }
@@ -180,6 +183,12 @@ impl StateMachine {
             local_store.set_all_recipes(recipe_entries);
         }
 
+        info!("Fetching meal plan list");
+        let plan_dates = store.fetch_plan_dates().await?;
+        if let Some(mut plan_dates) = plan_dates {
+            debug!(?plan_dates, "meal plan list");
+            state.plan_dates = BTreeSet::from_iter(plan_dates.drain(0..));
+        }
         info!("Synchronizing meal plan");
         let plan = store.fetch_plan().await?;
         if let Some(plan) = plan {
