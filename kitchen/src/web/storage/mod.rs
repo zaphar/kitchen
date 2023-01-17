@@ -121,6 +121,12 @@ pub trait APIStore {
         user_id: S,
     ) -> Result<Option<Vec<(String, i32)>>>;
 
+    async fn fetch_meal_plan_for_date<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+        date: NaiveDate,
+    ) -> Result<Option<Vec<(String, i32)>>>;
+
     async fn fetch_meal_plans_since<S: AsRef<str> + Send>(
         &self,
         user_id: S,
@@ -579,6 +585,40 @@ impl APIStore for SqliteStore {
                 .entry(date.clone())
                 .or_insert_with(|| Vec::new())
                 .push((recipe_id, count as i32));
+        }
+        Ok(Some(result))
+    }
+
+    async fn fetch_meal_plan_for_date<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+        date: NaiveDate,
+    ) -> Result<Option<Vec<(String, i32)>>> {
+        let user_id = user_id.as_ref();
+        struct Row {
+            pub plan_date: NaiveDate,
+            pub recipe_id: String,
+            pub count: i64,
+        }
+        // NOTE(jwall): It feels like I shouldn't have to use an override here
+        // but I do because of the way sqlite does types and how that interacts
+        // with sqlx's type inference machinery.
+        let rows = sqlx::query_file_as!(
+            Row,
+            "src/web/storage/fetch_plan_for_date.sql",
+            user_id,
+            date
+        )
+        .fetch_all(self.pool.as_ref())
+        .await?;
+        if rows.is_empty() {
+            return Ok(None);
+        }
+        let mut result = Vec::new();
+        for row in rows {
+            let (_, recipe_id, count): (NaiveDate, String, i64) =
+                (row.plan_date, row.recipe_id, row.count);
+            result.push((recipe_id, count as i32));
         }
         Ok(Some(result))
     }
