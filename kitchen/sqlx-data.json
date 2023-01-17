@@ -264,6 +264,24 @@
     },
     "query": "delete from sessions where id = ?"
   },
+  "7f4abc448b16e8b6b2bb74f8e810e245e81b38e1407085a20d28bfddfc06891f": {
+    "describe": {
+      "columns": [
+        {
+          "name": "plan_date: NaiveDate",
+          "ordinal": 0,
+          "type_info": "Date"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select distinct plan_date as \"plan_date: NaiveDate\" from plan_recipes\nwhere user_id = ?"
+  },
   "83824ea638cb64c524f5c8984ef6ef28dfe781f0abf168abc4ae9a51e6e0ae88": {
     "describe": {
       "columns": [],

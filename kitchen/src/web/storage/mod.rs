@@ -127,6 +127,11 @@ pub trait APIStore {
         date: NaiveDate,
     ) -> Result<Option<BTreeMap<NaiveDate, Vec<(String, i32)>>>>;
 
+    async fn fetch_all_meal_plans<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+    ) -> Result<Option<Vec<NaiveDate>>>;
+
     async fn save_meal_plan<S: AsRef<str> + Send>(
         &self,
         user_id: S,
@@ -517,6 +522,28 @@ impl APIStore for SqliteStore {
         }
         transaction.commit().await?;
         Ok(())
+    }
+
+    async fn fetch_all_meal_plans<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+    ) -> Result<Option<Vec<NaiveDate>>> {
+        let user_id = user_id.as_ref();
+        struct Row {
+            pub plan_date: NaiveDate,
+        }
+        let rows = sqlx::query_file_as!(Row, r#"src/web/storage/fetch_all_plans.sql"#, user_id,)
+            .fetch_all(self.pool.as_ref())
+            .await?;
+        if rows.is_empty() {
+            return Ok(None);
+        }
+        let mut result = Vec::new();
+        for row in rows {
+            let date: NaiveDate = row.plan_date;
+            result.push(date);
+        }
+        Ok(Some(result))
     }
 
     async fn fetch_meal_plans_since<S: AsRef<str> + Send>(
