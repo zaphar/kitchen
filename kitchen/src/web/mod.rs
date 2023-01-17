@@ -23,6 +23,7 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
     routing::{get, Router},
 };
+use chrono::NaiveDate;
 use mime_guess;
 use recipes::{IngredientKey, RecipeEntry};
 use rust_embed::RustEmbed;
@@ -232,6 +233,18 @@ async fn api_plan_since(
     }
 }
 
+async fn api_all_plans(
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+) -> api::Response<Vec<NaiveDate>> {
+    use storage::{UserId, UserIdFromSession::FoundUserId};
+    if let FoundUserId(UserId(id)) = session {
+        app_store.fetch_all_meal_plans(&id).await.into()
+    } else {
+        api::Response::Unauthorized
+    }
+}
+
 async fn api_save_plan(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
@@ -408,7 +421,8 @@ fn mk_v2_routes() -> Router {
         )
         // mealplan api path routes
         .route("/plan", get(api_plan).post(api_save_plan))
-        .route("/plan/:date", get(api_plan_since))
+        .route("/plan/since/:date", get(api_plan_since))
+        .route("/plan/all", get(api_all_plans))
         .route(
             "/inventory",
             get(api_inventory_v2).post(api_save_inventory_v2),
