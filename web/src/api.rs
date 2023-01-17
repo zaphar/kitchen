@@ -14,6 +14,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use base64;
+use chrono::NaiveDate;
 use reqwasm;
 use serde_json::{from_str, to_string};
 use sycamore::prelude::*;
@@ -582,6 +583,46 @@ impl HttpStore {
         } else {
             debug!("We got a valid response back!");
             Ok(())
+        }
+    }
+
+    pub async fn fetch_plan_dates(&self) -> Result<Option<Vec<NaiveDate>>, Error> {
+        let mut path = self.v2_path();
+        path.push_str("/plan");
+        path.push_str("/all");
+        let resp = reqwasm::http::Request::get(&path).send().await?;
+        if resp.status() != 200 {
+            Err(format!("Status: {}", resp.status()).into())
+        } else {
+            debug!("We got a valid response back");
+            let plan = resp
+                .json::<Response<Vec<NaiveDate>>>()
+                .await
+                .map_err(|e| format!("{}", e))?
+                .as_success();
+            Ok(plan)
+        }
+    }
+
+    pub async fn fetch_plan_for_date(
+        &self,
+        date: NaiveDate,
+    ) -> Result<Option<Vec<(String, i32)>>, Error> {
+        let mut path = self.v2_path();
+        path.push_str("/plan");
+        path.push_str("/at");
+        path.push_str(&format!("/{}", date));
+        let resp = reqwasm::http::Request::get(&path).send().await?;
+        if resp.status() != 200 {
+            Err(format!("Status: {}", resp.status()).into())
+        } else {
+            debug!("We got a valid response back");
+            let plan = resp
+                .json::<PlanDataResponse>()
+                .await
+                .map_err(|e| format!("{}", e))?
+                .as_success();
+            Ok(plan)
         }
     }
 
