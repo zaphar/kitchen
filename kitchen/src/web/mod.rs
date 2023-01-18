@@ -258,6 +258,22 @@ async fn api_all_plans(
     }
 }
 
+async fn api_delete_plan_for_date(
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+    Path(date): Path<chrono::NaiveDate>,
+) -> api::EmptyResponse {
+    use storage::{UserId, UserIdFromSession::FoundUserId};
+    if let FoundUserId(UserId(id)) = session {
+        app_store
+            .delete_meal_plan_for_date(id.as_str(), date)
+            .await
+            .into()
+    } else {
+        api::EmptyResponse::Unauthorized
+    }
+}
+
 async fn api_save_plan_for_date(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,

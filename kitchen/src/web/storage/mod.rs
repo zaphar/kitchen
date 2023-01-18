@@ -138,6 +138,12 @@ pub trait APIStore {
         user_id: S,
     ) -> Result<Option<Vec<NaiveDate>>>;
 
+    async fn delete_meal_plan_for_date<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+        date: NaiveDate,
+    ) -> Result<()>;
+
     async fn save_meal_plan<S: AsRef<str> + Send>(
         &self,
         user_id: S,
@@ -613,6 +619,44 @@ impl APIStore for SqliteStore {
                 .push((recipe_id, count as i32));
         }
         Ok(Some(result))
+    }
+
+    async fn delete_meal_plan_for_date<S: AsRef<str> + Send>(
+        &self,
+        user_id: S,
+        date: NaiveDate,
+    ) -> Result<()> {
+        let user_id = user_id.as_ref();
+        let mut transaction = self.pool.as_ref().begin().await?;
+        sqlx::query!(
+            "delete from plan_recipes where user_id = ? and plan_date = ?",
+            user_id,
+            date
+        )
+        .execute(&mut transaction)
+        .await?;
+        sqlx::query!(
+            "delete from filtered_ingredients where user_id = ? and plan_date = ?",
+            user_id,
+            date
+        )
+        .execute(&mut transaction)
+        .await?;
+        sqlx::query!(
+            "delete from modified_amts where user_id = ? and plan_date = ?",
+            user_id,
+            date
+        )
+        .execute(&mut transaction)
+        .await?;
+        sqlx::query!(
+            "delete from extra_items where user_id = ? and plan_date = ?",
+            user_id,
+            date
+        )
+        .execute(&mut transaction)
+        .await?;
+        Ok(())
     }
 
     async fn fetch_meal_plan_for_date<S: AsRef<str> + Send>(
