@@ -572,29 +572,67 @@ impl HttpStore {
 
     #[instrument(skip_all)]
     pub async fn store_app_state(&self, state: AppState) -> Result<(), Error> {
-        // TODO(jwall): We need to be able to store state for the plan date if set.
         let mut plan = Vec::new();
         for (key, count) in state.recipe_counts.iter() {
             plan.push((key.clone(), *count as i32));
         }
-        debug!("Saving plan data");
-        self.store_plan(plan).await?;
-        debug!("Saving inventory data");
-        self.store_inventory_data(
-            state.filtered_ingredients,
-            state.modified_amts,
-            state
-                .extras
-                .iter()
-                .cloned()
-                .collect::<Vec<(String, String)>>(),
-        )
-        .await
+        if let Some(cached_plan_date) = &state.selected_plan_date {
+            debug!("Saving plan data");
+            self.store_plan_for_date(plan, cached_plan_date).await?;
+            debug!("Saving inventory data");
+            self.store_inventory_data_for_date(
+                state.filtered_ingredients,
+                state.modified_amts,
+                state
+                    .extras
+                    .iter()
+                    .cloned()
+                    .collect::<Vec<(String, String)>>(),
+                cached_plan_date,
+            )
+            .await
+        } else {
+            debug!("Saving plan data");
+            self.store_plan(plan).await?;
+            debug!("Saving inventory data");
+            self.store_inventory_data(
+                state.filtered_ingredients,
+                state.modified_amts,
+                state
+                    .extras
+                    .iter()
+                    .cloned()
+                    .collect::<Vec<(String, String)>>(),
+            )
+            .await
+        }
     }
 
     pub async fn store_plan(&self, plan: Vec<(String, i32)>) -> Result<(), Error> {
         let mut path = self.v2_path();
         path.push_str("/plan");
+        let resp = reqwasm::http::Request::post(&path)
+            .body(to_string(&plan).expect("Unable to encode plan as json"))
+            .header("content-type", "application/json")
+            .send()
+            .await?;
+        if resp.status() != 200 {
+            Err(format!("Status: {}", resp.status()).into())
+        } else {
+            debug!("We got a valid response back!");
+            Ok(())
+        }
+    }
+
+    pub async fn store_plan_for_date(
+        &self,
+        plan: Vec<(String, i32)>,
+        date: &NaiveDate,
+    ) -> Result<(), Error> {
+        let mut path = self.v2_path();
+        path.push_str("/plan");
+        path.push_str("/at");
+        path.push_str(&format!("/{}", date));
         let resp = reqwasm::http::Request::post(&path)
             .body(to_string(&plan).expect("Unable to encode plan as json"))
             .header("content-type", "application/json")
@@ -743,6 +781,38 @@ impl HttpStore {
                 modified_amts.into_iter().collect(),
                 extra_items,
             ))
+        }
+    }
+
+    #[instrument]
+    pub async fn store_inventory_data_for_date(
+        &self,
+        filtered_ingredients: BTreeSet<IngredientKey>,
+        modified_amts: BTreeMap<IngredientKey, String>,
+        extra_items: Vec<(String, String)>,
+        date: &NaiveDate,
+    ) -> Result<(), Error> {
+        let mut path = self.v2_path();
+        path.push_str("/inventory");
+        path.push_str("/at");
+        path.push_str(&format!("/{}", date));
+        let filtered_ingredients: Vec<IngredientKey> = filtered_ingredients.into_iter().collect();
+        let modified_amts: Vec<(IngredientKey, String)> = modified_amts.into_iter().collect();
+        debug!("Storing inventory data in cache");
+        let serialized_inventory = to_string(&(filtered_ingredients, modified_amts, extra_items))
+            .expect("Unable to encode plan as json");
+        debug!("Storing inventory data via API");
+        let resp = reqwasm::http::Request::post(&path)
+            .body(&serialized_inventory)
+            .header("content-type", "application/json")
+            .send()
+            .await?;
+        if resp.status() != 200 {
+            debug!("Invalid response back");
+            Err(format!("Status: {}", resp.status()).into())
+        } else {
+            debug!("We got a valid response back!");
+            Ok(())
         }
     }
 

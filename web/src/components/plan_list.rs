@@ -34,7 +34,7 @@ pub fn PlanList<'ctx, G: Html>(cx: Scope<'ctx>, props: PlanListProps<'ctx>) -> V
             view=move |cx, date| {
                 let date_display = format!("{}", date);
                 view!{cx,
-                    div(on:click=move |_| {
+                    button(on:click=move |_| {
                         sh.dispatch(cx, Message::SelectPlanDate(date))
                     }) { (date_display) }
                 }
