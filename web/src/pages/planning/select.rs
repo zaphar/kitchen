@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use super::PlanningPage;
-use crate::{app_state::StateHandler, components::PlanList};
+use crate::{
+    app_state::{Message, StateHandler},
+    components::PlanList,
+};
 
 use chrono::NaiveDate;
 use sycamore::prelude::*;
@@ -30,6 +33,15 @@ pub fn SelectPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
     view! {cx,
         PlanningPage(
             selected=Some("Select".to_owned()),
-        ) { PlanList(sh=sh, list=plan_dates) }
+        ) {
+            PlanList(sh=sh, list=plan_dates)
+            span(role="button", on:click=move |_| {
+                sh.dispatch(cx, Message::SelectPlanDate(chrono::offset::Local::now().naive_local().date(), Some(Box::new(|| {
+                    sycamore_router::navigate("/ui/planning/plan");
+                }))))
+            }) {
+                "Start Plan for Today"
+            }
+        }
     }
 }

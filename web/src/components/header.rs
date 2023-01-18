@@ -26,7 +26,7 @@ pub fn Header<'ctx, G: Html>(cx: Scope<'ctx>, h: StateHandler<'ctx>) -> View<G> 
         nav(class="no-print") {
             h1(class="title") { "Kitchen" }
             ul {
-                li { a(href="/ui/planning/plan") { "MealPlan" } }
+                li { a(href="/ui/planning/select") { "MealPlan" } }
                 li { a(href="/ui/manage/ingredients") { "Manage" } }
                 li { a(href="/ui/login") { (login.get()) } }
             }

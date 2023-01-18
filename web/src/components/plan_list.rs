@@ -29,16 +29,24 @@ pub struct PlanListProps<'ctx> {
 pub fn PlanList<'ctx, G: Html>(cx: Scope<'ctx>, props: PlanListProps<'ctx>) -> View<G> {
     let PlanListProps { sh, list } = props;
     view! {cx,
-        Indexed(
-            iterable=list,
-            view=move |cx, date| {
-                let date_display = format!("{}", date);
-                view!{cx,
-                    button(on:click=move |_| {
-                        sh.dispatch(cx, Message::SelectPlanDate(date))
-                    }) { (date_display) }
-                }
-            },
-        )
+        div() {
+            table() {
+                Indexed(
+                    iterable=list,
+                    view=move |cx, date| {
+                        let date_display = format!("{}", date);
+                        view!{cx,
+                            tr() {
+                                td() {
+                                    span(role="button", class="outline", on:click=move |_| {
+                                        sh.dispatch(cx, Message::SelectPlanDate(date, None))
+                                    }) { (date_display) }
+                                }
+                            }
+                        }
+                    },
+                )
+            }
+        }
     }
 }

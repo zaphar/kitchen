@@ -258,6 +258,23 @@ async fn api_all_plans(
     }
 }
 
+async fn api_save_plan_for_date(
+    Extension(app_store): Extension<Arc<storage::SqliteStore>>,
+    session: storage::UserIdFromSession,
+    Path(date): Path<chrono::NaiveDate>,
+    Json(meal_plan): Json<Vec<(String, i32)>>,
+) -> api::EmptyResponse {
+    use storage::{UserId, UserIdFromSession::FoundUserId};
+    if let FoundUserId(UserId(id)) = session {
+        app_store
+            .save_meal_plan(id.as_str(), &meal_plan, date)
+            .await
+            .into()
+    } else {
+        api::EmptyResponse::Unauthorized
+    }
+}
+
 async fn api_save_plan(
     Extension(app_store): Extension<Arc<storage::SqliteStore>>,
     session: storage::UserIdFromSession,
@@ -484,7 +501,10 @@ fn mk_v2_routes() -> Router {
         // mealplan api path routes
         .route("/plan", get(api_plan).post(api_save_plan))
         .route("/plan/since/:date", get(api_plan_since))
-        .route("/plan/at/:date", get(api_plan_for_date))
+        .route(
+            "/plan/at/:date",
+            get(api_plan_for_date).post(api_save_plan_for_date),
+        )
         .route("/plan/all", get(api_all_plans))
         .route(
             "/inventory",
