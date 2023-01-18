@@ -42,6 +42,16 @@
     },
     "query": "with latest_dates as (\n    select user_id, max(date(plan_date)) as plan_date from plan_recipes\n    where user_id = ?\n    group by user_id\n)\n\nselect\n    extra_items.name,\n    extra_items.amt\nfrom latest_dates\ninner join extra_items on\n    latest_dates.user_id = extra_items.user_id\n    and latest_dates.plan_date = extra_items.plan_date"
   },
+  "10e1c111a16d647a106a3147f4e61e34b0176860ca99cb62cb43dc72550ad990": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "delete from modified_amts where user_id = ? and plan_date = ?"
+  },
   "160a9dfccf2e91a37d81f75eba21ec73105a7453c4f1fe76a430d04e525bc6cd": {
     "describe": {
       "columns": [],
@@ -125,6 +135,16 @@
       }
     },
     "query": "insert into modified_amts(user_id, name, form, measure_type, amt, plan_date)\n    values (?, ?, ?, ?, ?, ?) on conflict (user_id, name, form, measure_type, plan_date) do update set amt=excluded.amt"
+  },
+  "23beb05e40cf011170182d4e98cdf1faa3d8df6e5956e471245e666f32e56962": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "delete from filtered_ingredients where user_id = ? and plan_date = ?"
   },
   "2582522f8ca9f12eccc70a3b339d9030aee0f52e62d6674cfd3862de2a68a177": {
     "describe": {
@@ -363,6 +383,16 @@
       }
     },
     "query": "insert into modified_amts(user_id, name, form, measure_type, amt, plan_date)\n    values (?, ?, ?, ?, ?, date()) on conflict (user_id, name, form, measure_type, plan_date) do update set amt=excluded.amt"
+  },
+  "6f11d90875a6230766a5f9bd1d67665dc4d00c13d7e81b0d18d60baa67987da9": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "delete from extra_items where user_id = ? and plan_date = ?"
   },
   "7578157607967a6a4c60f12408c5d9900d15b429a49681a4cae4e02d31c524ec": {
     "describe": {

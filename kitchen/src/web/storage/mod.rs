@@ -754,6 +754,7 @@ impl APIStore for SqliteStore {
         Ok((filtered_ingredients, modified_amts, extra_items))
     }
 
+    // TODO(jwall): Deprecated
     async fn fetch_latest_inventory_data<S: AsRef<str> + Send>(
         &self,
         user_id: S,
@@ -844,6 +845,13 @@ impl APIStore for SqliteStore {
         let user_id = user_id.as_ref();
         let mut transaction = self.pool.as_ref().begin().await?;
         // store the filtered_ingredients
+        sqlx::query!(
+            "delete from filtered_ingredients where user_id = ? and plan_date = ?",
+            user_id,
+            date
+        )
+        .execute(&mut transaction)
+        .await?;
         for key in filtered_ingredients {
             let name = key.name();
             let form = key.form();
@@ -859,6 +867,13 @@ impl APIStore for SqliteStore {
             .execute(&mut transaction)
             .await?;
         }
+        sqlx::query!(
+            "delete from modified_amts where user_id = ? and plan_date = ?",
+            user_id,
+            date
+        )
+        .execute(&mut transaction)
+        .await?;
         // store the modified amts
         for (key, amt) in modified_amts {
             let name = key.name();
@@ -877,6 +892,13 @@ impl APIStore for SqliteStore {
             .execute(&mut transaction)
             .await?;
         }
+        sqlx::query!(
+            "delete from extra_items where user_id = ? and plan_date = ?",
+            user_id,
+            date
+        )
+        .execute(&mut transaction)
+        .await?;
         // Store the extra items
         for (name, amt) in extra_items {
             sqlx::query_file!(
