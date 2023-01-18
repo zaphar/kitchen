@@ -534,6 +534,13 @@ impl APIStore for SqliteStore {
     ) -> Result<()> {
         let user_id = user_id.as_ref();
         let mut transaction = self.pool.as_ref().begin().await?;
+        sqlx::query!(
+            "delete from plan_recipes where user_id = ? and plan_date = ?",
+            user_id,
+            date,
+        )
+        .execute(&mut transaction)
+        .await?;
         for (id, count) in recipe_counts {
             sqlx::query_file!(
                 "src/web/storage/save_meal_plan.sql",

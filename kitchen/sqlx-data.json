@@ -490,6 +490,16 @@
     },
     "query": "select session_value from sessions where id = ?"
   },
+  "93af0c367a0913d49c92aa69022fa30fc0564bd4dbab7f3ae78673a01439cd6e": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "delete from plan_recipes where user_id = ? and plan_date = ?"
+  },
   "95fbc362a2e17add05218a2dac431275b5cc55bd7ac8f4173ee10afefceafa3b": {
     "describe": {
       "columns": [
