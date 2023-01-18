@@ -572,6 +572,7 @@ impl HttpStore {
 
     #[instrument(skip_all)]
     pub async fn store_app_state(&self, state: AppState) -> Result<(), Error> {
+        // TODO(jwall): We need to be able to store state for the plan date if set.
         let mut plan = Vec::new();
         for (key, count) in state.recipe_counts.iter() {
             plan.push((key.clone(), *count as i32));

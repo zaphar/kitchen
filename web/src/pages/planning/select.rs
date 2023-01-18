@@ -12,15 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use super::PlanningPage;
-use crate::app_state::StateHandler;
+use crate::{app_state::StateHandler, components::PlanList};
 
+use chrono::NaiveDate;
 use sycamore::prelude::*;
 
 #[component]
 pub fn SelectPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
+    let plan_dates = sh.get_selector(cx, |state| {
+        state
+            .get()
+            .plan_dates
+            .iter()
+            .cloned()
+            .collect::<Vec<NaiveDate>>()
+    });
     view! {cx,
         PlanningPage(
             selected=Some("Select".to_owned()),
-        ) { "TODO(jwall)" }
+        ) { PlanList(sh=sh, list=plan_dates) }
     }
 }
