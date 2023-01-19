@@ -23,12 +23,14 @@ use sycamore::prelude::*;
 #[component]
 pub fn SelectPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
     let plan_dates = sh.get_selector(cx, |state| {
-        state
+        let mut plans = state
             .get()
             .plan_dates
             .iter()
             .cloned()
-            .collect::<Vec<NaiveDate>>()
+            .collect::<Vec<NaiveDate>>();
+        plans.sort_unstable_by(|d1, d2| d2.cmp(d1));
+        plans
     });
     view! {cx,
         PlanningPage(
