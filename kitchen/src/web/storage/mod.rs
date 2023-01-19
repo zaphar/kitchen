@@ -621,11 +621,13 @@ impl APIStore for SqliteStore {
         Ok(Some(result))
     }
 
+    #[instrument(skip_all, fields(user_id=user_id.as_ref(), date))]
     async fn delete_meal_plan_for_date<S: AsRef<str> + Send>(
         &self,
         user_id: S,
         date: NaiveDate,
     ) -> Result<()> {
+        debug!("Processing delete request");
         let user_id = user_id.as_ref();
         let mut transaction = self.pool.as_ref().begin().await?;
         sqlx::query!(
@@ -656,6 +658,7 @@ impl APIStore for SqliteStore {
         )
         .execute(&mut transaction)
         .await?;
+        transaction.commit().await?;
         Ok(())
     }
 

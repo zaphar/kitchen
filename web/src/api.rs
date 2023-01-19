@@ -257,7 +257,7 @@ impl LocalStore {
         }
     }
 
-    pub fn delete_plan_for_date(&self, date: &NaiveDate) {
+    pub fn delete_plan(&self) {
         self.store.delete("plan").expect("Failed to delete plan");
         self.store
             .delete("inventory")
@@ -578,18 +578,18 @@ impl HttpStore {
     }
 
     #[instrument(skip_all)]
-    pub async fn store_app_state(&self, state: AppState) -> Result<(), Error> {
+    pub async fn store_app_state(&self, state: &AppState) -> Result<(), Error> {
         let mut plan = Vec::new();
         for (key, count) in state.recipe_counts.iter() {
             plan.push((key.clone(), *count as i32));
         }
         if let Some(cached_plan_date) = &state.selected_plan_date {
-            debug!("Saving plan data");
+            debug!(?plan, "Saving plan data");
             self.store_plan_for_date(plan, cached_plan_date).await?;
             debug!("Saving inventory data");
             self.store_inventory_data_for_date(
-                state.filtered_ingredients,
-                state.modified_amts,
+                state.filtered_ingredients.clone(),
+                state.modified_amts.clone(),
                 state
                     .extras
                     .iter()
@@ -603,8 +603,8 @@ impl HttpStore {
             self.store_plan(plan).await?;
             debug!("Saving inventory data");
             self.store_inventory_data(
-                state.filtered_ingredients,
-                state.modified_amts,
+                state.filtered_ingredients.clone(),
+                state.modified_amts.clone(),
                 state
                     .extras
                     .iter()

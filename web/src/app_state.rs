@@ -211,6 +211,11 @@ impl StateMachine {
                 plan_map.insert(id, count as usize);
             }
             state.recipe_counts = plan_map;
+            for (id, _) in state.recipes.iter() {
+                if !state.recipe_counts.contains_key(id) {
+                    state.recipe_counts.insert(id.clone(), 0);
+                }
+            }
         } else {
             if let Some(plan) = local_store.get_plan() {
                 state.recipe_counts = plan.iter().map(|(k, v)| (k.clone(), *v as usize)).collect();
@@ -416,14 +421,24 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 original_copy.auth = Some(user_data);
             }
             Message::SaveState(f) => {
-                let original_copy = original_copy.clone();
+                let mut original_copy = original_copy.clone();
                 let store = self.store.clone();
                 spawn_local_scoped(cx, async move {
-                    if let Err(e) = store.store_app_state(original_copy).await {
+                    if original_copy.selected_plan_date.is_none() {
+                        original_copy.selected_plan_date = Some(chrono::Local::now().date_naive());
+                    }
+                    original_copy
+                        .plan_dates
+                        .insert(original_copy.selected_plan_date.map(|d| d.clone()).unwrap());
+                    if let Err(e) = store.store_app_state(&original_copy).await {
                         error!(err=?e, "Error saving app state")
                     };
+                    original.set(original_copy);
                     f.map(|f| f());
                 });
+                // NOTE(jwall): We set the original signal in the async above
+                // so we return immediately here.
+                return;
             }
             Message::LoadState(f) => {
                 let store = self.store.clone();
@@ -494,7 +509,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                         .delete_plan_for_date(&date)
                         .await
                         .expect("Failed to delete meal plan for date");
-                    local_store.delete_plan_for_date(&date);
+                    local_store.delete_plan();
 
                     original_copy.plan_dates.remove(&date);
                     // Reset all meal planning state;
