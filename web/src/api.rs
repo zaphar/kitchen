@@ -257,6 +257,13 @@ impl LocalStore {
         }
     }
 
+    pub fn delete_plan_for_date(&self, date: &NaiveDate) {
+        self.store.delete("plan").expect("Failed to delete plan");
+        self.store
+            .delete("inventory")
+            .expect("Failed to delete inventory data");
+    }
+
     pub fn set_plan_date(&self, date: &NaiveDate) {
         self.store
             .set(
@@ -661,6 +668,19 @@ impl HttpStore {
                 .map_err(|e| format!("{}", e))?
                 .as_success();
             Ok(plan)
+        }
+    }
+
+    pub async fn delete_plan_for_date(&self, date: &NaiveDate) -> Result<(), Error> {
+        let mut path = self.v2_path();
+        path.push_str("/plan");
+        path.push_str("/at");
+        path.push_str(&format!("/{}", date));
+        let resp = reqwasm::http::Request::delete(&path).send().await?;
+        if resp.status() != 200 {
+            Err(format!("Status: {}", resp.status()).into())
+        } else {
+            Ok(())
         }
     }
 

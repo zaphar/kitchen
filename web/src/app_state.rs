@@ -75,6 +75,7 @@ pub enum Message {
     SaveState(Option<Box<dyn FnOnce()>>),
     LoadState(Option<Box<dyn FnOnce()>>),
     UpdateStaples(String, Option<Box<dyn FnOnce()>>),
+    DeletePlan(NaiveDate, Option<Box<dyn FnOnce()>>),
     SelectPlanDate(NaiveDate, Option<Box<dyn FnOnce()>>),
 }
 
@@ -117,6 +118,7 @@ impl Debug for Message {
             Self::LoadState(_) => write!(f, "LoadState"),
             Self::UpdateStaples(arg, _) => f.debug_tuple("UpdateStaples").field(arg).finish(),
             Self::SelectPlanDate(arg, _) => f.debug_tuple("SelectPlanDate").field(arg).finish(),
+            Self::DeletePlan(arg, _) => f.debug_tuple("DeletePlan").field(arg).finish(),
         }
     }
 }
@@ -482,6 +484,28 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 // NOTE(jwall): Because we do our signal set above in the async block
                 // we have to return here to avoid lifetime issues and double setting
                 // the original signal.
+                return;
+            }
+            Message::DeletePlan(date, callback) => {
+                let store = self.store.clone();
+                let local_store = self.local_store.clone();
+                spawn_local_scoped(cx, async move {
+                    store
+                        .delete_plan_for_date(&date)
+                        .await
+                        .expect("Failed to delete meal plan for date");
+                    local_store.delete_plan_for_date(&date);
+
+                    original_copy.plan_dates.remove(&date);
+                    // Reset all meal planning state;
+                    let _ = original_copy.recipe_counts.iter_mut().map(|(_, v)| *v = 0);
+                    original_copy.filtered_ingredients = BTreeSet::new();
+                    original_copy.modified_amts = BTreeMap::new();
+                    original_copy.extras = Vec::new();
+                    original.set(original_copy);
+
+                    callback.map(|f| f());
+                });
                 return;
             }
         }

@@ -519,7 +519,9 @@ fn mk_v2_routes() -> Router {
         .route("/plan/since/:date", get(api_plan_since))
         .route(
             "/plan/at/:date",
-            get(api_plan_for_date).post(api_save_plan_for_date),
+            get(api_plan_for_date)
+                .post(api_save_plan_for_date)
+                .delete(api_delete_plan_for_date),
         )
         .route("/plan/all", get(api_all_plans))
         .route(

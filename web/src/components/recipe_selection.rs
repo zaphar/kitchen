@@ -50,7 +50,7 @@ pub fn RecipeSelection<'ctx, G: Html>(
             .get()
             .recipe_counts
             .get(id_for_count.as_ref())
-            .unwrap()
+            .unwrap_or(&0)
     });
     let count = create_signal(cx, format!("{}", *current_count.get_untracked()));
     create_effect(cx, || {
