@@ -24,17 +24,17 @@ use axum::{
     routing::{get, Router},
 };
 use chrono::NaiveDate;
+use client_api as api;
 use mime_guess;
 use recipes::{IngredientKey, RecipeEntry};
 use rust_embed::RustEmbed;
+use storage::{APIStore, AuthStore};
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, info, instrument};
 
-use client_api as api;
-use storage::{APIStore, AuthStore};
-
 mod auth;
+mod metrics;
 mod storage;
 
 #[derive(RustEmbed)]
@@ -546,6 +546,9 @@ fn mk_v2_routes() -> Router {
 
 #[instrument(fields(recipe_dir=?recipe_dir_path), skip_all)]
 pub async fn make_router(recipe_dir_path: PathBuf, store_path: PathBuf) -> Router {
+    let recorder = std::sync::Arc::new(metrics::get_recorder());
+    let handle = recorder.handle();
+    let metrics_trace_layer = metrics::make_trace_layer(recorder);
     let store = Arc::new(storage::file_store::AsyncFileStore::new(
         recipe_dir_path.clone(),
     ));
@@ -570,15 +573,20 @@ pub async fn make_router(recipe_dir_path: PathBuf, store_path: PathBuf) -> Route
                 .nest("/v1", mk_v1_routes())
                 .nest("/v2", mk_v2_routes()),
         )
-        // NOTE(jwall): Note that the layers are applied to the preceding routes not
+        .route(
+            "/metrics/prometheus",
+            get(|| async move { handle.render() }),
+        )
+        // NOTE(jwall): Note that this layer is applied to the preceding routes not
         // the following routes.
         .layer(
-            // NOTE(jwall): However service builder will apply the layers from top
+            // NOTE(jwall): However service builder will apply these layers from top
             // to bottom.
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
+                .layer(metrics_trace_layer)
                 .layer(Extension(store))
-                .layer(Extension(app_store)),
+                .layer(Extension(app_store)), //.layer(prometheus_layer)
         )
 }
 
