@@ -38,13 +38,13 @@ fn create_app<'a>() -> clap::App<'a> {
         )
         (@subcommand groceries =>
             (about: "print out a grocery list for a set of recipes")
-            (@arg csv: --csv "output ingredeints as csv")
+            (@arg csv: --csv "output ingredients as csv")
             (@arg INPUT: +required "Input menu file to parse. One recipe file per line.")
         )
         (@subcommand serve =>
             (about: "Serve the interface via the web")
             (@arg recipe_dir: -d --dir +takes_value "Directory containing recipe files to use")
-            (@arg session_dir: --session_dir +takes_value "Session store directory to use")
+            (@arg session_dir: --session_dir +takes_value +required "Session store directory to use")
             (@arg tls: --tls "Use TLS to serve.")
             (@arg cert_path: --cert +takes_value "Certificate path. Required if you specified --tls.")
             (@arg key_path: --cert_key +takes_value "Certificate key path. Required if you specified --tls")
@@ -55,7 +55,7 @@ fn create_app<'a>() -> clap::App<'a> {
             (@arg recipe_dir: -d --dir +takes_value "Directory containing recipe files to load for user")
             (@arg user: -u --user +takes_value +required "username to add")
             (@arg pass: -p --pass +takes_value +required "password to add for this user")
-            (@arg session_dir: --session_dir +takes_value "Session store directory to use")
+            (@arg session_dir: --session_dir +takes_value +required "Session store directory to use")
         )
     )
     .setting(clap::AppSettings::SubcommandRequiredElseHelp)
@@ -65,9 +65,10 @@ fn get_session_store_path(matches: &ArgMatches) -> PathBuf {
     if let Some(dir) = matches.value_of("session_dir") {
         PathBuf::from(dir)
     } else {
-        let mut dir =
-            std::env::current_dir().expect("Unable to get current directory. Bailing out.");
-        dir.push(".session_store");
+        let mut dir = std::env::var("HOME")
+            .map(PathBuf::from)
+            .expect("Unable to get user home directory. Bailing out.");
+        dir.push(".kitchen");
         dir
     }
 }

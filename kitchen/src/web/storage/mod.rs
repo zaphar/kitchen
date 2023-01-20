@@ -256,6 +256,7 @@ pub struct SqliteStore {
 
 impl SqliteStore {
     pub async fn new<P: AsRef<Path>>(path: P) -> sqlx::Result<Self> {
+        std::fs::create_dir_all(&path)?;
         let url = format!("sqlite://{}/store.db", path.as_ref().to_string_lossy());
         let options = SqliteConnectOptions::from_str(&url)?
             .journal_mode(SqliteJournalMode::Wal)
@@ -267,7 +268,7 @@ impl SqliteStore {
 
     #[instrument(fields(conn_string=self.url), skip_all)]
     pub async fn run_migrations(&self) -> sqlx::Result<()> {
-        info!("Running databse migrations");
+        info!("Running database migrations");
         sqlx::migrate!("./migrations")
             .run(self.pool.as_ref())
             .await?;
