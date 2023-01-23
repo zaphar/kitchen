@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 EXAMPLES=${EXAMPLES:-../examples}
-echo Starting api server serving ${EXAMPLES}
-nix run .\#kitchenDebug -- --verbose debug serve --dir ${EXAMPLES} --tls --cert ~/tls-certs/localhost+2.pem --cert_key ~/tls-certs/localhost+2-key.pem $@
+echo Starting server serving ${EXAMPLES}
+mkdir .session_store
+nix run .\#kitchenDebug -- --verbose debug serve --session_dir .session_store --dir ${EXAMPLES} --tls --cert ~/tls-certs/localhost+2.pem --cert_key ~/tls-certs/localhost+2-key.pem $@
 # This is ghetto but I'm doing it anyway
