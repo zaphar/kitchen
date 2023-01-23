@@ -106,7 +106,7 @@ impl<B> OnResponse<B> for MetricsRecorder {
         let labels = self.labels.lock().expect("Failed to unlock labels").clone();
         self.rec
             .as_ref()
-            .register_histogram(&Key::from_parts("http_request_time_ms", labels.clone()))
+            .register_histogram(&Key::from_parts("http_request_time_micros", labels.clone()))
             // If we somehow end up having requests overflow from u128 into f64 then we have
             // much bigger problems than this cast.
             .record(latency.as_micros() as f64);
