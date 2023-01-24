@@ -133,7 +133,7 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
 
 #[component]
 fn Steps<G: Html>(cx: Scope, steps: Vec<recipes::Step>) -> View<G> {
-    let step_fragments = View::new_fragment(steps.iter().map(|step| {
+    let step_fragments = View::new_fragment(steps.iter().enumerate().map(|(idx, step)| {
         let mut step = step.clone();
         let ingredient_fragments = View::new_fragment(step.ingredients.drain(0..).map(|i| {
             view! {cx,
@@ -144,7 +144,7 @@ fn Steps<G: Html>(cx: Scope, steps: Vec<recipes::Step>) -> View<G> {
         }).collect());
         view! {cx,
             div {
-                h3 { "Instructions" }
+                h3 { "Step " (idx + 1) }
                 ul(class="ingredients") {
                     (ingredient_fragments)
                 }
@@ -155,7 +155,7 @@ fn Steps<G: Html>(cx: Scope, steps: Vec<recipes::Step>) -> View<G> {
         }
     }).collect());
     view! {cx,
-            h2 { "Steps: " }
+            h2 { "Instructions: " }
             div(class="recipe_steps") {
                 (step_fragments)
             }
