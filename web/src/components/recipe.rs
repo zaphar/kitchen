@@ -72,20 +72,26 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
     let id = create_memo(cx, || recipe.get().recipe_id().to_owned());
     let dirty = create_signal(cx, false);
     let ts = create_signal(cx, js_lib::get_ms_timestamp());
+    let category = create_signal(cx, recipe.get().category().cloned().unwrap_or_default());
 
     debug!("creating editor view");
     view! {cx,
+        label(for="recipe_category") { "Category" }
+        input(name="recipe_category", bind:value=category, on:change=move |_| dirty.set(true))
         div(class="grid") {
-            textarea(bind:value=text, aria-invalid=aria_hint.get(), rows=20, on:change=move |_| {
-                dirty.set(true);
-                check_recipe_parses(text.get_untracked().as_str(), error_text, aria_hint);
-            }, on:input=move |_| {
-                let current_ts = js_lib::get_ms_timestamp();
-                if (current_ts - *ts.get_untracked()) > 100 {
+            div {
+                label(for="recipe_text") { "Recipe" }
+                textarea(name="recipe_text", bind:value=text, aria-invalid=aria_hint.get(), rows=20, on:change=move |_| {
+                    dirty.set(true);
                     check_recipe_parses(text.get_untracked().as_str(), error_text, aria_hint);
-                    ts.set(current_ts);
-                }
-            })
+                }, on:input=move |_| {
+                    let current_ts = js_lib::get_ms_timestamp();
+                    if (current_ts - *ts.get_untracked()) > 100 {
+                        check_recipe_parses(text.get_untracked().as_str(), error_text, aria_hint);
+                        ts.set(current_ts);
+                    }
+                })
+            }
             div(class="parse") { (error_text.get()) }
         }
         span(role="button", on:click=move |_| {
@@ -99,12 +105,19 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
                 debug!("Recipe text is changed");
                 spawn_local_scoped(cx, {
                     let store = crate::api::HttpStore::get_from_context(cx);
+                    let category = category.get_untracked();
+                    let category = if category.is_empty() {
+                        None
+                    } else {
+                        Some(category.as_ref().clone())
+                    };
                     async move {
                         debug!("Attempting to save recipe");
                         if let Err(e) = store
                             .store_recipes(vec![RecipeEntry(
                                 id.get_untracked().as_ref().clone(),
                                 text.get_untracked().as_ref().clone(),
+                                category,
                             )])
                             .await
                         {

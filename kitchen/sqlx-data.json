@@ -1,5 +1,15 @@
 {
   "db": "SQLite",
+  "05a9f963e3f18b8ceb787c33b6dbdac993f999ff32bb5155f2dff8dc18d840bf": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 4
+      }
+    },
+    "query": "insert into recipes (user_id, recipe_id, recipe_text, category) values (?, ?, ?, ?)\n    on conflict(user_id, recipe_id) do update set recipe_text=excluded.recipe_text, category=excluded.category"
+  },
   "104f07472670436d3eee1733578bbf0c92dc4f965d3d13f9bf4bfbc92958c5b6": {
     "describe": {
       "columns": [
@@ -62,30 +72,6 @@
     },
     "query": "insert into filtered_ingredients(user_id, name, form, measure_type, plan_date)\n    values (?, ?, ?, ?, date()) on conflict(user_id, name, form, measure_type, plan_date) DO NOTHING"
   },
-  "196e289cbd65224293c4213552160a0cdf82f924ac597810fe05102e247b809d": {
-    "describe": {
-      "columns": [
-        {
-          "name": "recipe_id",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "recipe_text",
-          "ordinal": 1,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        true
-      ],
-      "parameters": {
-        "Right": 2
-      }
-    },
-    "query": "select recipe_id, recipe_text from recipes where user_id = ? and recipe_id = ?"
-  },
   "19832e3582c05ed49c676fde33cde64274379a83a8dd130f6eec96c1d7250909": {
     "describe": {
       "columns": [
@@ -135,6 +121,36 @@
       }
     },
     "query": "insert into modified_amts(user_id, name, form, measure_type, amt, plan_date)\n    values (?, ?, ?, ?, ?, ?) on conflict (user_id, name, form, measure_type, plan_date) do update set amt=excluded.amt"
+  },
+  "1cc4412dfc3d4acdf257e839b50d6c9abbb6e74e7af606fd12da20f0aedde3de": {
+    "describe": {
+      "columns": [
+        {
+          "name": "recipe_id",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "recipe_text",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "category",
+          "ordinal": 2,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        true,
+        true
+      ],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "select recipe_id, recipe_text, category from recipes where user_id = ? and recipe_id = ?"
   },
   "23beb05e40cf011170182d4e98cdf1faa3d8df6e5956e471245e666f32e56962": {
     "describe": {
@@ -256,15 +272,35 @@
     },
     "query": "with latest_dates as (\n    select user_id, max(date(plan_date)) as plan_date from plan_recipes\n    where user_id = ?\n    group by user_id\n)\n\nselect\n    modified_amts.name,\n    modified_amts.form,\n    modified_amts.measure_type,\n    modified_amts.amt\nfrom latest_dates\ninner join modified_amts on\n    latest_dates.user_id = modified_amts.user_id\n    and latest_dates.plan_date = modified_amts.plan_date"
   },
-  "3fd4017569dca4fe73e97e0e2bd612027a8c1b17b0b10faabd6459f56ca1c0bb": {
+  "40c589d8cb88d7ed723c8651833fe8541756ef0c57bf6296a4dfbda7d504dca8": {
     "describe": {
-      "columns": [],
-      "nullable": [],
+      "columns": [
+        {
+          "name": "recipe_id",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "recipe_text",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "category",
+          "ordinal": 2,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        true,
+        true
+      ],
       "parameters": {
-        "Right": 3
+        "Right": 1
       }
     },
-    "query": "insert into recipes (user_id, recipe_id, recipe_text) values (?, ?, ?)\n    on conflict(user_id, recipe_id) do update set recipe_text=excluded.recipe_text"
+    "query": "select recipe_id, recipe_text, category from recipes where user_id = ?"
   },
   "4237ff804f254c122a36a14135b90434c6576f48d3a83245503d702552ea9f30": {
     "describe": {
@@ -499,30 +535,6 @@
       }
     },
     "query": "delete from plan_recipes where user_id = ? and plan_date = ?"
-  },
-  "95fbc362a2e17add05218a2dac431275b5cc55bd7ac8f4173ee10afefceafa3b": {
-    "describe": {
-      "columns": [
-        {
-          "name": "recipe_id",
-          "ordinal": 0,
-          "type_info": "Text"
-        },
-        {
-          "name": "recipe_text",
-          "ordinal": 1,
-          "type_info": "Text"
-        }
-      ],
-      "nullable": [
-        false,
-        true
-      ],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "select recipe_id, recipe_text from recipes where user_id = ?"
   },
   "9ad4acd9b9d32c9f9f441276aa71a17674fe4d65698848044778bd4aef77d42d": {
     "describe": {

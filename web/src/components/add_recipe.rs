@@ -31,10 +31,17 @@ Instructions here
 #[component]
 pub fn AddRecipe<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
     let recipe_title = create_signal(cx, String::new());
+    let category = create_signal(cx, String::new());
     let create_recipe_signal = create_signal(cx, ());
     let dirty = create_signal(cx, false);
 
     let entry = create_memo(cx, || {
+        let category = category.get().as_ref().to_owned();
+        let category = if category.is_empty() {
+            None
+        } else {
+            Some(category)
+        };
         RecipeEntry(
             recipe_title
                 .get()
@@ -45,12 +52,16 @@ pub fn AddRecipe<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View
             STARTER_RECIPE
                 .replace("TITLE_PLACEHOLDER", recipe_title.get().as_str())
                 .replace("\r", ""),
+            category,
         )
     });
 
     view! {cx,
         label(for="recipe_title") { "Recipe Title" }
         input(bind:value=recipe_title, type="text", name="recipe_title", id="recipe_title", on:change=move |_| {
+            dirty.set(true);
+        })
+        input(bind:value=category, type="text", name="recipe_title", id="recipe_title", on:change=move |_| {
             dirty.set(true);
         })
         button(on:click=move |_| {

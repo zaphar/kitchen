@@ -436,12 +436,13 @@ impl APIStore for SqliteStore {
         struct RecipeRow {
             pub recipe_id: String,
             pub recipe_text: Option<String>,
+            pub category: Option<String>,
         }
         let id = id.as_ref();
         let user_id = user_id.as_ref();
         let entry = sqlx::query_as!(
             RecipeRow,
-            "select recipe_id, recipe_text from recipes where user_id = ? and recipe_id = ?",
+            "select recipe_id, recipe_text, category from recipes where user_id = ? and recipe_id = ?",
             user_id,
             id,
         )
@@ -452,6 +453,7 @@ impl APIStore for SqliteStore {
             RecipeEntry(
                 row.recipe_id.clone(),
                 row.recipe_text.clone().unwrap_or_else(|| String::new()),
+                row.category.clone()
             )
         })
         .nth(0);
@@ -466,10 +468,11 @@ impl APIStore for SqliteStore {
         struct RecipeRow {
             pub recipe_id: String,
             pub recipe_text: Option<String>,
+            pub category: Option<String>,
         }
         let rows = sqlx::query_as!(
             RecipeRow,
-            "select recipe_id, recipe_text from recipes where user_id = ?",
+            "select recipe_id, recipe_text, category from recipes where user_id = ?",
             user_id,
         )
         .fetch_all(self.pool.as_ref())
@@ -479,6 +482,7 @@ impl APIStore for SqliteStore {
             RecipeEntry(
                 row.recipe_id.clone(),
                 row.recipe_text.clone().unwrap_or_else(|| String::new()),
+                row.category.clone(),
             )
         })
         .collect();
@@ -493,12 +497,14 @@ impl APIStore for SqliteStore {
         for entry in recipes {
             let recipe_id = entry.recipe_id().to_owned();
             let recipe_text = entry.recipe_text().to_owned();
+            let category = entry.category();
             sqlx::query!(
-                "insert into recipes (user_id, recipe_id, recipe_text) values (?, ?, ?)
-    on conflict(user_id, recipe_id) do update set recipe_text=excluded.recipe_text",
+                "insert into recipes (user_id, recipe_id, recipe_text, category) values (?, ?, ?, ?)
+    on conflict(user_id, recipe_id) do update set recipe_text=excluded.recipe_text, category=excluded.category",
                 user_id,
                 recipe_id,
                 recipe_text,
+                category,
             )
             .execute(self.pool.as_ref())
             .await?;
