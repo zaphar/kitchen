@@ -546,9 +546,10 @@ fn mk_v2_routes() -> Router {
 
 #[instrument(fields(recipe_dir=?recipe_dir_path), skip_all)]
 pub async fn make_router(recipe_dir_path: PathBuf, store_path: PathBuf) -> Router {
-    let recorder = std::sync::Arc::new(metrics::get_recorder());
-    let handle = recorder.handle();
-    let metrics_trace_layer = metrics::make_trace_layer(recorder);
+    let handle = metrics_exporter_prometheus::PrometheusBuilder::new()
+        .install_recorder()
+        .expect("Failed to install Prometheus Recorder");
+    let metrics_trace_layer = metrics::make_layer(|b: &axum::body::Bytes| b.len() as u64);
     let store = Arc::new(storage::file_store::AsyncFileStore::new(
         recipe_dir_path.clone(),
     ));

@@ -11,78 +11,99 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use std::sync::{
-    atomic::{AtomicU64, Ordering},
-    Arc, Mutex,
+//! A [metrics] powered [TraceLayer] that works with any [Tower](https://crates.io/crates/tower) middleware.
+use axum::http::{Request, Response};
+use metrics::{histogram, increment_counter, Label};
+use std::{
+    marker::PhantomData,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, Mutex,
+    },
 };
-
-use axum::{body::Bytes, http::Request, http::Response};
-use metrics::{Key, Label, Recorder};
-use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusRecorder};
 use tower_http::{
     classify::{ServerErrorsAsFailures, SharedClassifier},
     trace::{
-        DefaultMakeSpan, DefaultOnEos, OnBodyChunk, OnEos, OnFailure, OnRequest, OnResponse,
-        TraceLayer,
+        DefaultMakeSpan, DefaultOnEos, OnBodyChunk, OnFailure, OnRequest, OnResponse, TraceLayer,
     },
 };
+use tracing;
 
-// We want to track requeste count, request latency, request size minimally.
-
-pub type MetricsTraceLayer = TraceLayer<
+/// A Metrics Trace Layer using a [MetricsRecorder].
+///
+/// The layer will record 4 different metrics:
+///
+/// * http_request_counter
+/// * http_request_failure_counter
+/// * http_request_size_bytes_hist
+/// * http_request_request_time_micros_hist
+///
+/// Each of the metrics are labled by host, method, and path
+pub type MetricsTraceLayer<B, F> = TraceLayer<
     SharedClassifier<ServerErrorsAsFailures>,
     DefaultMakeSpan,
-    MetricsRecorder,
-    MetricsRecorder,
-    MetricsRecorder,
+    MetricsRecorder<B, F>,
+    MetricsRecorder<B, F>,
+    MetricsRecorder<B, F>,
     DefaultOnEos,
-    MetricsRecorder,
+    MetricsRecorder<B, F>,
 >;
 
-pub fn get_recorder() -> PrometheusRecorder {
-    let builder = PrometheusBuilder::new();
-    builder.build_recorder()
-}
-
-#[derive(Clone)]
-pub struct MetricsRecorder {
-    rec: Arc<PrometheusRecorder>,
+/// Holds the state required for recording metrics on a given request.
+pub struct MetricsRecorder<B, F>
+where
+    F: Fn(&B) -> u64,
+{
     labels: Arc<Mutex<Vec<Label>>>,
     size: Arc<AtomicU64>,
+    chunk_len: Arc<F>,
+    _phantom: PhantomData<B>,
 }
 
-impl MetricsRecorder {
-    pub fn new_with_rec(rec: Arc<PrometheusRecorder>) -> Self {
+impl<B, F> Clone for MetricsRecorder<B, F>
+where
+    F: Fn(&B) -> u64,
+{
+    fn clone(&self) -> Self {
         Self {
-            rec,
-            labels: Arc::new(Mutex::new(Vec::new())),
-            size: Arc::new(AtomicU64::new(0)),
+            labels: self.labels.clone(),
+            size: self.size.clone(),
+            chunk_len: self.chunk_len.clone(),
+            _phantom: self._phantom.clone(),
         }
     }
 }
 
-impl OnBodyChunk<Bytes> for MetricsRecorder {
-    fn on_body_chunk(
-        &mut self,
-        chunk: &Bytes,
-        _latency: std::time::Duration,
-        _span: &tracing::Span,
-    ) {
-        let _ = self.size.fetch_add(chunk.len() as u64, Ordering::SeqCst);
+impl<B, F> MetricsRecorder<B, F>
+where
+    F: Fn(&B) -> u64,
+{
+    /// Construct a new [MetricsRecorder] using the installed [Recorder].
+    pub fn new(f: F) -> Self {
+        Self {
+            labels: Arc::new(Mutex::new(Vec::new())),
+            size: Arc::new(AtomicU64::new(0)),
+            chunk_len: Arc::new(f),
+            _phantom: PhantomData,
+        }
     }
 }
 
-impl OnEos for MetricsRecorder {
-    fn on_eos(
-        self,
-        _trailers: Option<&axum::http::HeaderMap>,
-        _stream_duration: std::time::Duration,
-        _span: &tracing::Span,
-    ) {
+impl<B, F> OnBodyChunk<B> for MetricsRecorder<B, F>
+where
+    F: Fn(&B) -> u64,
+{
+    fn on_body_chunk(&mut self, chunk: &B, _latency: std::time::Duration, _span: &tracing::Span) {
+        let _ = self
+            .size
+            .fetch_add(self.chunk_len.as_ref()(chunk), Ordering::SeqCst);
     }
 }
 
-impl<FailureClass> OnFailure<FailureClass> for MetricsRecorder {
+impl<B, FailureClass, F> OnFailure<FailureClass> for MetricsRecorder<B, F>
+where
+    F: Fn(&B) -> u64,
+{
     fn on_failure(
         &mut self,
         _failure_classification: FailureClass,
@@ -90,30 +111,31 @@ impl<FailureClass> OnFailure<FailureClass> for MetricsRecorder {
         _span: &tracing::Span,
     ) {
         let labels = self.labels.lock().expect("Failed to unlock labels").clone();
-        self.rec
-            .as_ref()
-            .register_histogram(&Key::from_parts("http_request_failure_counter", labels));
+        increment_counter!("http_request_failure_counter", labels);
     }
 }
 
-impl<B> OnResponse<B> for MetricsRecorder {
+impl<B, RB, F> OnResponse<RB> for MetricsRecorder<B, F>
+where
+    F: Fn(&B) -> u64,
+{
     fn on_response(
         self,
-        _response: &Response<B>,
+        _response: &Response<RB>,
         latency: std::time::Duration,
         _span: &tracing::Span,
     ) {
         let labels = self.labels.lock().expect("Failed to unlock labels").clone();
-        self.rec
-            .as_ref()
-            .register_histogram(&Key::from_parts("http_request_time_micros", labels.clone()))
-            // If we somehow end up having requests overflow from u128 into f64 then we have
-            // much bigger problems than this cast.
-            .record(latency.as_micros() as f64);
-        self.rec
-            .as_ref()
-            .register_histogram(&Key::from_parts("http_request_size_bytes", labels))
-            .record(self.size.as_ref().load(Ordering::SeqCst) as f64);
+        histogram!(
+            "http_request_time_micros_hist",
+            latency.as_micros() as f64,
+            labels.clone()
+        );
+        histogram!(
+            "http_request_size_bytes_hist",
+            self.size.as_ref().load(Ordering::SeqCst) as f64,
+            labels
+        )
     }
 }
 
@@ -125,9 +147,11 @@ fn make_request_lables(path: String, host: String, method: String) -> Vec<Label>
     ]
 }
 
-impl<B> OnRequest<B> for MetricsRecorder {
-    fn on_request(&mut self, request: &Request<B>, _span: &tracing::Span) {
-        let rec = self.rec.as_ref();
+impl<B, RB, F> OnRequest<RB> for MetricsRecorder<B, F>
+where
+    F: Fn(&B) -> u64,
+{
+    fn on_request(&mut self, request: &Request<RB>, _span: &tracing::Span) {
         let path = request.uri().path().to_lowercase();
         let host = request.uri().host().unwrap_or("").to_lowercase();
         let method = request.method().to_string();
@@ -135,31 +159,20 @@ impl<B> OnRequest<B> for MetricsRecorder {
         let labels = make_request_lables(path, host, method);
         let mut labels_lock = self.labels.lock().expect("Failed to unlock labels");
         (*labels_lock.as_mut()) = labels.clone();
-        rec.register_counter(&Key::from_parts("http_request_counter", labels.clone()))
-            .increment(1);
+        increment_counter!("http_request_counter", labels);
     }
 }
 
-pub fn make_trace_layer(rec: Arc<PrometheusRecorder>) -> MetricsTraceLayer {
-    let metrics_recorder = MetricsRecorder::new_with_rec(rec);
+/// Construct a [TraceLayer] that will use an installed [metrics::Recorder] to record metrics per request.
+pub fn make_layer<B, F>(f: F) -> MetricsTraceLayer<B, F>
+where
+    F: Fn(&B) -> u64,
+{
+    let metrics_recorder = MetricsRecorder::new(f);
     let layer = TraceLayer::new_for_http()
         .on_body_chunk(metrics_recorder.clone())
         .on_request(metrics_recorder.clone())
         .on_response(metrics_recorder.clone())
         .on_failure(metrics_recorder.clone());
     layer
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    #[test]
-    fn test_construction() {
-        let metrics_recorder = MetricsRecorder::new_with_rec(std::sync::Arc::new(get_recorder()));
-        let _trace_layer = TraceLayer::new_for_http()
-            .on_body_chunk(metrics_recorder.clone())
-            .on_request(metrics_recorder.clone())
-            .on_response(metrics_recorder.clone())
-            .on_failure(metrics_recorder.clone());
-    }
 }
