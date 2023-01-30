@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 // Copyright 2022 Jeremy Wall
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,30 +14,45 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use recipes::Recipe;
+use reqwasm::websocket::State;
 use sycamore::prelude::*;
-use tracing::instrument;
+use tracing::{debug, instrument};
 
 use crate::app_state::{Message, StateHandler};
 use crate::components::recipe_selection::*;
 
+#[derive(Props)]
+pub struct CategoryGroupProps<'ctx> {
+    sh: StateHandler<'ctx>,
+    category: String,
+    recipes: Vec<(String, Recipe)>,
+    row_size: usize,
+}
+
 #[allow(non_snake_case)]
-#[instrument(skip_all)]
-pub fn RecipePlan<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
+pub fn CategoryGroup<'ctx, G: Html>(
+    cx: Scope<'ctx>,
+    CategoryGroupProps {
+        sh,
+        category,
+        recipes,
+        row_size,
+    }: CategoryGroupProps<'ctx>,
+) -> View<G> {
     let rows = sh.get_selector(cx, move |state| {
         let mut rows = Vec::new();
-        for row in state
-            .get()
-            .recipes
+        for row in recipes
             .iter()
-            .map(|(k, v)| create_signal(cx, (k.clone(), v.clone())))
+            .map(|(id, r)| create_signal(cx, (id.clone(), r.clone())))
             .collect::<Vec<&Signal<(String, Recipe)>>>()
-            .chunks(4)
+            .chunks(row_size)
         {
             rows.push(create_signal(cx, Vec::from(row)));
         }
         rows
     });
     view! {cx,
+        h2 { (category) }
         table(class="recipe_selector no-print") {
             (View::new_fragment(
                 rows.get().iter().cloned().map(|r| {
@@ -54,6 +71,44 @@ pub fn RecipePlan<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
                 }).collect()
             ))
         }
+    }
+}
+
+#[allow(non_snake_case)]
+#[instrument(skip_all)]
+pub fn RecipePlan<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
+    let recipe_category_groups = sh.get_selector(cx, |state| {
+        state
+            .get()
+            .recipe_categories
+            .iter()
+            .fold(BTreeMap::new(), |mut map, (r, cat)| {
+                debug!(?cat, recipe_id=?r, "Accumulating recipe into category");
+                map.entry(cat.clone()).or_insert(Vec::new()).push((
+                    r.clone(),
+                    state
+                        .get()
+                        .recipes
+                        .get(r)
+                        .expect("Failed to find recipe")
+                        .clone(),
+                ));
+                map
+            })
+            .iter()
+            .map(|(cat, rs)| (cat.clone(), rs.clone()))
+            .collect::<Vec<(String, Vec<(String, Recipe)>)>>()
+    });
+    view! {cx,
+        Keyed(
+            iterable=recipe_category_groups,
+            view=move |cx, (cat, recipes)| {
+                view! {cx,
+                    CategoryGroup(sh=sh, category=cat, recipes=recipes, row_size=4)
+                }
+            },
+            key=|(ref cat, _)| cat.clone(),
+        )
         span(role="button", on:click=move |_| {
             sh.dispatch(cx, Message::LoadState(None));
         }) { "Reset" } " "

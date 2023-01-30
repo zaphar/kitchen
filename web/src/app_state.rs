@@ -30,6 +30,7 @@ use crate::api::{HttpStore, LocalStore};
 #[derive(Debug, Clone, PartialEq)]
 pub struct AppState {
     pub recipe_counts: BTreeMap<String, usize>,
+    pub recipe_categories: BTreeMap<String, String>,
     pub extras: Vec<(String, String)>,
     pub staples: Option<BTreeSet<Ingredient>>,
     pub recipes: BTreeMap<String, Recipe>,
@@ -45,6 +46,7 @@ impl AppState {
     pub fn new() -> Self {
         Self {
             recipe_counts: BTreeMap::new(),
+            recipe_categories: BTreeMap::new(),
             extras: Vec::new(),
             staples: None,
             recipes: BTreeMap::new(),
@@ -187,6 +189,18 @@ impl StateMachine {
 
         if let Some(recipe_entries) = recipe_entries {
             local_store.set_all_recipes(recipe_entries);
+            state.recipe_categories = recipe_entries
+                .iter()
+                .map(|entry| {
+                    (
+                        entry.recipe_id().to_owned(),
+                        entry
+                            .category()
+                            .cloned()
+                            .unwrap_or_else(|| "Unknown".to_owned()),
+                    )
+                })
+                .collect::<BTreeMap<String, String>>();
         }
 
         info!("Fetching meal plan list");
