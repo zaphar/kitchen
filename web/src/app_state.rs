@@ -67,7 +67,6 @@ pub enum Message {
     RemoveExtra(usize),
     UpdateExtra(usize, String, String),
     SaveRecipe(RecipeEntry, Option<Box<dyn FnOnce()>>),
-    SetRecipe(String, Recipe),
     RemoveRecipe(String, Option<Box<dyn FnOnce()>>),
     UpdateCategory(String, String, Option<Box<dyn FnOnce()>>),
     ResetInventory,
@@ -101,9 +100,6 @@ impl Debug for Message {
                 .field(arg2)
                 .finish(),
             Self::SaveRecipe(arg0, _) => f.debug_tuple("SaveRecipe").field(arg0).finish(),
-            Self::SetRecipe(arg0, arg1) => {
-                f.debug_tuple("SetRecipe").field(arg0).field(arg1).finish()
-            }
             Self::RemoveRecipe(arg0, _) => f.debug_tuple("SetCategoryMap").field(arg0).finish(),
             Self::UpdateCategory(i, c, _) => {
                 f.debug_tuple("UpdateCategory").field(i).field(c).finish()
@@ -197,7 +193,7 @@ impl StateMachine {
                         entry
                             .category()
                             .cloned()
-                            .unwrap_or_else(|| "Unknown".to_owned()),
+                            .unwrap_or_else(|| "Entree".to_owned()),
                     )
                 })
                 .collect::<BTreeMap<String, String>>();
@@ -357,22 +353,29 @@ impl MessageMapper<Message, AppState> for StateMachine {
                     &original_copy.extras,
                 ))
             }
-            Message::SetRecipe(id, recipe) => {
-                original_copy.recipes.insert(id, recipe);
-            }
             Message::SaveRecipe(entry, callback) => {
                 let recipe =
                     parse::as_recipe(entry.recipe_text()).expect("Failed to parse RecipeEntry");
                 original_copy
                     .recipes
                     .insert(entry.recipe_id().to_owned(), recipe);
-                original_copy
-                    .recipe_counts
-                    .insert(entry.recipe_id().to_owned(), 0);
+                if !original_copy.recipe_counts.contains_key(entry.recipe_id()) {
+                    original_copy
+                        .recipe_counts
+                        .insert(entry.recipe_id().to_owned(), 0);
+                }
+                if let Some(cat) = entry.category().cloned() {
+                    original_copy
+                        .recipe_categories
+                        .entry(entry.recipe_id().to_owned())
+                        .and_modify(|c| *c = cat.clone())
+                        .or_insert(cat);
+                }
                 let store = self.store.clone();
                 self.local_store.set_recipe_entry(&entry);
                 spawn_local_scoped(cx, async move {
                     if let Err(e) = store.store_recipes(vec![entry]).await {
+                        // FIXME(jwall): We should have a global way to trigger error messages
                         error!(err=?e, "Unable to save Recipe");
                     }
                     callback.map(|f| f());

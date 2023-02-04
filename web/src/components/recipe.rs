@@ -72,7 +72,14 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
     let id = create_memo(cx, || recipe.get().recipe_id().to_owned());
     let dirty = create_signal(cx, false);
     let ts = create_signal(cx, js_lib::get_ms_timestamp());
-    let category = create_signal(cx, recipe.get().category().cloned().unwrap_or_default());
+    let category = create_signal(
+        cx,
+        recipe
+            .get()
+            .category()
+            .cloned()
+            .unwrap_or_else(|| "Entree".to_owned()),
+    );
 
     debug!("creating editor view");
     view! {cx,
@@ -103,40 +110,21 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
                     return;
                 }
                 debug!("Recipe text is changed");
-                spawn_local_scoped(cx, {
-                    let store = crate::api::HttpStore::get_from_context(cx);
-                    let category = category.get_untracked();
-                    let category = if category.is_empty() {
-                        None
-                    } else {
-                        Some(category.as_ref().clone())
-                    };
-                    async move {
-                        debug!("Attempting to save recipe");
-                        if let Err(e) = store
-                            .store_recipes(vec![RecipeEntry(
+                let category = category.get_untracked();
+                let category = if category.is_empty() {
+                    None
+                } else {
+                    Some(category.as_ref().clone())
+                };
+                let recipe_entry = RecipeEntry(
                                 id.get_untracked().as_ref().clone(),
                                 text.get_untracked().as_ref().clone(),
                                 category,
-                            )])
-                            .await
-                        {
-                            error!(?e, "Failed to save recipe");
-                            error_text.set(format!("{:?}", e));
-                        } else {
-                            // We also need to set recipe in our state
-                            dirty.set(false);
-                            if let Ok(recipe) = recipes::parse::as_recipe(text.get_untracked().as_ref()) {
-                                sh.dispatch(
-                                    cx,
-                                    Message::SetRecipe(id.get_untracked().as_ref().to_owned(), recipe),
-                                );
-                            }
-                        };
-                    }
-                });
-            } else {
+                );
+                sh.dispatch(cx, Message::SaveRecipe(recipe_entry, None));
+                dirty.set(false);
             }
+            // TODO(jwall): Show error message if trying to save when recipe doesn't parse.
         }) { "Save" } " "
         span(role="button", on:click=move |_| {
             sh.dispatch(cx, Message::RemoveRecipe(id.get_untracked().as_ref().to_owned(), Some(Box::new(|| sycamore_router::navigate("/ui/planning/plan")))));

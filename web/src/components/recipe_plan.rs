@@ -14,7 +14,6 @@ use std::collections::BTreeMap;
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use recipes::Recipe;
-use reqwasm::websocket::State;
 use sycamore::prelude::*;
 use tracing::{debug, instrument};
 
@@ -39,7 +38,7 @@ pub fn CategoryGroup<'ctx, G: Html>(
         row_size,
     }: CategoryGroupProps<'ctx>,
 ) -> View<G> {
-    let rows = sh.get_selector(cx, move |state| {
+    let rows = create_signal(cx, {
         let mut rows = Vec::new();
         for row in recipes
             .iter()
