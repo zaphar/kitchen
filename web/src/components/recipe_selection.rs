@@ -52,10 +52,10 @@ pub fn RecipeSelection<'ctx, G: Html>(
             .get(id_for_count.as_ref())
             .unwrap_or(&0)
     });
-    let count = create_signal(cx, format!("{}", *current_count.get_untracked()));
+    let count = create_signal(cx, *current_count.get_untracked() as f64);
     create_effect(cx, || {
-        let updated_count = format!("{}", current_count.get());
-        if &updated_count != count.get_untracked().as_ref() {
+        let updated_count = *current_count.get() as f64;
+        if updated_count != *count.get_untracked() {
             count.set(updated_count);
         }
     });
@@ -67,9 +67,9 @@ pub fn RecipeSelection<'ctx, G: Html>(
     view! {cx,
         div() {
             label(for=for_id) { a(href=href) { (*title) } }
-            NumberField(name=name, counter=count, min=0, on_change=Some(move |_| {
+            NumberField(name=name, counter=count, min=0.0, on_change=Some(move |_| {
                 debug!(idx=%id, count=%(*count.get_untracked()), "setting recipe count");
-                sh.dispatch(cx, Message::UpdateRecipeCount(id.as_ref().clone(), count.get_untracked().parse().expect("Count is not a valid usize")));
+                sh.dispatch(cx, Message::UpdateRecipeCount(id.as_ref().clone(), *count.get_untracked() as usize));
             }))
         }
     }

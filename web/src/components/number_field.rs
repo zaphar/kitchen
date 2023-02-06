@@ -24,8 +24,8 @@ where
 {
     name: String,
     on_change: Option<F>,
-    min: i32,
-    counter: &'ctx Signal<String>,
+    min: f64,
+    counter: &'ctx Signal<f64>,
 }
 
 #[component]
@@ -47,23 +47,23 @@ where
 
     view! {cx,
         div() {
-            input(type="number", id=id, name=name, class="item-count-sel", min=min_field, max="99", step="1", bind:value=counter, on:input=move |evt| {
+            input(type="number", id=id, name=name, class="item-count-sel", min=min_field, max="99", step="1", bind:valueAsNumber=counter, on:input=move |evt| {
                 on_change.as_ref().map(|f| f(evt));
             })
             span(class="item-count-inc-dec", on:click=move |_| {
-                let i: i32 = counter.get_untracked().parse().unwrap();
+                let i = *counter.get_untracked();
                 let target = js_lib::get_element_by_id::<HtmlInputElement>(&inc_target_id).unwrap().expect(&format!("No such element with id {}", inc_target_id));
-                counter.set(format!("{}", i+1));
+                counter.set(i+1.0);
                 debug!(counter=%(counter.get_untracked()), "set counter to new value");
                 // We force an input event to get triggered for our target.
                 target.dispatch_event(&web_sys::Event::new("input").expect("Failed to create new event")).expect("Failed to dispatch event to target");
             }) { "▲" }
             " "
             span(class="item-count-inc-dec", on:click=move |_| {
-                let i: i32 = counter.get_untracked().parse().unwrap();
+                let i = *counter.get_untracked();
                 let target = js_lib::get_element_by_id::<HtmlInputElement>(&dec_target_id).unwrap().expect(&format!("No such element with id {}", dec_target_id));
                 if i > min {
-                    counter.set(format!("{}", i-1));
+                    counter.set(i-1.0);
                     debug!(counter=%(counter.get_untracked()), "set counter to new value");
                     // We force an input event to get triggered for our target.
                     target.dispatch_event(&web_sys::Event::new("input").expect("Failed to create new event")).expect("Failed to dispatch event to target");
