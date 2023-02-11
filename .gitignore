@@ -8,3 +8,4 @@ result
 .vscode/
 .session_store/
 .gitignore/ 
+.DS_Store/ 
