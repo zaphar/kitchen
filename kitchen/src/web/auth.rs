@@ -97,6 +97,7 @@ pub async fn handler(
             .domain(domain)
             .secure(true)
             .path("/")
+            .permanent()
             .finish();
         let parsed_cookie = match cookie.to_string().parse() {
             Err(err) => {
