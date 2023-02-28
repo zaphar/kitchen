@@ -13,7 +13,7 @@
 // limitations under the License.
 use std::collections::{BTreeMap, BTreeSet};
 
-use base64;
+use base64::{self, Engine};
 use chrono::NaiveDate;
 use reqwasm;
 use serde_json::{from_str, to_string};
@@ -81,7 +81,7 @@ fn category_key<S: std::fmt::Display>(id: S) -> String {
 }
 
 fn token68(user: String, pass: String) -> String {
-    base64::encode(format!("{}:{}", user, pass))
+    base64::engine::general_purpose::STANDARD.encode(format!("{}:{}", user, pass))
 }
 
 #[derive(Clone, Debug)]
