@@ -25,6 +25,7 @@ use axum::{
 };
 use chrono::NaiveDate;
 use client_api as api;
+use metrics_process::Collector;
 use mime_guess;
 use recipes::{IngredientKey, RecipeEntry};
 use rust_embed::RustEmbed;
@@ -549,6 +550,9 @@ pub async fn make_router(recipe_dir_path: PathBuf, store_path: PathBuf) -> Route
     let handle = metrics_exporter_prometheus::PrometheusBuilder::new()
         .install_recorder()
         .expect("Failed to install Prometheus Recorder");
+    // Setup the prometheus process metrics.
+    let collector = Collector::default();
+    collector.describe();
     let metrics_trace_layer = metrics::make_layer(|b: &axum::body::Bytes| b.len() as u64);
     let store = Arc::new(storage::file_store::AsyncFileStore::new(
         recipe_dir_path.clone(),
@@ -576,7 +580,10 @@ pub async fn make_router(recipe_dir_path: PathBuf, store_path: PathBuf) -> Route
         )
         .route(
             "/metrics/prometheus",
-            get(|| async move { handle.render() }),
+            get(|| async move {
+                collector.collect();
+                handle.render()
+            }),
         )
         // NOTE(jwall): Note that this layer is applied to the preceding routes not
         // the following routes.
@@ -587,7 +594,7 @@ pub async fn make_router(recipe_dir_path: PathBuf, store_path: PathBuf) -> Route
                 .layer(TraceLayer::new_for_http())
                 .layer(metrics_trace_layer)
                 .layer(Extension(store))
-                .layer(Extension(app_store)), //.layer(prometheus_layer)
+                .layer(Extension(app_store)),
         )
 }
 

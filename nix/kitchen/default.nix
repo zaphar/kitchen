@@ -10,14 +10,20 @@ with pkgs;
 (naersk-lib.buildPackage rec {
     pname = "kitchen";
     inherit version;
-    buildInputs = [ rust-wasm ];
+    buildInputs = [ rust-wasm libclang ];
     # However the crate we are building has it's root in specific crate.
+    nativeBuildInputs = (if stdenv.isDarwin then (with pkgs.darwin.apple_sdk.frameworks; [
+      xcbuild
+      Security
+      fixDarwinDylibNames
+    ]) else [ ]) ++ [llvm clang rust-bindgen];
     src = root;
-    nativeBuildInputs = (if stdenv.isDarwin then [ xcbuild pkgs.darwin.apple_sdk.frameworks.Security ] else [ ]) ++ [llvm clang];
     cargoBuildOptions = opts: opts ++ ["-p" "${pname}" ];
     postPatch = ''
       mkdir -p web/dist
       cp -r ${kitchenWasm}/* web/dist/
       ls web/dist/
     '';
+    # We have to tell libproc where the libclang.dylib lives
+    LIBCLANG_PATH="${libclang.lib}/lib/";
 })
