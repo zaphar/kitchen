@@ -1385,7 +1385,7 @@ dependencies = [
 
 [[package]]
 name = "kitchen"
-version = "0.2.22"
+version = "0.2.23"
 dependencies = [
  "api",
  "argon2",
@@ -1419,7 +1419,7 @@ dependencies = [
 
 [[package]]
 name = "kitchen-wasm"
-version = "0.2.22"
+version = "0.2.23"
 dependencies = [
  "api",
  "async-trait",
