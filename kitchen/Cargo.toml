@@ -19,7 +19,7 @@ async-session = "3.0.0"
 ciborium = "0.2.0"
 tower = "0.4.13"
 serde = "1.0.144"
-cookie = "0.16.0"
+cookie = "0.17.0"
 chrono = "0.4.22"
 metrics = "0.20.1"
 metrics-exporter-prometheus = "0.11.0"
@@ -27,7 +27,7 @@ futures = "0.3"
 metrics-process = "1.0.8"
 
 [dependencies.argon2]
-version = "0.4.1"
+version = "0.5.0"
 
 [dependencies.secrecy]
 version = "0.8.0"

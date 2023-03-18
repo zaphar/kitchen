@@ -41,8 +41,8 @@ features = ["serde"]
 version = "0.5.0"
 
 [dependencies.wasm-bindgen]
-# we need wasm-bindgen v0.2.83 exactly
-version = "= 0.2.83"
+# we need wasm-bindgen v0.2.84 exactly
+version = "= 0.2.84"
 
 [dependencies.web-sys]
 version = "0.3"
