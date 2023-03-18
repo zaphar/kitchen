@@ -1,3 +1,6 @@
+let
+  lib = import ../lib/lib.nix;
+in
 {pkgs ? (import <nixpkgs>) {},
  # Because it's a workspace we need the other crates available as source
  root,
@@ -12,11 +15,7 @@ with pkgs;
     inherit version;
     buildInputs = [ rust-wasm libclang ];
     # However the crate we are building has it's root in specific crate.
-    nativeBuildInputs = (if stdenv.isDarwin then (with pkgs.darwin.apple_sdk.frameworks; [
-      xcbuild
-      Security
-      fixDarwinDylibNames
-    ]) else [ ]) ++ [llvm clang rust-bindgen];
+    nativeBuildInputs = (lib.darwin-sdk pkgs) ++ [llvm clang rust-bindgen];
     src = root;
     cargoBuildOptions = opts: opts ++ ["-p" "${pname}" ];
     postPatch = ''
