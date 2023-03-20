@@ -470,24 +470,6 @@
     },
     "query": "select\n    filtered_ingredients.name,\n    filtered_ingredients.form,\n    filtered_ingredients.measure_type\nfrom filtered_ingredients\nwhere\n     user_id = ?\n     and plan_date = ?"
   },
-  "7f4abc448b16e8b6b2bb74f8e810e245e81b38e1407085a20d28bfddfc06891f": {
-    "describe": {
-      "columns": [
-        {
-          "name": "plan_date: NaiveDate",
-          "ordinal": 0,
-          "type_info": "Date"
-        }
-      ],
-      "nullable": [
-        false
-      ],
-      "parameters": {
-        "Right": 1
-      }
-    },
-    "query": "select distinct plan_date as \"plan_date: NaiveDate\" from plan_recipes\nwhere user_id = ?"
-  },
   "83824ea638cb64c524f5c8984ef6ef28dfe781f0abf168abc4ae9a51e6e0ae88": {
     "describe": {
       "columns": [],
@@ -643,5 +625,23 @@
       }
     },
     "query": "with latest_dates as (\n    select user_id, max(date(plan_date)) as plan_date from plan_recipes\n    where user_id = ?\n    group by user_id\n)\n\nselect\n    filtered_ingredients.name,\n    filtered_ingredients.form,\n    filtered_ingredients.measure_type\nfrom latest_dates\ninner join filtered_ingredients on\n     latest_dates.user_id = filtered_ingredients.user_id\n     and latest_dates.plan_date = filtered_ingredients.plan_date"
+  },
+  "fd818a6b1c800c2014b5cfe8a923ac9228832b11d7575585cf7930fbf91306d1": {
+    "describe": {
+      "columns": [
+        {
+          "name": "plan_date: NaiveDate",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Right": 1
+      }
+    },
+    "query": "select distinct plan_date as \"plan_date: NaiveDate\" from plan_table\nwhere user_id = ?"
   }
 }
