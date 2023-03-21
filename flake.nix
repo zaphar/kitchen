@@ -72,7 +72,6 @@
                     type = "app";
                     program = "${kitchen}/bin/kitchen";
                 };
-                devShell = pkgs.callPackage ./nix/devShell/default.nix { inherit rust-wasm; };
             } 
         );
 }
