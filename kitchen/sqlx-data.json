@@ -172,6 +172,26 @@
     },
     "query": "insert into category_mappings\n    (user_id, ingredient_name, category_name)\n    values (?, ?, ?)\n    on conflict (user_id, ingredient_name)\n        do update set category_name=excluded.category_name\n"
   },
+  "27aa0a21f534cdf580841fa111136fc26cf1a0ca4ddb308c12f3f8f5a62d6178": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "delete from plan_table where user_id = ? and plan_date = ?"
+  },
+  "288535e7b9e1f02ad1b677e3dddc85f38c0766ce16d26fc1bdd2bf90ab9a7f7c": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Right": 2
+      }
+    },
+    "query": "insert into plan_table (user_id, plan_date) values (?, ?)\n    on conflict (user_id, plan_date) do nothing;"
+  },
   "2e076acd2405d234daaa866e5a2ac1e10989fc8d2820f90aa722464a7b17db6b": {
     "describe": {
       "columns": [

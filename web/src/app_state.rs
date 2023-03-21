@@ -504,10 +504,15 @@ impl MessageMapper<Message, AppState> for StateMachine {
                         .fetch_inventory_for_date(&date)
                         .await
                         .expect("Failed to fetch inventory_data for date");
+                    original_copy.plan_dates.insert(date.clone());
                     original_copy.modified_amts = modified;
                     original_copy.filtered_ingredients = filtered;
                     original_copy.extras = extras;
                     local_store.set_plan_date(&date);
+                    store
+                        .store_plan_for_date(vec![], &date)
+                        .await
+                        .expect("Failed to init meal plan for date");
 
                     original.set(original_copy);
 
