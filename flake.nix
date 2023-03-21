@@ -17,6 +17,7 @@
             kitchenGen = (import ./nix/kitchen/default.nix);
             kitchenWasmGen = (import ./nix/kitchenWasm/default.nix);
             moduleGen = (import ./nix/kitchen/module.nix);
+            wasm-packGen = (import ./nix/wasm-pack/default.nix);
             version = "0.2.24";
         in
         flake-utils.lib.eachDefaultSystem (system:
@@ -33,6 +34,11 @@
                 naersk-lib = pkgs.callPackage naersk {
                     rustc = rust-wasm;
                     cargo = rust-wasm;
+                };
+                # We've run into a few problems with the bundled wasm-pack in nixpkgs.
+                # Better to just control this part of our toolchain directly.
+                wasm-pack = wasm-packGen {
+                    inherit rust-wasm naersk-lib pkgs;
                 };
                 kitchenWasm = kitchenWasmGen {
                     inherit pkgs rust-wasm version;
@@ -71,6 +77,10 @@
                 defaultApp = {
                     type = "app";
                     program = "${kitchen}/bin/kitchen";
+                };
+                devShell = pkgs.callPackage ./nix/devShell/default.nix {
+                    inherit rust-wasm;
+                    wasm-pack-hermetic = wasm-pack;
                 };
             } 
         );
