@@ -2,6 +2,7 @@
  version,
  features ? "",
  rust-wasm,
+ wasm-bindgen,
 }:
 with pkgs;
 let
@@ -22,8 +23,8 @@ stdenv.mkDerivation {
     inherit src pname;
     version = version;
     # we need wasmb-bindgen v0.2.83 exactly
-    buildInputs = [ rust-wasm wasm-bindgen-cli wasm-pack binaryen];
-    propagatedBuildInputs = [ rust-wasm wasm-bindgen-cli wasm-pack binaryen];
+    buildInputs = [ rust-wasm wasm-bindgen wasm-pack binaryen];
+    propagatedBuildInputs = [ rust-wasm wasm-bindgen wasm-pack binaryen];
     phases = [ "postUnpackPhase" "buildPhase"];
     postUnpackPhase = ''
         ln -s ${cargoDeps} ./cargo-vendor-dir

@@ -18,6 +18,7 @@
             kitchenWasmGen = (import ./nix/kitchenWasm/default.nix);
             moduleGen = (import ./nix/kitchen/module.nix);
             wasm-packGen = (import ./nix/wasm-pack/default.nix);
+            wasm-bindgenGen = (import ./nix/wasm-bindgen/default.nix);
             version = "0.2.24";
         in
         flake-utils.lib.eachDefaultSystem (system:
@@ -41,8 +42,9 @@
                 wasm-pack = wasm-packGen {
                     inherit rust-wasm naersk-lib pkgs;
                 };
+                wasm-bindgen = pkgs.callPackage wasm-bindgenGen { inherit pkgs; };
                 kitchenWasm = kitchenWasmGen {
-                    inherit pkgs rust-wasm version;
+                    inherit pkgs rust-wasm wasm-bindgen version;
                 };
                 kitchen = (kitchenGen {
                     inherit pkgs version naersk-lib kitchenWasm rust-wasm;
@@ -52,7 +54,7 @@
                     root = ./.;
                 });
                 kitchenWasmDebug = kitchenWasmGen {
-                    inherit pkgs rust-wasm version;
+                    inherit pkgs rust-wasm wasm-bindgen version;
                     features = "--features debug_logs";
                 };
                 kitchenDebug = (kitchenGen {
