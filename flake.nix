@@ -35,6 +35,7 @@
                     rustc = rust-wasm;
                     cargo = rust-wasm;
                 };
+                # TODO(jwall): Do the same thing for wasm-bindgen as well?
                 # We've run into a few problems with the bundled wasm-pack in nixpkgs.
                 # Better to just control this part of our toolchain directly.
                 wasm-pack = wasm-packGen {
