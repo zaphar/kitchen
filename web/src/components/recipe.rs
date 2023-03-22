@@ -52,6 +52,7 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
     let text = create_signal(cx, String::new());
     let error_text = create_signal(cx, String::from("Parse results..."));
     let aria_hint = create_signal(cx, "false");
+    let category = create_signal(cx, "Entree".to_owned());
 
     spawn_local_scoped(cx, {
         let store = store.clone();
@@ -62,6 +63,9 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
                 .expect("Failure getting recipe");
             if let Some(entry) = entry {
                 text.set(entry.recipe_text().to_owned());
+                if let Some(cat) = entry.category() {
+                    category.set(cat.clone());
+                }
                 recipe.set(entry);
             } else {
                 error_text.set("Unable to find recipe".to_owned());
@@ -72,14 +76,6 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
     let id = create_memo(cx, || recipe.get().recipe_id().to_owned());
     let dirty = create_signal(cx, false);
     let ts = create_signal(cx, js_lib::get_ms_timestamp());
-    let category = create_signal(
-        cx,
-        recipe
-            .get()
-            .category()
-            .cloned()
-            .unwrap_or_else(|| "Entree".to_owned()),
-    );
 
     debug!("creating editor view");
     view! {cx,
