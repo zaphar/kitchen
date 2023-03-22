@@ -82,7 +82,7 @@
                     program = "${kitchen}/bin/kitchen";
                 };
                 devShell = pkgs.callPackage ./nix/devShell/default.nix {
-                    inherit rust-wasm;
+                    inherit rust-wasm wasm-bindgen;
                     wasm-pack-hermetic = wasm-pack;
                 };
             } 
