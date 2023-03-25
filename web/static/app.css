@@ -19,7 +19,19 @@
     --tab-border-style: solid;
     --tab-border-radius: 15px;
     --unicode-button-size: 2em;
+    --toast-anim-duration: 3s;
+    --toast-travel-distance: 0;
+    --notification-font-size: calc(var(--font-size) / 2);
+    --error-message-color: rgba(255, 98, 0, 0.797);
+    --error-message-bg: grey;
 }
+
+@media (prefers-reduced-motion: no-preference) {
+    .gui-toast {
+        --toast-travel-distance: 5vh;
+    }
+}
+
 
 @media print {
 
@@ -76,4 +88,50 @@ nav>h1 {
 
 .item-count-inc-dec {
     font-size: var(--unicode-button-size);
+}
+
+#toast-container {
+    position: fixed;
+    z-index: 1;
+    inset-block-start: 0;
+    inset-inline: 0;
+    padding-block-start: 5vh;
+
+    display: grid;
+    justify-items: center;
+    justify-content: center;
+    gap: 1vh;
+
+    font-size: var(--notification-font-size);
+
+    pointer-events: none;
+}
+
+.toast-container .error {
+    color: var(--error-message-color);
+    background-color: var(--error-message-bg);
+}
+
+.toast {
+    max-inline-size: min(25ch, 90vw);
+    padding-block: .5ch;
+    padding-inline: 1ch;
+    border-radius: 3px;
+
+    will-change: transform;
+    animation:
+        fade-in 1s ease,
+        fade-out .5s ease var(--toast-anim-duration);
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0
+    }
+}
+
+@keyframes fade-out {
+    to {
+        opacity: 0
+    }
 }
