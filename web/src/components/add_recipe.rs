@@ -61,9 +61,6 @@ pub fn AddRecipe<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View
         input(bind:value=recipe_title, type="text", name="recipe_title", id="recipe_title", on:change=move |_| {
             dirty.set(true);
         })
-        input(bind:value=category, type="text", name="recipe_title", id="recipe_title", on:change=move |_| {
-            dirty.set(true);
-        })
         button(on:click=move |_| {
             create_recipe_signal.trigger_subscribers();
             if !*dirty.get_untracked() {
