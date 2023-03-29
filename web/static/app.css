@@ -20,18 +20,10 @@
     --tab-border-radius: 15px;
     --unicode-button-size: 2em;
     --toast-anim-duration: 3s;
-    --toast-travel-distance: 0;
     --notification-font-size: calc(var(--font-size) / 2);
     --error-message-color: rgba(255, 98, 0, 0.797);
     --error-message-bg: grey;
 }
-
-@media (prefers-reduced-motion: no-preference) {
-    .gui-toast {
-        --toast-travel-distance: 5vh;
-    }
-}
-
 
 @media print {
 
