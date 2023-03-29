@@ -1,6 +1,6 @@
 [package]
 name = "kitchen"
-version = "0.2.24"
+version = "0.2.25"
 authors = ["Jeremy Wall <jeremy@marzhillstudios.com>"]
 edition = "2021"
 

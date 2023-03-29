@@ -19,7 +19,7 @@
             moduleGen = (import ./nix/kitchen/module.nix);
             wasm-packGen = (import ./nix/wasm-pack/default.nix);
             wasm-bindgenGen = (import ./nix/wasm-bindgen/default.nix);
-            version = "0.2.24";
+            version = "0.2.25";
         in
         flake-utils.lib.eachDefaultSystem (system:
             let
