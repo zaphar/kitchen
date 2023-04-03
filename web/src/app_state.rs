@@ -527,6 +527,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                     original_copy.modified_amts = modified;
                     original_copy.filtered_ingredients = filtered;
                     original_copy.extras = extras;
+                    original_copy.selected_plan_date = Some(date.clone());
                     local_store.set_plan_date(&date);
                     store
                         .store_plan_for_date(vec![], &date)
