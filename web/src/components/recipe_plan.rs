@@ -89,7 +89,7 @@ pub fn RecipePlan<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
                         .get()
                         .recipes
                         .get(r)
-                        .expect("Failed to find recipe")
+                        .expect(&format!("Failed to find recipe {}", r))
                         .clone(),
                 ));
                 map

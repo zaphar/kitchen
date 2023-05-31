@@ -19,6 +19,7 @@ use std::{
 use chrono::NaiveDate;
 use client_api::UserData;
 use recipes::{parse, Ingredient, IngredientKey, Recipe, RecipeEntry};
+use serde::{Deserialize, Serialize};
 use sycamore::futures::spawn_local_scoped;
 use sycamore::prelude::*;
 use sycamore_state::{Handler, MessageMapper};
@@ -30,12 +31,14 @@ use crate::{
     components,
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AppState {
     pub recipe_counts: BTreeMap<String, usize>,
     pub recipe_categories: BTreeMap<String, String>,
     pub extras: Vec<(String, String)>,
+    #[serde(skip)] // FIXME(jwall): This should really be storable I think?
     pub staples: Option<BTreeSet<Ingredient>>,
+    #[serde(skip)] // FIXME(jwall): This should really be storable I think?
     pub recipes: BTreeMap<String, Recipe>,
     pub category_map: BTreeMap<String, String>,
     pub filtered_ingredients: BTreeSet<IngredientKey>,
@@ -162,35 +165,35 @@ impl StateMachine {
         local_store: &LocalStore,
         original: &Signal<AppState>,
     ) -> Result<(), crate::api::Error> {
+        // TODO(jwall): Load plan state from local_store first.
+        if let Some(app_state) = local_store.fetch_app_state() {
+            original.set_silent(app_state);
+        }
         let mut state = original.get().as_ref().clone();
         info!("Synchronizing Recipes");
         let recipe_entries = &store.fetch_recipes().await?;
         let recipes = parse_recipes(&recipe_entries)?;
-
+        debug!(?recipes, "Parsed Recipes");
         if let Some(recipes) = recipes {
             state.recipes = recipes;
         };
 
         info!("Synchronizing staples");
         state.staples = if let Some(content) = store.fetch_staples().await? {
-            local_store.set_staples(&content);
             // now we need to parse staples as ingredients
             let mut staples = parse::as_ingredient_list(&content)?;
             Some(staples.drain(0..).collect())
         } else {
-            if let Some(content) = local_store.get_staples() {
-                let mut staples = parse::as_ingredient_list(&content)?;
-                Some(staples.drain(0..).collect())
-            } else {
-                None
-            }
+            Some(BTreeSet::new())
         };
 
+        info!("Synchronizing recipe");
         if let Some(recipe_entries) = recipe_entries {
             local_store.set_all_recipes(recipe_entries);
             state.recipe_categories = recipe_entries
                 .iter()
                 .map(|entry| {
+                    debug!(recipe_entry=?entry, "Getting recipe category");
                     (
                         entry.recipe_id().to_owned(),
                         entry
@@ -203,19 +206,19 @@ impl StateMachine {
         }
 
         info!("Fetching meal plan list");
-        let plan_dates = store.fetch_plan_dates().await?;
-        if let Some(mut plan_dates) = plan_dates {
+        if let Some(mut plan_dates) = store.fetch_plan_dates().await? {
             debug!(?plan_dates, "meal plan list");
             state.plan_dates = BTreeSet::from_iter(plan_dates.drain(0..));
         }
 
         info!("Synchronizing meal plan");
-        let plan = if let Some(cached_plan_date) = local_store.get_plan_date() {
-            let plan = store.fetch_plan_for_date(&cached_plan_date).await?;
-            state.selected_plan_date = Some(cached_plan_date);
-            plan
+        let plan = if let Some(ref cached_plan_date) = state.selected_plan_date {
+            store
+                .fetch_plan_for_date(cached_plan_date)
+                .await?
+                .or_else(|| Some(Vec::new()))
         } else {
-            store.fetch_plan().await?
+            None
         };
         if let Some(plan) = plan {
             // set the counts.
@@ -230,23 +233,13 @@ impl StateMachine {
                 }
             }
         } else {
-            if let Some(plan) = local_store.get_plan() {
-                state.recipe_counts = plan.iter().map(|(k, v)| (k.clone(), *v as usize)).collect();
-            } else {
-                // Initialize things to zero.
-                if let Some(rs) = recipe_entries {
-                    for r in rs {
-                        state.recipe_counts.insert(r.recipe_id().to_owned(), 0);
-                    }
+            // Initialize things to zero.
+            if let Some(rs) = recipe_entries {
+                for r in rs {
+                    state.recipe_counts.insert(r.recipe_id().to_owned(), 0);
                 }
             }
         }
-        let plan = state
-            .recipe_counts
-            .iter()
-            .map(|(k, v)| (k.clone(), *v as i32))
-            .collect::<Vec<(String, i32)>>();
-        local_store.store_plan(&plan);
         info!("Checking for user account data");
         if let Some(user_data) = store.fetch_user_data().await {
             debug!("Successfully got account data from server");
@@ -261,13 +254,11 @@ impl StateMachine {
         match store.fetch_categories().await {
             Ok(Some(mut categories_content)) => {
                 debug!(categories=?categories_content);
-                local_store.set_categories(Some(&categories_content));
                 let category_map = BTreeMap::from_iter(categories_content.drain(0..));
                 state.category_map = category_map;
             }
             Ok(None) => {
                 warn!("There is no category file");
-                local_store.set_categories(None);
             }
             Err(e) => {
                 error!("{:?}", e);
@@ -281,11 +272,6 @@ impl StateMachine {
         info!("Synchronizing inventory data");
         match inventory_data {
             Ok((filtered_ingredients, modified_amts, extra_items)) => {
-                local_store.set_inventory_data((
-                    &filtered_ingredients,
-                    &modified_amts,
-                    &extra_items,
-                ));
                 state.modified_amts = modified_amts;
                 state.filtered_ingredients = filtered_ingredients;
                 state.extras = extra_items;
@@ -294,6 +280,8 @@ impl StateMachine {
                 error!("{:?}", e);
             }
         }
+        // Finally we store all of this app state back to our localstore
+        local_store.store_app_state(&state);
         original.set(state);
         Ok(())
     }
@@ -310,35 +298,16 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 for (id, _) in original_copy.recipes.iter() {
                     map.insert(id.clone(), 0);
                 }
-                let plan: Vec<(String, i32)> =
-                    map.iter().map(|(s, i)| (s.clone(), *i as i32)).collect();
-                self.local_store.store_plan(&plan);
                 original_copy.recipe_counts = map;
             }
             Message::UpdateRecipeCount(id, count) => {
                 original_copy.recipe_counts.insert(id, count);
-                let plan: Vec<(String, i32)> = original_copy
-                    .recipe_counts
-                    .iter()
-                    .map(|(s, i)| (s.clone(), *i as i32))
-                    .collect();
-                self.local_store.store_plan(&plan);
             }
             Message::AddExtra(amt, name) => {
                 original_copy.extras.push((amt, name));
-                self.local_store.set_inventory_data((
-                    &original_copy.filtered_ingredients,
-                    &original_copy.modified_amts,
-                    &original_copy.extras,
-                ))
             }
             Message::RemoveExtra(idx) => {
                 original_copy.extras.remove(idx);
-                self.local_store.set_inventory_data((
-                    &original_copy.filtered_ingredients,
-                    &original_copy.modified_amts,
-                    &original_copy.extras,
-                ))
             }
             Message::UpdateExtra(idx, amt, name) => {
                 match original_copy.extras.get_mut(idx) {
@@ -350,11 +319,6 @@ impl MessageMapper<Message, AppState> for StateMachine {
                         throw_str("Attempted to remove extra that didn't exist");
                     }
                 }
-                self.local_store.set_inventory_data((
-                    &original_copy.filtered_ingredients,
-                    &original_copy.modified_amts,
-                    &original_copy.extras,
-                ))
             }
             Message::SaveRecipe(entry, callback) => {
                 let recipe =
@@ -404,8 +368,6 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 });
             }
             Message::UpdateCategory(ingredient, category, callback) => {
-                self.local_store
-                    .set_categories(Some(&vec![(ingredient.clone(), category.clone())]));
                 original_copy
                     .category_map
                     .insert(ingredient.clone(), category.clone());
@@ -421,28 +383,13 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 original_copy.filtered_ingredients = BTreeSet::new();
                 original_copy.modified_amts = BTreeMap::new();
                 original_copy.extras = Vec::new();
-                self.local_store.set_inventory_data((
-                    &original_copy.filtered_ingredients,
-                    &original_copy.modified_amts,
-                    &original_copy.extras,
-                ));
                 components::toast::message(cx, "Reset Inventory", None);
             }
             Message::AddFilteredIngredient(key) => {
                 original_copy.filtered_ingredients.insert(key);
-                self.local_store.set_inventory_data((
-                    &original_copy.filtered_ingredients,
-                    &original_copy.modified_amts,
-                    &original_copy.extras,
-                ));
             }
             Message::UpdateAmt(key, amt) => {
                 original_copy.modified_amts.insert(key, amt);
-                self.local_store.set_inventory_data((
-                    &original_copy.filtered_ingredients,
-                    &original_copy.modified_amts,
-                    &original_copy.extras,
-                ));
             }
             Message::SetUserData(user_data) => {
                 self.local_store.set_user_data(Some(&user_data));
@@ -451,19 +398,25 @@ impl MessageMapper<Message, AppState> for StateMachine {
             Message::SaveState(f) => {
                 let mut original_copy = original_copy.clone();
                 let store = self.store.clone();
+                let local_store = self.local_store.clone();
                 spawn_local_scoped(cx, async move {
                     if original_copy.selected_plan_date.is_none() {
                         original_copy.selected_plan_date = Some(chrono::Local::now().date_naive());
                     }
-                    original_copy
-                        .plan_dates
-                        .insert(original_copy.selected_plan_date.map(|d| d.clone()).unwrap());
+                    original_copy.plan_dates.insert(
+                        original_copy
+                            .selected_plan_date
+                            .as_ref()
+                            .map(|d| d.clone())
+                            .unwrap(),
+                    );
                     if let Err(e) = store.store_app_state(&original_copy).await {
                         error!(err=?e, "Error saving app state");
                         components::toast::error_message(cx, "Failed to save user state", None);
                     } else {
                         components::toast::message(cx, "Saved user state", None);
                     };
+                    local_store.store_app_state(&original_copy);
                     original.set(original_copy);
                     f.map(|f| f());
                 });
@@ -474,17 +427,13 @@ impl MessageMapper<Message, AppState> for StateMachine {
             Message::LoadState(f) => {
                 let store = self.store.clone();
                 let local_store = self.local_store.clone();
+                debug!("Loading user state.");
                 spawn_local_scoped(cx, async move {
                     if let Err(err) = Self::load_state(&store, &local_store, original).await {
                         error!(?err, "Failed to load user state");
                         components::toast::error_message(cx, "Failed to load_state.", None);
                     } else {
                         components::toast::message(cx, "Loaded user state", None);
-                        local_store.set_inventory_data((
-                            &original.get().filtered_ingredients,
-                            &original.get().modified_amts,
-                            &original.get().extras,
-                        ));
                     }
                     f.map(|f| f());
                 });
@@ -492,9 +441,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
             }
             Message::UpdateStaples(content, callback) => {
                 let store = self.store.clone();
-                let local_store = self.local_store.clone();
                 spawn_local_scoped(cx, async move {
-                    local_store.set_staples(&content);
                     if let Err(err) = store.store_staples(content).await {
                         error!(?err, "Failed to store staples");
                         components::toast::error_message(cx, "Failed to store staples", None);
@@ -507,7 +454,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
             }
             Message::SelectPlanDate(date, callback) => {
                 let store = self.store.clone();
-                let local_store = self.local_store.clone();
+                let local_store =    self.local_store.clone();
                 spawn_local_scoped(cx, async move {
                     if let Some(mut plan) = store
                         .fetch_plan_for_date(&date)
@@ -528,12 +475,11 @@ impl MessageMapper<Message, AppState> for StateMachine {
                     original_copy.filtered_ingredients = filtered;
                     original_copy.extras = extras;
                     original_copy.selected_plan_date = Some(date.clone());
-                    local_store.set_plan_date(&date);
                     store
                         .store_plan_for_date(vec![], &date)
                         .await
                         .expect("Failed to init meal plan for date");
-
+                    local_store.store_app_state(&original_copy);
                     original.set(original_copy);
 
                     callback.map(|f| f());
@@ -545,7 +491,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
             }
             Message::DeletePlan(date, callback) => {
                 let store = self.store.clone();
-                let local_store = self.local_store.clone();
+                let local_store =    self.local_store.clone();
                 spawn_local_scoped(cx, async move {
                     if let Err(err) = store.delete_plan_for_date(&date).await {
                         components::toast::error_message(
@@ -555,23 +501,26 @@ impl MessageMapper<Message, AppState> for StateMachine {
                         );
                         error!(?err, "Error deleting plan");
                     } else {
-                        local_store.delete_plan();
-
                         original_copy.plan_dates.remove(&date);
                         // Reset all meal planning state;
                         let _ = original_copy.recipe_counts.iter_mut().map(|(_, v)| *v = 0);
                         original_copy.filtered_ingredients = BTreeSet::new();
                         original_copy.modified_amts = BTreeMap::new();
                         original_copy.extras = Vec::new();
+                        local_store.store_app_state(&original_copy);
                         original.set(original_copy);
                         components::toast::message(cx, "Deleted Plan", None);
 
                         callback.map(|f| f());
                     }
                 });
+                // NOTE(jwall): Because we do our signal set above in the async block
+                // we have to return here to avoid lifetime issues and double setting
+                // the original signal.
                 return;
             }
         }
+        self.local_store.store_app_state(&original_copy);
         original.set(original_copy);
     }
 }

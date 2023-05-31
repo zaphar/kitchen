@@ -76,10 +76,6 @@ fn recipe_key<S: std::fmt::Display>(id: S) -> String {
     format!("recipe:{}", id)
 }
 
-fn category_key<S: std::fmt::Display>(id: S) -> String {
-    format!("category:{}", id)
-}
-
 fn token68(user: String, pass: String) -> String {
     base64::engine::general_purpose::STANDARD.encode(format!("{}:{}", user, pass))
 }
@@ -94,6 +90,19 @@ impl LocalStore {
         Self {
             store: js_lib::get_storage(),
         }
+    }
+
+    pub fn store_app_state(&self, state: &AppState) {
+        self.migrate_local_store();
+        self.store
+            .set("app_state", &to_string(state).unwrap())
+            .expect("Failed to set our app state");
+    }
+
+    pub fn fetch_app_state(&self) -> Option<AppState> {
+        self.store.get("app_state").map_or(None, |val| {
+            val.map(|s| from_str(&s).expect("Failed to deserialize app state"))
+        })
     }
 
     /// Gets user data from local storage.
@@ -120,43 +129,6 @@ impl LocalStore {
         }
     }
 
-    /// Gets categories from local storage.
-    pub fn get_categories(&self) -> Option<Vec<(String, String)>> {
-        let mut mappings = Vec::new();
-        for k in self.get_category_keys() {
-            if let Some(mut cat_map) = self
-                .store
-                .get(&k)
-                .expect(&format!("Failed to get category key {}", k))
-                .map(|v| {
-                    from_str::<Vec<(String, String)>>(&v)
-                        .expect(&format!("Failed to parse category key {}", k))
-                })
-            {
-                mappings.extend(cat_map.drain(0..));
-            }
-        }
-        if mappings.is_empty() {
-            None
-        } else {
-            Some(mappings)
-        }
-    }
-
-    /// Set the categories to the given string.
-    pub fn set_categories(&self, mappings: Option<&Vec<(String, String)>>) {
-        if let Some(mappings) = mappings {
-            for (i, cat) in mappings.iter() {
-                self.store
-                    .set(
-                        &category_key(i),
-                        &to_string(&(i, cat)).expect("Failed to serialize category mapping"),
-                    )
-                    .expect("Failed to store category mapping");
-            }
-        }
-    }
-
     fn get_storage_keys(&self) -> Vec<String> {
         let mut keys = Vec::new();
         for idx in 0..self.store.length().unwrap() {
@@ -167,10 +139,14 @@ impl LocalStore {
         keys
     }
 
-    fn get_category_keys(&self) -> impl Iterator<Item = String> {
-        self.get_storage_keys()
+    fn migrate_local_store(&self) {
+        for k in self.get_storage_keys()
             .into_iter()
-            .filter(|k| k.starts_with("category:"))
+            .filter(|k| k.starts_with("categor") || k == "inventory" || k.starts_with("plan") || k == "staples") {
+                // Deleting old local store key
+               debug!("Deleting old local store key {}", k);         
+               self.store.delete(&k).expect("Failed to delete storage key");
+        }
     }
 
     fn get_recipe_keys(&self) -> impl Iterator<Item = String> {
@@ -240,110 +216,6 @@ impl LocalStore {
         self.store
             .delete(&recipe_key(recipe_id))
             .expect(&format!("Failed to delete recipe {}", recipe_id))
-    }
-
-    /// Save working plan to local storage.
-    pub fn store_plan(&self, plan: &Vec<(String, i32)>) {
-        self.store
-            .set("plan", &to_string(&plan).expect("Failed to serialize plan"))
-            .expect("Failed to store plan'");
-    }
-
-    pub fn get_plan(&self) -> Option<Vec<(String, i32)>> {
-        if let Some(plan) = self.store.get("plan").expect("Failed to store plan") {
-            Some(from_str(&plan).expect("Failed to deserialize plan"))
-        } else {
-            None
-        }
-    }
-
-    pub fn delete_plan(&self) {
-        self.store.delete("plan").expect("Failed to delete plan");
-        self.store
-            .delete("inventory")
-            .expect("Failed to delete inventory data");
-    }
-
-    pub fn set_plan_date(&self, date: &NaiveDate) {
-        self.store
-            .set(
-                "plan:date",
-                &to_string(&date).expect("Failed to serialize plan:date"),
-            )
-            .expect("Failed to store plan:date");
-    }
-
-    pub fn get_plan_date(&self) -> Option<NaiveDate> {
-        if let Some(date) = self
-            .store
-            .get("plan:date")
-            .expect("Failed to get plan date")
-        {
-            Some(from_str(&date).expect("Failed to deserialize plan_date"))
-        } else {
-            None
-        }
-    }
-
-    pub fn get_inventory_data(
-        &self,
-    ) -> Option<(
-        BTreeSet<IngredientKey>,
-        BTreeMap<IngredientKey, String>,
-        Vec<(String, String)>,
-    )> {
-        if let Some(inventory) = self
-            .store
-            .get("inventory")
-            .expect("Failed to retrieve inventory data")
-        {
-            let (filtered, modified, extras): (
-                BTreeSet<IngredientKey>,
-                Vec<(IngredientKey, String)>,
-                Vec<(String, String)>,
-            ) = from_str(&inventory).expect("Failed to deserialize inventory");
-            return Some((filtered, BTreeMap::from_iter(modified), extras));
-        }
-        return None;
-    }
-
-    pub fn set_inventory_data(
-        &self,
-        inventory: (
-            &BTreeSet<IngredientKey>,
-            &BTreeMap<IngredientKey, String>,
-            &Vec<(String, String)>,
-        ),
-    ) {
-        let filtered = inventory.0;
-        let modified_amts = inventory
-            .1
-            .iter()
-            .map(|(k, amt)| (k.clone(), amt.clone()))
-            .collect::<Vec<(IngredientKey, String)>>();
-        let extras = inventory.2;
-        let inventory_data = (filtered, &modified_amts, extras);
-        self.store
-            .set(
-                "inventory",
-                &to_string(&inventory_data).expect(&format!(
-                    "Failed to serialize inventory {:?}",
-                    inventory_data
-                )),
-            )
-            .expect("Failed to set inventory");
-    }
-
-    pub fn set_staples(&self, content: &String) {
-        self.store
-            .set("staples", content)
-            .expect("Failed to set staples in local store");
-    }
-
-    pub fn get_staples(&self) -> Option<String> {
-        self.store
-            .get("staples")
-            .expect("Failed to retreive staples from local store")
     }
 }
 
@@ -434,7 +306,7 @@ impl HttpStore {
             Ok(resp) => resp,
             Err(reqwasm::Error::JsError(err)) => {
                 error!(path, ?err, "Error hitting api");
-                return Ok(self.local_store.get_categories());
+                return Ok(None);
             }
             Err(err) => {
                 return Err(err)?;
@@ -706,22 +578,22 @@ impl HttpStore {
         }
     }
 
-    pub async fn fetch_plan(&self) -> Result<Option<Vec<(String, i32)>>, Error> {
-        let mut path = self.v2_path();
-        path.push_str("/plan");
-        let resp = reqwasm::http::Request::get(&path).send().await?;
-        if resp.status() != 200 {
-            Err(format!("Status: {}", resp.status()).into())
-        } else {
-            debug!("We got a valid response back");
-            let plan = resp
-                .json::<PlanDataResponse>()
-                .await
-                .map_err(|e| format!("{}", e))?
-                .as_success();
-            Ok(plan)
-        }
-    }
+    //pub async fn fetch_plan(&self) -> Result<Option<Vec<(String, i32)>>, Error> {
+    //    let mut path = self.v2_path();
+    //    path.push_str("/plan");
+    //    let resp = reqwasm::http::Request::get(&path).send().await?;
+    //    if resp.status() != 200 {
+    //        Err(format!("Status: {}", resp.status()).into())
+    //    } else {
+    //        debug!("We got a valid response back");
+    //        let plan = resp
+    //            .json::<PlanDataResponse>()
+    //            .await
+    //            .map_err(|e| format!("{}", e))?
+    //            .as_success();
+    //        Ok(plan)
+    //    }
+    //}
 
     pub async fn fetch_inventory_for_date(
         &self,
@@ -740,11 +612,7 @@ impl HttpStore {
         path.push_str(&format!("/{}", date));
         let resp = reqwasm::http::Request::get(&path).send().await?;
         if resp.status() != 200 {
-            let err = Err(format!("Status: {}", resp.status()).into());
-            Ok(match self.local_store.get_inventory_data() {
-                Some(val) => val,
-                None => return err,
-            })
+            Err(format!("Status: {}", resp.status()).into())
         } else {
             debug!("We got a valid response back");
             let InventoryData {
@@ -779,11 +647,7 @@ impl HttpStore {
         path.push_str("/inventory");
         let resp = reqwasm::http::Request::get(&path).send().await?;
         if resp.status() != 200 {
-            let err = Err(format!("Status: {}", resp.status()).into());
-            Ok(match self.local_store.get_inventory_data() {
-                Some(val) => val,
-                None => return err,
-            })
+            Err(format!("Status: {}", resp.status()).into())
         } else {
             debug!("We got a valid response back");
             let InventoryData {

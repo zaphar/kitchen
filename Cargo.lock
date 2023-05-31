@@ -1429,6 +1429,7 @@ dependencies = [
  "js-sys",
  "recipes",
  "reqwasm",
+ "serde",
  "serde_json",
  "sycamore",
  "sycamore-router",
