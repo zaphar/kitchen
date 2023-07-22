@@ -18,6 +18,7 @@ mod js_lib;
 mod pages;
 mod routing;
 mod web;
+mod linear;
 
 use sycamore::prelude::*;
 use wasm_bindgen::prelude::wasm_bindgen;

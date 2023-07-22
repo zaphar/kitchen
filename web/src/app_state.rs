@@ -28,7 +28,7 @@ use wasm_bindgen::throw_str;
 
 use crate::{
     api::{HttpStore, LocalStore},
-    components,
+    components, linear::LinearSignal,
 };
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -166,9 +166,7 @@ impl StateMachine {
         original: &Signal<AppState>,
     ) -> Result<(), crate::api::Error> {
         // TODO(jwall): Load plan state from local_store first.
-        if let Some(app_state) = local_store.fetch_app_state() {
-            original.set_silent(app_state);
-        }
+        let original: LinearSignal<AppState> = original.into();
         let mut state = original.get().as_ref().clone();
         info!("Synchronizing Recipes");
         let recipe_entries = &store.fetch_recipes().await?;
@@ -282,7 +280,7 @@ impl StateMachine {
         }
         // Finally we store all of this app state back to our localstore
         local_store.store_app_state(&state);
-        original.set(state);
+        original.update(state);
         Ok(())
     }
 }
@@ -309,17 +307,15 @@ impl MessageMapper<Message, AppState> for StateMachine {
             Message::RemoveExtra(idx) => {
                 original_copy.extras.remove(idx);
             }
-            Message::UpdateExtra(idx, amt, name) => {
-                match original_copy.extras.get_mut(idx) {
-                    Some(extra) => {
-                        extra.0 = amt;
-                        extra.1 = name;
-                    }
-                    None => {
-                        throw_str("Attempted to remove extra that didn't exist");
-                    }
+            Message::UpdateExtra(idx, amt, name) => match original_copy.extras.get_mut(idx) {
+                Some(extra) => {
+                    extra.0 = amt;
+                    extra.1 = name;
                 }
-            }
+                None => {
+                    throw_str("Attempted to remove extra that didn't exist");
+                }
+            },
             Message::SaveRecipe(entry, callback) => {
                 let recipe =
                     parse::as_recipe(entry.recipe_text()).expect("Failed to parse RecipeEntry");
@@ -429,7 +425,8 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 let local_store = self.local_store.clone();
                 debug!("Loading user state.");
                 spawn_local_scoped(cx, async move {
-                    if let Err(err) = Self::load_state(&store, &local_store, original).await {
+                    if let Err(err) = Self::load_state(&store, &local_store, original.clone()).await
+                    {
                         error!(?err, "Failed to load user state");
                         components::toast::error_message(cx, "Failed to load_state.", None);
                     } else {
@@ -454,7 +451,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
             }
             Message::SelectPlanDate(date, callback) => {
                 let store = self.store.clone();
-                let local_store =    self.local_store.clone();
+                let local_store = self.local_store.clone();
                 spawn_local_scoped(cx, async move {
                     if let Some(mut plan) = store
                         .fetch_plan_for_date(&date)
@@ -491,7 +488,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
             }
             Message::DeletePlan(date, callback) => {
                 let store = self.store.clone();
-                let local_store =    self.local_store.clone();
+                let local_store = self.local_store.clone();
                 spawn_local_scoped(cx, async move {
                     if let Err(err) = store.delete_plan_for_date(&date).await {
                         components::toast::error_message(
