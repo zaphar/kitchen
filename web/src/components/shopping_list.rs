@@ -194,11 +194,16 @@ fn make_shopping_table<'ctx, G: Html>(
 #[instrument(skip_all)]
 #[component]
 pub fn ShoppingList<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
-    let show_staples = create_signal(cx, true);
+    let show_staples = sh.get_selector(cx, |state| {
+        state.get().use_staples
+    });
     view! {cx,
         h1 { "Shopping List " }
         label(for="show_staples_cb") { "Show staples" }
-        input(id="show_staples_cb", type="checkbox", bind:checked=show_staples)
+        input(id="show_staples_cb", type="checkbox", checked=*show_staples.get(), on:change=move|_| {
+            let value = !*show_staples.get_untracked();
+            sh.dispatch(cx, Message::UpdateUseStaples(value));
+        })
         (make_shopping_table(cx, sh, show_staples))
         span(role="button", class="no-print", on:click=move |_| {
             info!("Registering add item request for inventory");

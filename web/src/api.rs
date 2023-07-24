@@ -99,7 +99,6 @@ impl LocalStore {
             .expect("Failed to set our app state");
     }
 
-    // TODO(jwall): Is this never used?
     pub fn fetch_app_state(&self) -> Option<AppState> {
         self.store.get("app_state").map_or(None, |val| {
             val.map(|s| from_str(&s).expect("Failed to deserialize app state"))

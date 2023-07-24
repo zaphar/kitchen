@@ -23,7 +23,12 @@ pub fn UI<G: Html>(cx: Scope) -> View<G> {
     api::HttpStore::provide_context(cx, "/api".to_owned());
     let store = api::HttpStore::get_from_context(cx).as_ref().clone();
     info!("Starting UI");
-    let app_state = crate::app_state::AppState::new();
+    let local_store = api::LocalStore::new();
+    let app_state = if let Some(app_state) = local_store.fetch_app_state() {
+        app_state
+    } else {
+        crate::app_state::AppState::new()
+    };
     let sh = crate::app_state::get_state_handler(cx, app_state, store);
     let view = create_signal(cx, View::empty());
     spawn_local_scoped(cx, {

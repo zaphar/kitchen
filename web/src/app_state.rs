@@ -31,6 +31,10 @@ use crate::{
     components, linear::LinearSignal,
 };
 
+fn bool_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AppState {
     pub recipe_counts: BTreeMap<String, usize>,
@@ -46,6 +50,8 @@ pub struct AppState {
     pub auth: Option<UserData>,
     pub plan_dates: BTreeSet<NaiveDate>,
     pub selected_plan_date: Option<NaiveDate>,
+    #[serde(default = "bool_true")]
+    pub use_staples: bool,
 }
 
 impl AppState {
@@ -62,6 +68,7 @@ impl AppState {
             auth: None,
             plan_dates: BTreeSet::new(),
             selected_plan_date: None,
+            use_staples: true,
         }
     }
 }
@@ -84,6 +91,7 @@ pub enum Message {
     UpdateStaples(String, Option<Box<dyn FnOnce()>>),
     DeletePlan(NaiveDate, Option<Box<dyn FnOnce()>>),
     SelectPlanDate(NaiveDate, Option<Box<dyn FnOnce()>>),
+    UpdateUseStaples(bool), // TODO(jwall): Should this just be various settings?
 }
 
 impl Debug for Message {
@@ -121,6 +129,7 @@ impl Debug for Message {
             Self::SaveState(_) => write!(f, "SaveState"),
             Self::LoadState(_) => write!(f, "LoadState"),
             Self::UpdateStaples(arg, _) => f.debug_tuple("UpdateStaples").field(arg).finish(),
+            Self::UpdateUseStaples(arg) => f.debug_tuple("UpdateUseStaples").field(arg).finish(),
             Self::SelectPlanDate(arg, _) => f.debug_tuple("SelectPlanDate").field(arg).finish(),
             Self::DeletePlan(arg, _) => f.debug_tuple("DeletePlan").field(arg).finish(),
         }
@@ -165,8 +174,12 @@ impl StateMachine {
         local_store: &LocalStore,
         original: &Signal<AppState>,
     ) -> Result<(), crate::api::Error> {
-        // TODO(jwall): Load plan state from local_store first.
-        let original: LinearSignal<AppState> = original.into();
+        // TODO(jwall): We use a linear Signal in here to ensure that we only
+        // call set on the signal once.
+        let mut original: LinearSignal<AppState> = original.into();
+        if let Some(state) = local_store.fetch_app_state() {
+            original = original.update(state);
+        }
         let mut state = original.get().as_ref().clone();
         info!("Synchronizing Recipes");
         let recipe_entries = &store.fetch_recipes().await?;
@@ -448,6 +461,9 @@ impl MessageMapper<Message, AppState> for StateMachine {
                     }
                 });
                 return;
+            }
+            Message::UpdateUseStaples(value) => {
+                original_copy.use_staples = value;
             }
             Message::SelectPlanDate(date, callback) => {
                 let store = self.store.clone();
