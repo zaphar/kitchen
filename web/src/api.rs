@@ -25,7 +25,7 @@ use recipes::{IngredientKey, RecipeEntry};
 use wasm_bindgen::JsValue;
 use web_sys::Storage;
 
-use crate::{app_state::AppState, js_lib};
+use crate::{app_state::{AppState, parse_recipes}, js_lib};
 
 #[derive(Debug)]
 pub struct Error(String);
@@ -100,8 +100,21 @@ impl LocalStore {
     }
 
     pub fn fetch_app_state(&self) -> Option<AppState> {
+        debug!("Loading state from local store");
         self.store.get("app_state").map_or(None, |val| {
-            val.map(|s| from_str(&s).expect("Failed to deserialize app state"))
+            val.map(|s| {
+                debug!("Found an app_state object");
+                let mut app_state: AppState = from_str(&s).expect("Failed to deserialize app state");
+                let recipes = parse_recipes(&self.get_recipes()).expect("Failed to parse recipes");
+                if let Some(recipes) = recipes {
+                    debug!("Populating recipes");
+                    for (id, recipe) in recipes {
+                        debug!(id, "Adding recipe from local storage");
+                        app_state.recipes.insert(id, recipe);
+                    }
+                }
+                app_state
+            })
         })
     }
 

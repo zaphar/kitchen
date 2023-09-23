@@ -142,7 +142,7 @@ pub struct StateMachine {
 }
 
 #[instrument]
-fn parse_recipes(
+pub fn parse_recipes(
     recipe_entries: &Option<Vec<RecipeEntry>>,
 ) -> Result<Option<BTreeMap<String, Recipe>>, String> {
     match recipe_entries {

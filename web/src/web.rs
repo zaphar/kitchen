@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use sycamore::{futures::spawn_local_scoped, prelude::*};
-use tracing::{info, instrument};
+use tracing::{info, debug, instrument};
 
 use crate::app_state::Message;
 use crate::{api, routing::Handler as RouteHandler};
@@ -29,6 +29,7 @@ pub fn UI<G: Html>(cx: Scope) -> View<G> {
     } else {
         crate::app_state::AppState::new()
     };
+    debug!(?app_state, "Loaded app state from local storage");
     let sh = crate::app_state::get_state_handler(cx, app_state, store);
     let view = create_signal(cx, View::empty());
     spawn_local_scoped(cx, {
