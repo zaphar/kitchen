@@ -14,6 +14,7 @@ let
      cargoDeps = (pkgs.rustPlatform.importCargoLock { inherit lockFile; outputHashes = {
             # I'm maintaining some patches for these so the lockfile hashes are a little
             # incorrect. We override those here.
+            "wasm-web-component-0.2.0" = "sha256-quuPgzGb2F96blHmD3BAUjsWQYbSyJGZl27PVrwL92k=";
             "sycamore-0.8.2" = "sha256-D968+8C5EelGGmot9/LkAlULZOf/Cr+1WYXRCMwb1nQ=";
             "sqlx-0.6.2" = "sha256-X/LFvtzRfiOIEZJiVzmFvvULPpjhqvI99pSwH7a//GM=";
         };
