@@ -14,7 +14,7 @@
 
 use crate::{
     app_state::StateHandler,
-    components::{toast::Container, Footer, Header},
+    components::{Footer, Header},
     pages::*,
 };
 use sycamore::prelude::*;
@@ -137,7 +137,6 @@ pub fn Handler<'ctx, G: Html>(cx: Scope<'ctx>, props: HandlerProps<'ctx>) -> Vie
             view=move |cx: Scope, route: &ReadSignal<Routes>| {
                 view!{cx,
                     div(class="app") {
-                        Container()
                         Header(sh)
                         (route_switch(route.get().as_ref(), cx, sh))
                         Footer { }

@@ -13,8 +13,7 @@
 // limitations under the License.
 use js_sys::Date;
 use tracing::error;
-use wasm_bindgen::JsCast;
-use web_sys::{window, Element, Storage, Window};
+use web_sys::{window, Storage, Window};
 
 pub fn get_storage() -> Storage {
     get_window().local_storage()
@@ -29,19 +28,6 @@ pub fn get_ms_timestamp() -> u32 {
 pub fn get_window() -> Window {
     window()
         .expect("No window present")
-}
-
-pub fn get_element_by_id<E>(id: &str) -> Result<Option<E>, Element>
-where
-    E: JsCast,
-{
-    match get_window().document()
-        .expect("No document in window")
-        .get_element_by_id(id)
-    {
-        Some(e) => e.dyn_into::<E>().map(|e| Some(e)),
-        None => Ok(None),
-    }
 }
 
 pub trait LogFailures<V, E> {

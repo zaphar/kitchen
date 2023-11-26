@@ -28,7 +28,6 @@ use wasm_bindgen::throw_str;
 
 use crate::{
     api::{HttpStore, LocalStore},
-    components,
     linear::LinearSignal,
 };
 
@@ -355,9 +354,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                         // FIXME(jwall): We should have a global way to trigger error messages
                         error!(err=?e, "Unable to save Recipe");
                         // FIXME(jwall): This should be an error message
-                        components::toast::error_message(cx, "Failed to save Recipe", None);
                     } else {
-                        components::toast::message(cx, "Saved Recipe", None);
                     }
                     callback.map(|f| f());
                 });
@@ -370,9 +367,6 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 spawn_local_scoped(cx, async move {
                     if let Err(err) = store.delete_recipe(&recipe).await {
                         error!(?err, "Failed to delete recipe");
-                        components::toast::error_message(cx, "Unable to delete recipe", None);
-                    } else {
-                        components::toast::message(cx, "Deleted Recipe", None);
                     }
                     callback.map(|f| f());
                 });
@@ -393,7 +387,6 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 original_copy.filtered_ingredients = BTreeSet::new();
                 original_copy.modified_amts = BTreeMap::new();
                 original_copy.extras = Vec::new();
-                components::toast::message(cx, "Reset Inventory", None);
             }
             Message::AddFilteredIngredient(key) => {
                 original_copy.filtered_ingredients.insert(key);
@@ -422,9 +415,6 @@ impl MessageMapper<Message, AppState> for StateMachine {
                     );
                     if let Err(e) = store.store_app_state(&original_copy).await {
                         error!(err=?e, "Error saving app state");
-                        components::toast::error_message(cx, "Failed to save user state", None);
-                    } else {
-                        components::toast::message(cx, "Saved user state", None);
                     };
                     local_store.store_app_state(&original_copy);
                     original.set(original_copy);
@@ -441,9 +431,6 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 spawn_local_scoped(cx, async move {
                     if let Err(err) = Self::load_state(&store, &local_store, original).await {
                         error!(?err, "Failed to load user state");
-                        components::toast::error_message(cx, "Failed to load_state.", None);
-                    } else {
-                        components::toast::message(cx, "Loaded user state", None);
                     }
                     f.map(|f| f());
                 });
@@ -454,9 +441,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 spawn_local_scoped(cx, async move {
                     if let Err(err) = store.store_staples(content).await {
                         error!(?err, "Failed to store staples");
-                        components::toast::error_message(cx, "Failed to store staples", None);
                     } else {
-                        components::toast::message(cx, "Updated staples", None);
                         callback.map(|f| f());
                     }
                 });
@@ -507,11 +492,6 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 let local_store = self.local_store.clone();
                 spawn_local_scoped(cx, async move {
                     if let Err(err) = store.delete_plan_for_date(&date).await {
-                        components::toast::error_message(
-                            cx,
-                            "Failed to delete meal plan for date",
-                            None,
-                        );
                         error!(?err, "Error deleting plan");
                     } else {
                         original_copy.plan_dates.remove(&date);
@@ -522,7 +502,6 @@ impl MessageMapper<Message, AppState> for StateMachine {
                         original_copy.extras = Vec::new();
                         local_store.store_app_state(&original_copy);
                         original.set(original_copy);
-                        components::toast::message(cx, "Deleted Plan", None);
 
                         callback.map(|f| f());
                     }

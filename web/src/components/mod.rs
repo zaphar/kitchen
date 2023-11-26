@@ -24,7 +24,6 @@ pub mod recipe_selection;
 pub mod shopping_list;
 pub mod staples;
 pub mod tabs;
-pub mod toast;
 
 pub use add_recipe::*;
 pub use categories::*;
