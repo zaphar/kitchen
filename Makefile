@@ -35,7 +35,7 @@ wasmrelease-dist: web/src/*.rs web/src/components/*.rs
 wasm: wasm-dist static-prep
 
 wasm-dist: web/src/*.rs web/src/components/*.rs
-	cd web; wasm-pack build --mode no-install --target web --out-dir dist/
+	cd web; wasm-pack build --mode no-install --target web --out-dir dist/ --features debug_logs
 
 clean:
 	rm -rf web/dist/*
