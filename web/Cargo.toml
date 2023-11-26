@@ -54,6 +54,7 @@ version = "= 0.2.84"
 version = "0.3"
 features = [
     "Event",
+    "InputEvent",
     "CustomEvent",
     "EventTarget",
     "History",

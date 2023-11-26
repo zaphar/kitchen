@@ -11,11 +11,199 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use maud::html;
 use sycamore::prelude::*;
-use tracing::debug;
-use web_sys::{Event, HtmlInputElement};
+use tracing::{debug, error};
+use wasm_bindgen::JsCast;
+use wasm_web_component::{web_component, WebComponentBinding};
+use web_sys::{CustomEvent, Event, HtmlElement, InputEvent, ShadowRoot, window};
 
-use crate::js_lib;
+use crate::js_lib::LogFailures;
+
+#[web_component(
+    observed_attrs = "['val', 'min', 'max', 'step']",
+    observed_events = "['change', 'click', 'input']"
+)]
+pub struct NumberSpinner {
+    root: Option<ShadowRoot>,
+    min: i32,
+    max: i32,
+    step: i32,
+    value: i32,
+}
+
+impl NumberSpinner {
+    fn get_input_el(&self) -> HtmlElement {
+        self.root
+            .as_ref()
+            .unwrap()
+            .get_element_by_id("nval")
+            .unwrap()
+            .dyn_into()
+            .unwrap()
+    }
+}
+
+impl WebComponentBinding for NumberSpinner {
+    fn init_mut(&mut self, element: &web_sys::HtmlElement) {
+        (self.min, self.max, self.step, self.value) = (0, 99, 1, 0);
+        debug!("Initializing element instance");
+        let root = html! {
+            span {
+                link rel="stylesheet" href="/ui/static/app.css" { };
+                style {
+                    r#"
+                        span { display: block; }
+                        span.button {
+                            font-size: 2em; font-weight: bold;
+                        }
+                        .number-input {
+                            border-width: var(--border-width);
+                            border-style: inset;
+                            padding: 3pt;
+                            border-radius: 10px;
+                            width: 3em;
+                        }
+                    "#
+                };
+                span class="button" id="inc" { "+" }; " "
+                // TODO(jwall): plaintext-only would be nice but I can't actually do that yet.
+                span id="nval" class="number-input" contenteditable="true" { "0" } " "
+                span class="button" id="dec" { "-" };
+            };
+        };
+        self.attach_shadow(element, &root.into_string());
+        self.root = element.shadow_root();
+    }
+
+    fn connected_mut(&mut self, element: &HtmlElement) {
+        debug!("COUNTS: connecting to DOM");
+        let val = element.get_attribute("val").unwrap_or_else(|| "0".into());
+        let min = element.get_attribute("min").unwrap_or_else(|| "0".into());
+        let max = element.get_attribute("max").unwrap_or_else(|| "99".into());
+        let step = element.get_attribute("step").unwrap_or_else(|| "1".into());
+        debug!(?val, ?min, ?max, ?step, "connecting to DOM");
+        let nval_el = self.get_input_el();
+        if let Ok(parsed) = val.parse::<i32>() {
+            self.value = parsed;
+            nval_el.set_inner_text(&val);
+        }
+        if let Ok(parsed) = min.parse::<i32>() {
+            self.min = parsed;
+        }
+        if let Ok(parsed) = max.parse::<i32>() {
+            self.max = parsed;
+        }
+        if let Ok(parsed) = step.parse::<i32>() {
+            self.step = parsed;
+        }
+    }
+
+    fn handle_event_mut(&mut self, element: &web_sys::HtmlElement, event: &Event) {
+        let target: HtmlElement = event.target().unwrap().dyn_into().unwrap();
+        let id = target.get_attribute("id");
+        let event_type = event.type_();
+        let nval_el = self.get_input_el();
+        debug!(?id, ?event_type, "saw event");
+        match (id.as_ref().map(|s| s.as_str()), event_type.as_str()) {
+            (Some("inc"), "click") => {
+                if self.value < self.max {
+                    self.value += 1;
+                    nval_el.set_inner_text(&format!("{}", self.value));
+                }
+            }
+            (Some("dec"), "click") => {
+                if self.value > self.min {
+                    self.value -= 1;
+                    nval_el.set_inner_text(&format!("{}", self.value));
+                }
+            }
+            (Some("nval"), "input") => {
+                let input_event = event.dyn_ref::<InputEvent>().unwrap();
+                if let Some(data) = input_event.data() {
+                    // We only allow numeric input data here.
+                    debug!(data, input_type=?input_event.input_type() , "got input");
+                    if data.chars().filter(|c| !c.is_numeric()).count() > 0 {
+                        nval_el.set_inner_text(&format!("{}", self.value));
+                    }
+                } else {
+                    nval_el.set_inner_text(&format!("{}{}", nval_el.inner_text(), self.value));
+                }
+            }
+            _ => {
+                debug!("Ignoring event");
+                return;
+            }
+        };
+        element
+            .set_attribute("val", &format!("{}", self.value))
+            .swallow_and_log();
+        element
+            .dispatch_event(&CustomEvent::new("updated").unwrap())
+            .unwrap();
+        debug!("Dispatched updated event");
+    }
+
+    fn attribute_changed_mut(
+        &mut self,
+        _element: &web_sys::HtmlElement,
+        name: wasm_bindgen::JsValue,
+        old_value: wasm_bindgen::JsValue,
+        new_value: wasm_bindgen::JsValue,
+    ) {
+        let nval_el = self.get_input_el();
+        let name = name.as_string().unwrap();
+        debug!(?name, ?old_value, ?new_value, "COUNTS: handling attribute change");
+        match name.as_str() {
+            "val" => {
+                debug!("COUNTS: got an updated value");
+                if let Some(val) = new_value.as_string() {
+                    debug!(val, "COUNTS: got an updated value");
+                    if let Ok(val) = val.parse::<i32>() {
+                        self.value = val;
+                        nval_el.set_inner_text(format!("{}", self.value).as_str());
+                    } else {
+                        error!(?new_value, "COUNTS: Not a valid f64 value");
+                    }
+                }
+            }
+            "min" => {
+                if let Some(val) = new_value.as_string() {
+                    debug!(val, "COUNTS: got an updated value");
+                    if let Ok(val) = val.parse::<i32>() {
+                        self.min = val;
+                    } else {
+                        error!(?new_value, "COUNTS: Not a valid f64 value");
+                    }
+                }
+            }
+            "max" => {
+                if let Some(val) = new_value.as_string() {
+                    debug!(val, "COUNTS: got an updated value");
+                    if let Ok(val) = val.parse::<i32>() {
+                        self.max = val;
+                    } else {
+                        error!(?new_value, "COUNTS: Not a valid f64 value");
+                    }
+                }
+            }
+            "step" => {
+                if let Some(val) = new_value.as_string() {
+                    debug!(val, "COUNTS: got an updated value");
+                    if let Ok(val) = val.parse::<i32>() {
+                        self.step = val;
+                    } else {
+                        error!(?new_value, "COUNTS: Not a valid f64 value");
+                    }
+                }
+            }
+            _ => {
+                debug!("Ignoring Attribute Change");
+                return;
+            }
+        }
+    }
+}
 
 #[derive(Props)]
 pub struct NumberProps<'ctx, F>
@@ -39,36 +227,26 @@ where
         min,
         counter,
     } = props;
-
+    NumberSpinner::define_once();
+    // TODO(jwall): I'm pretty sure this triggers: https://github.com/sycamore-rs/sycamore/issues/602
+    // Which means I probably have to wait till v0.9.0 drops or switch to leptos.
     let id = name.clone();
-    let inc_target_id = id.clone();
-    let dec_target_id = id.clone();
-    let min_field = format!("{}", min);
-
-    view! {cx,
-        div() {
-            input(type="number", id=id, name=name, class="item-count-sel", min=min_field, max="99", step="1", bind:valueAsNumber=counter, on:input=move |evt| {
-                on_change.as_ref().map(|f| f(evt));
-            })
-            span(class="item-count-inc-dec", on:click=move |_| {
-                let i = *counter.get_untracked();
-                let target = js_lib::get_element_by_id::<HtmlInputElement>(&inc_target_id).unwrap().expect(&format!("No such element with id {}", inc_target_id));
-                counter.set(i+1.0);
-                debug!(counter=%(counter.get_untracked()), "set counter to new value");
-                // We force an input event to get triggered for our target.
-                target.dispatch_event(&web_sys::Event::new("input").expect("Failed to create new event")).expect("Failed to dispatch event to target");
-            }) { "▲" }
-            " "
-            span(class="item-count-inc-dec", on:click=move |_| {
-                let i = *counter.get_untracked();
-                let target = js_lib::get_element_by_id::<HtmlInputElement>(&dec_target_id).unwrap().expect(&format!("No such element with id {}", dec_target_id));
-                if i > min {
-                    counter.set(i-1.0);
-                    debug!(counter=%(counter.get_untracked()), "set counter to new value");
-                    // We force an input event to get triggered for our target.
-                    target.dispatch_event(&web_sys::Event::new("input").expect("Failed to create new event")).expect("Failed to dispatch event to target");
-                }
-            }) { "▼" }
+    create_effect(cx, move || {
+        let new_count = *counter.get();
+        debug!(new_count, "COUNTS: Updating spinner with new value");
+        if let Some(el) = window().unwrap().document().unwrap().get_element_by_id(id.as_str()) {
+            debug!("COUNTS: found element");
+            el.set_attribute("val", new_count.to_string().as_str()).unwrap();
         }
+    });
+    let id = name.clone();
+    view! {cx,
+        number-spinner(id=id, val=*counter.get(), min=min, on:updated=move |evt: Event| {
+            let target: HtmlElement = evt.target().unwrap().dyn_into().unwrap();
+            let val: f64 = target.get_attribute("val").unwrap().parse().unwrap();
+            counter.set(val);
+            on_change.as_ref().map(|f| f(evt));
+            debug!(counter=%(counter.get_untracked()), "set counter to new value");
+        })
     }
 }

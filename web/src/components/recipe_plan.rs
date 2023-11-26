@@ -52,20 +52,20 @@ pub fn CategoryGroup<'ctx, G: Html>(
     });
     view! {cx,
         h2 { (category) }
-        table(class="recipe_selector no-print") {
+        div(class="recipe_selector no-print") {
             (View::new_fragment(
                 rows.get().iter().cloned().map(|r| {
                     view ! {cx,
-                        tr { Keyed(
+                        Keyed(
                             iterable=r,
                             view=move |cx, sig| {
                                 let title = create_memo(cx, move || sig.get().1.title.clone());
                                 view! {cx,
-                                    td { RecipeSelection(i=sig.get().0.to_owned(), title=title, sh=sh) }
+                                    div(class="cell") { RecipeSelection(i=sig.get().0.to_owned(), title=title, sh=sh) }
                                 }
                             },
                             key=|sig| sig.get().0.to_owned(),
-                        )}
+                        )
                     }
                 }).collect()
             ))

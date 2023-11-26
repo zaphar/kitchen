@@ -65,12 +65,10 @@ pub fn RecipeSelection<'ctx, G: Html>(
     let name = format!("recipe_id:{}", id);
     let for_id = name.clone();
     view! {cx,
-        div() {
-            label(for=for_id) { a(href=href) { (*title) } }
-            NumberField(name=name, counter=count, min=0.0, on_change=Some(move |_| {
-                debug!(idx=%id, count=%(*count.get_untracked()), "setting recipe count");
-                sh.dispatch(cx, Message::UpdateRecipeCount(id.as_ref().clone(), *count.get_untracked() as usize));
-            }))
-        }
+        label(for=for_id) { a(href=href) { (*title) } }
+        NumberField(name=name, counter=count, min=0.0, on_change=Some(move |_| {
+            debug!(idx=%id, count=%(*count.get_untracked()), "setting recipe count");
+            sh.dispatch(cx, Message::UpdateRecipeCount(id.as_ref().clone(), *count.get_untracked() as usize));
+        }))
     }
 }

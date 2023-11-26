@@ -23,6 +23,8 @@
     --notification-font-size: calc(var(--font-size) / 2);
     --error-message-color: rgba(255, 98, 0, 0.797);
     --error-message-bg: grey;
+    --border-width: 2px;
+    --cell-margin: 1em;
 }
 
 @media print {
@@ -126,4 +128,25 @@ nav>h1 {
     to {
         opacity: 0
     }
+}
+
+.recipe_selector {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: stretch;
+    align-content: stretch;
+}
+
+.recipe_selector .cell {
+    margin: 1em;
+    width: calc(100% / 5);
+}
+
+.cell {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: stretch;
+    align-content: stretch;
 }
