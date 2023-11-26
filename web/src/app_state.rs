@@ -28,7 +28,8 @@ use wasm_bindgen::throw_str;
 
 use crate::{
     api::{HttpStore, LocalStore},
-    components, linear::LinearSignal,
+    components,
+    linear::LinearSignal,
 };
 
 fn bool_true() -> bool {
@@ -438,8 +439,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 let local_store = self.local_store.clone();
                 debug!("Loading user state.");
                 spawn_local_scoped(cx, async move {
-                    if let Err(err) = Self::load_state(&store, &local_store, original.clone()).await
-                    {
+                    if let Err(err) = Self::load_state(&store, &local_store, original).await {
                         error!(?err, "Failed to load user state");
                         components::toast::error_message(cx, "Failed to load_state.", None);
                     } else {
