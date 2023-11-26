@@ -10,9 +10,9 @@
           inputs.nixpkgs.follows = "nixpkgs";
         };
         naersk.url = "github:nix-community/naersk";
-        flake-compat = { url = github:edolstra/flake-compat; flake = false; };
+        flake-compat = { url = "github:edolstra/flake-compat"; flake = false; };
     };
-    outputs = {self, nixpkgs, flake-utils, rust-overlay, naersk, gitignore, flake-compat}:
+    outputs = {nixpkgs, flake-utils, rust-overlay, naersk, ...}:
         let
             kitchenGen = (import ./nix/kitchen/default.nix);
             kitchenWasmGen = (import ./nix/kitchenWasm/default.nix);
