@@ -8,7 +8,7 @@ in
 with pkgs;
 (naersk-lib.buildPackage rec {
     pname = "wasm-pack";
-    version = "v0.11.0";
+    version = "v0.12.1";
     buildInputs = [ rust-wasm pkgs.openssl curl];
     nativeBuildInputs = (my-lib.darwin-sdk pkgs) ++ [llvm clang pkg-config];
     OPENSSL_NO_VENDOR=1;
@@ -18,7 +18,7 @@ with pkgs;
       owner = "rustwasm";
       repo = "wasm-pack";
       rev = version;
-      sha256 = "sha256-3iwXoYnmrZsbwFUR41uI/4jnCF0OjeRO7UqVDaGJJbQ=";
+  	  hash = "sha256-L4mCgUPG4cgTUpCoaIUOTONBOggXn5vMyPKj48B3MMk=";
     };
     cargoBuildOptions = opts: opts ++ ["-p" "${pname}" ];
 })
