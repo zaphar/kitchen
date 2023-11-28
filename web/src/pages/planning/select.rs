@@ -37,7 +37,7 @@ pub fn SelectPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
             selected=Some("Select".to_owned()),
         ) {
             PlanList(sh=sh, list=plan_dates)
-            span(role="button", on:click=move |_| {
+            button(on:click=move |_| {
                 sh.dispatch(cx, Message::SelectPlanDate(chrono::offset::Local::now().naive_local().date(), Some(Box::new(|| {
                     sycamore_router::navigate("/ui/planning/plan");
                 }))))

@@ -211,6 +211,7 @@ where
     F: Fn(Event),
 {
     name: String,
+    class: String,
     on_change: Option<F>,
     min: f64,
     counter: &'ctx Signal<f64>,
@@ -223,6 +224,7 @@ where
 {
     let NumberProps {
         name,
+        class,
         on_change,
         min,
         counter,
@@ -241,7 +243,7 @@ where
     });
     let id = name.clone();
     view! {cx,
-        number-spinner(id=id, val=*counter.get(), min=min, on:updated=move |evt: Event| {
+        number-spinner(id=id, class=(class), val=*counter.get(), min=min, on:updated=move |evt: Event| {
             let target: HtmlElement = evt.target().unwrap().dyn_into().unwrap();
             let val: f64 = target.get_attribute("val").unwrap().parse().unwrap();
             counter.set(val);

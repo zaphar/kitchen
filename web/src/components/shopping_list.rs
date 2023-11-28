@@ -205,15 +205,15 @@ pub fn ShoppingList<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> V
             sh.dispatch(cx, Message::UpdateUseStaples(value));
         })
         (make_shopping_table(cx, sh, show_staples))
-        span(role="button", class="no-print", on:click=move |_| {
+        button(class="no-print", on:click=move |_| {
             info!("Registering add item request for inventory");
             sh.dispatch(cx, Message::AddExtra(String::new(), String::new()));
         }) { "Add Item" } " "
-        span(role="button", class="no-print", on:click=move |_| {
+        button(class="no-print", on:click=move |_| {
             info!("Registering reset request for inventory");
             sh.dispatch(cx, Message::ResetInventory);
         }) { "Reset" } " "
-        span(role="button", class="no-print", on:click=move |_| {
+        button(class="no-print", on:click=move |_| {
             info!("Registering save request for inventory");
             sh.dispatch(cx, Message::SaveState(None));
         }) { "Save" } " "
