@@ -72,8 +72,8 @@ pub fn IngredientsEditor<'ctx, G: Html>(
 
     debug!("creating editor view");
     view! {cx,
-        div(class="grid") {
-            textarea(bind:value=text, aria-invalid=aria_hint.get(), rows=20, on:change=move |_| {
+        div {
+            textarea(class="width-third", bind:value=text, aria-invalid=aria_hint.get(), rows=20, on:change=move |_| {
                 dirty.set(true);
             }, on:input=move |_| {
                 let current_ts = js_lib::get_ms_timestamp();
@@ -84,7 +84,7 @@ pub fn IngredientsEditor<'ctx, G: Html>(
             })
             div(class="parse") { (error_text.get()) }
         }
-        span(role="button", on:click=move |_| {
+        button(on:click=move |_| {
             let unparsed = text.get();
             if !*dirty.get_untracked() {
                 debug!("Staples text is unchanged");

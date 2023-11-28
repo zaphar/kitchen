@@ -136,11 +136,12 @@ pub fn Handler<'ctx, G: Html>(cx: Scope<'ctx>, props: HandlerProps<'ctx>) -> Vie
             integration=HistoryIntegration::new(),
             view=move |cx: Scope, route: &ReadSignal<Routes>| {
                 view!{cx,
-                    div(class="app") {
-                        Header(sh)
+                  div {
+                    Header(sh)
+                    div(class="app row-flex flex-item-grow expand-height align-stretch") {
                         (route_switch(route.get().as_ref(), cx, sh))
-                        Footer { }
                     }
+                  }
                 }
             },
         )

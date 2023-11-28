@@ -38,12 +38,12 @@ pub fn PlanList<'ctx, G: Html>(cx: Scope<'ctx>, props: PlanListProps<'ctx>) -> V
                         view!{cx,
                             tr() {
                                 td() {
-                                    span(role="button", class="outline", on:click=move |_| {
+                                    button(class="outline", on:click=move |_| {
                                         sh.dispatch(cx, Message::SelectPlanDate(date, None))
                                     }) { (date_display) }
                                 }
                                 td() {
-                                    span(role="button", class="destructive", on:click=move |_| {
+                                    button(class="destructive", on:click=move |_| {
                                         sh.dispatch(cx, Message::DeletePlan(date, None))
                                     }) { "Delete Plan" }
                                 }
