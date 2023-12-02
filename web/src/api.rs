@@ -15,7 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use base64::{self, Engine};
 use chrono::NaiveDate;
-use reqwasm;
+use gloo_net;
 use serde_json::{from_str, to_string};
 use sycamore::prelude::*;
 use tracing::{debug, error, instrument};
@@ -66,8 +66,8 @@ impl From<std::string::FromUtf8Error> for Error {
     }
 }
 
-impl From<reqwasm::Error> for Error {
-    fn from(item: reqwasm::Error) -> Self {
+impl From<gloo_net::Error> for Error {
+    fn from(item: gloo_net::Error) -> Self {
         Error(format!("{:?}", item))
     }
 }
@@ -94,8 +94,15 @@ impl LocalStore {
 
     pub fn store_app_state(&self, state: &AppState) {
         self.migrate_local_store();
+        let state = match to_string(state) {
+            Ok(state) => state,
+            Err(err) => {
+                error!(?err, ?state, "Error deserializing app_state");
+                return;
+            }
+        };
         self.store
-            .set("app_state", &to_string(state).unwrap())
+            .set("app_state", &state)
             .expect("Failed to set our app state");
     }
 
@@ -266,13 +273,16 @@ impl HttpStore {
         debug!("attempting login request against api.");
         let mut path = self.v2_path();
         path.push_str("/auth");
-        let result = reqwasm::http::Request::get(&path)
+        let request = gloo_net::http::Request::get(&path)
             .header(
-                "Authorization",
+                "authorization",
                 format!("Basic {}", token68(user, pass)).as_str(),
             )
-            .send()
-            .await;
+            .mode(web_sys::RequestMode::SameOrigin)
+            .credentials(web_sys::RequestCredentials::SameOrigin)
+            .build().expect("Failed to build request");
+       debug!(?request, "Sending auth request");
+       let result = request.send().await;
         if let Ok(resp) = &result {
             if resp.status() == 200 {
                 let user_data = resp
@@ -294,7 +304,7 @@ impl HttpStore {
         debug!("Retrieving User Account data");
         let mut path = self.v2_path();
         path.push_str("/account");
-        let result = reqwasm::http::Request::get(&path).send().await;
+        let result = gloo_net::http::Request::get(&path).send().await;
         if let Ok(resp) = &result {
             if resp.status() == 200 {
                 let user_data = resp
@@ -315,9 +325,9 @@ impl HttpStore {
     pub async fn fetch_categories(&self) -> Result<Option<Vec<(String, String)>>, Error> {
         let mut path = self.v2_path();
         path.push_str("/category_map");
-        let resp = match reqwasm::http::Request::get(&path).send().await {
+        let resp = match gloo_net::http::Request::get(&path).send().await {
             Ok(resp) => resp,
-            Err(reqwasm::Error::JsError(err)) => {
+            Err(gloo_net::Error::JsError(err)) => {
                 error!(path, ?err, "Error hitting api");
                 return Ok(None);
             }
@@ -345,9 +355,9 @@ impl HttpStore {
     pub async fn fetch_recipes(&self) -> Result<Option<Vec<RecipeEntry>>, Error> {
         let mut path = self.v2_path();
         path.push_str("/recipes");
-        let resp = match reqwasm::http::Request::get(&path).send().await {
+        let resp = match gloo_net::http::Request::get(&path).send().await {
             Ok(resp) => resp,
-            Err(reqwasm::Error::JsError(err)) => {
+            Err(gloo_net::Error::JsError(err)) => {
                 error!(path, ?err, "Error hitting api");
                 return Ok(self.local_store.get_recipes());
             }
@@ -375,9 +385,9 @@ impl HttpStore {
         let mut path = self.v2_path();
         path.push_str("/recipe/");
         path.push_str(id.as_ref());
-        let resp = match reqwasm::http::Request::get(&path).send().await {
+        let resp = match gloo_net::http::Request::get(&path).send().await {
             Ok(resp) => resp,
-            Err(reqwasm::Error::JsError(err)) => {
+            Err(gloo_net::Error::JsError(err)) => {
                 error!(path, ?err, "Error hitting api");
                 return Ok(self.local_store.get_recipe_entry(id.as_ref()));
             }
@@ -413,7 +423,7 @@ impl HttpStore {
         let mut path = self.v2_path();
         path.push_str("/recipe");
         path.push_str(&format!("/{}", recipe.as_ref()));
-        let resp = reqwasm::http::Request::delete(&path).send().await?;
+        let resp = gloo_net::http::Request::delete(&path).send().await?;
         if resp.status() != 200 {
             Err(format!("Status: {}", resp.status()).into())
         } else {
@@ -431,10 +441,9 @@ impl HttpStore {
                 return Err("Recipe Ids can not be empty".into());
             }
         }
-        let serialized = to_string(&recipes).expect("Unable to serialize recipe entries");
-        let resp = reqwasm::http::Request::post(&path)
-            .body(&serialized)
-            .header("content-type", "application/json")
+        let resp = gloo_net::http::Request::post(&path)
+            .json(&recipes)
+            .expect("Failed to set body")
             .send()
             .await?;
         if resp.status() != 200 {
@@ -449,9 +458,9 @@ impl HttpStore {
     pub async fn store_categories(&self, categories: &Vec<(String, String)>) -> Result<(), Error> {
         let mut path = self.v2_path();
         path.push_str("/category_map");
-        let resp = reqwasm::http::Request::post(&path)
-            .body(to_string(&categories).expect("Unable to encode categories as json"))
-            .header("content-type", "application/json")
+        let resp = gloo_net::http::Request::post(&path)
+            .json(&categories)
+            .expect("Failed to set body")
             .send()
             .await?;
         if resp.status() != 200 {
@@ -503,9 +512,9 @@ impl HttpStore {
     pub async fn store_plan(&self, plan: Vec<(String, i32)>) -> Result<(), Error> {
         let mut path = self.v2_path();
         path.push_str("/plan");
-        let resp = reqwasm::http::Request::post(&path)
-            .body(to_string(&plan).expect("Unable to encode plan as json"))
-            .header("content-type", "application/json")
+        let resp = gloo_net::http::Request::post(&path)
+            .json(&plan)
+            .expect("Failed to set body")
             .send()
             .await?;
         if resp.status() != 200 {
@@ -525,9 +534,9 @@ impl HttpStore {
         path.push_str("/plan");
         path.push_str("/at");
         path.push_str(&format!("/{}", date));
-        let resp = reqwasm::http::Request::post(&path)
-            .body(to_string(&plan).expect("Unable to encode plan as json"))
-            .header("content-type", "application/json")
+        let resp = gloo_net::http::Request::post(&path)
+            .json(&plan)
+            .expect("Failed to set body")
             .send()
             .await?;
         if resp.status() != 200 {
@@ -542,7 +551,7 @@ impl HttpStore {
         let mut path = self.v2_path();
         path.push_str("/plan");
         path.push_str("/all");
-        let resp = reqwasm::http::Request::get(&path).send().await?;
+        let resp = gloo_net::http::Request::get(&path).send().await?;
         if resp.status() != 200 {
             Err(format!("Status: {}", resp.status()).into())
         } else {
@@ -561,7 +570,7 @@ impl HttpStore {
         path.push_str("/plan");
         path.push_str("/at");
         path.push_str(&format!("/{}", date));
-        let resp = reqwasm::http::Request::delete(&path).send().await?;
+        let resp = gloo_net::http::Request::delete(&path).send().await?;
         if resp.status() != 200 {
             Err(format!("Status: {}", resp.status()).into())
         } else {
@@ -577,7 +586,7 @@ impl HttpStore {
         path.push_str("/plan");
         path.push_str("/at");
         path.push_str(&format!("/{}", date));
-        let resp = reqwasm::http::Request::get(&path).send().await?;
+        let resp = gloo_net::http::Request::get(&path).send().await?;
         if resp.status() != 200 {
             Err(format!("Status: {}", resp.status()).into())
         } else {
@@ -594,7 +603,7 @@ impl HttpStore {
     //pub async fn fetch_plan(&self) -> Result<Option<Vec<(String, i32)>>, Error> {
     //    let mut path = self.v2_path();
     //    path.push_str("/plan");
-    //    let resp = reqwasm::http::Request::get(&path).send().await?;
+    //    let resp = gloo_net::http::Request::get(&path).send().await?;
     //    if resp.status() != 200 {
     //        Err(format!("Status: {}", resp.status()).into())
     //    } else {
@@ -623,7 +632,7 @@ impl HttpStore {
         path.push_str("/inventory");
         path.push_str("/at");
         path.push_str(&format!("/{}", date));
-        let resp = reqwasm::http::Request::get(&path).send().await?;
+        let resp = gloo_net::http::Request::get(&path).send().await?;
         if resp.status() != 200 {
             Err(format!("Status: {}", resp.status()).into())
         } else {
@@ -658,7 +667,7 @@ impl HttpStore {
     > {
         let mut path = self.v2_path();
         path.push_str("/inventory");
-        let resp = reqwasm::http::Request::get(&path).send().await?;
+        let resp = gloo_net::http::Request::get(&path).send().await?;
         if resp.status() != 200 {
             Err(format!("Status: {}", resp.status()).into())
         } else {
@@ -695,13 +704,10 @@ impl HttpStore {
         path.push_str(&format!("/{}", date));
         let filtered_ingredients: Vec<IngredientKey> = filtered_ingredients.into_iter().collect();
         let modified_amts: Vec<(IngredientKey, String)> = modified_amts.into_iter().collect();
-        debug!("Storing inventory data in cache");
-        let serialized_inventory = to_string(&(filtered_ingredients, modified_amts, extra_items))
-            .expect("Unable to encode plan as json");
         debug!("Storing inventory data via API");
-        let resp = reqwasm::http::Request::post(&path)
-            .body(&serialized_inventory)
-            .header("content-type", "application/json")
+        let resp = gloo_net::http::Request::post(&path)
+            .json(&(filtered_ingredients, modified_amts, extra_items))
+            .expect("Failed to set body")
             .send()
             .await?;
         if resp.status() != 200 {
@@ -724,13 +730,10 @@ impl HttpStore {
         path.push_str("/inventory");
         let filtered_ingredients: Vec<IngredientKey> = filtered_ingredients.into_iter().collect();
         let modified_amts: Vec<(IngredientKey, String)> = modified_amts.into_iter().collect();
-        debug!("Storing inventory data in cache");
-        let serialized_inventory = to_string(&(filtered_ingredients, modified_amts, extra_items))
-            .expect("Unable to encode plan as json");
         debug!("Storing inventory data via API");
-        let resp = reqwasm::http::Request::post(&path)
-            .body(&serialized_inventory)
-            .header("content-type", "application/json")
+        let resp = gloo_net::http::Request::post(&path)
+            .json(&(filtered_ingredients, modified_amts, extra_items))
+            .expect("Failed to set body")
             .send()
             .await?;
         if resp.status() != 200 {
@@ -745,7 +748,7 @@ impl HttpStore {
     pub async fn fetch_staples(&self) -> Result<Option<String>, Error> {
         let mut path = self.v2_path();
         path.push_str("/staples");
-        let resp = reqwasm::http::Request::get(&path).send().await?;
+        let resp = gloo_net::http::Request::get(&path).send().await?;
         if resp.status() != 200 {
             debug!("Invalid response back");
             Err(format!("Status: {}", resp.status()).into())
@@ -759,15 +762,12 @@ impl HttpStore {
         }
     }
 
-    pub async fn store_staples<S: AsRef<str>>(&self, content: S) -> Result<(), Error> {
+    pub async fn store_staples<S: AsRef<str> + serde::Serialize>(&self, content: S) -> Result<(), Error> {
         let mut path = self.v2_path();
         path.push_str("/staples");
-        let serialized_staples: String =
-            to_string(content.as_ref()).expect("Failed to serialize staples to json");
-
-        let resp = reqwasm::http::Request::post(&path)
-            .body(&serialized_staples)
-            .header("content-type", "application/json")
+        let resp = gloo_net::http::Request::post(&path)
+            .json(&content)
+            .expect("Failed to set body")
             .send()
             .await?;
         if resp.status() != 200 {
