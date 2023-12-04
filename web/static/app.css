@@ -33,7 +33,7 @@
     --text-color: black;
     --menu-bg: var(--main-color);
     --header-bg: var(--light-accent);
-    --font-size: 20px;
+    --font-size: 1.2em;
     --menu-font-size: 1.5em;
     --cell-target: 30%;
 }
@@ -129,29 +129,22 @@ a {
     display: block;
 }
 
+.no-list {
+    list-style-type: none;
+}
+
 /** Typography classes **/
 
 .menu-font {
     font-size: var(--menu-font-size);
 }
 
-/** nav elements **/
-nav ul {
-    list-style-type: none;
-}
-
+/** element specific styling **/
 nav li {
     margin-right: var(--nav-margin);
 }
 
-nav li a::after {
-    content: '| ";
-}
-
-nav li a {
-    color: black;
-}
-
+/** color and borders **/
 .header-bg {
     background-color: var(--header-bg);
 }
@@ -160,6 +153,7 @@ nav li a {
     border-bottom: var(--border-width) solid var(--heavy-accent)
 }
 
+/** Situational **/
 .selected {
     border-style: none;
     border-bottom-style: var(--tab-border-style);

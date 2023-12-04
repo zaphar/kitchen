@@ -48,7 +48,7 @@ pub fn TabbedView<'a, G: Html>(cx: Scope<'a>, state: TabState<'a, G>) -> View<G>
     );
     view! {cx,
         nav(class="menu-bg expand-height menu-font") {
-            ul(class="tabs pad-left") {
+            ul(class="tabs pad-left no-list") {
                 (menu)
             }
         }

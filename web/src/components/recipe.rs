@@ -146,7 +146,7 @@ fn Steps<G: Html>(cx: Scope, steps: Vec<recipes::Step>) -> View<G> {
         view! {cx,
             div {
                 h3 { "Step " (idx + 1) }
-                ul(class="ingredients") {
+                ul(class="ingredients no-list") {
                     (ingredient_fragments)
                 }
                 div(class="instructions") {

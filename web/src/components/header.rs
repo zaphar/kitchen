@@ -25,7 +25,7 @@ pub fn Header<'ctx, G: Html>(cx: Scope<'ctx>, h: StateHandler<'ctx>) -> View<G> 
     view! {cx,
         nav(class="no-print row-flex align-center header-bg heavy-bottom-border menu-font") {
             h1(class="title") { "Kitchen" }
-            ul(class="row-flex align-center") {
+            ul(class="row-flex align-center no-list") {
                 li { a(href="/ui/planning/select") { "MealPlan" } }
                 li { a(href="/ui/manage/ingredients") { "Manage" } }
                 li { a(href="/ui/login") { (login.get()) } }
