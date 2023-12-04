@@ -17,7 +17,7 @@ use sycamore::prelude::*;
 #[component]
 pub fn Footer<G: Html>(cx: Scope) -> View<G> {
     view! {cx,
-        nav(class="no-print") {
+        nav(class="no-print menu-font") {
             ul {
                 li { a(href="https://github.com/zaphar/kitchen") { "On Github" } }
             }

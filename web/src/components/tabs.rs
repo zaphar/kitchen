@@ -47,7 +47,7 @@ pub fn TabbedView<'a, G: Html>(cx: Scope<'a>, state: TabState<'a, G>) -> View<G>
             .collect(),
     );
     view! {cx,
-        nav(class="menu-bg expand-height") {
+        nav(class="menu-bg expand-height menu-font") {
             ul(class="tabs pad-left") {
                 (menu)
             }

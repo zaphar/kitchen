@@ -34,6 +34,7 @@
     --menu-bg: var(--main-color);
     --header-bg: var(--light-accent);
     --font-size: 20px;
+    --menu-font-size: 1.5em;
     --cell-target: 30%;
 }
 
@@ -76,9 +77,8 @@ a {
     text-decoration: none;
 }
 
-/** Our specific page elements **/
+/** layout classes **/
 
-/** TODO(jwall): Move these onto the html elements themselves. **/
 .column-flex {
   display: flex;
   flex-direction: column;
@@ -127,6 +127,12 @@ a {
 
 .block {
     display: block;
+}
+
+/** Typography classes **/
+
+.menu-font {
+    font-size: var(--menu-font-size);
 }
 
 /** nav elements **/
