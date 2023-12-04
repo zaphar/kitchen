@@ -52,7 +52,7 @@ pub fn TabbedView<'a, G: Html>(cx: Scope<'a>, state: TabState<'a, G>) -> View<G>
                 (menu)
             }
         }
-        main {
+        main(class="content-font") {
             (children)
         }
     }
