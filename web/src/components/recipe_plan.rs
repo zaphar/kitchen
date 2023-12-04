@@ -52,7 +52,7 @@ pub fn CategoryGroup<'ctx, G: Html>(
     });
     view! {cx,
         h2 { (category) }
-        div(class="no-print flex-wrap-start align-stretch") {
+        div(class="no-print row-flex flex-wrap-start align-stretch") {
             (View::new_fragment(
                 rows.get().iter().cloned().map(|r| {
                     view ! {cx,
