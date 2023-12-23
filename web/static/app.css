@@ -133,10 +133,44 @@ a {
     list-style-type: none;
 }
 
+.fit-content {
+    width: fit-content;
+}
+
+.width-10 {
+    width: 10em;
+}
+
+.width-5 {
+    width: 5em;
+}
+
+.border-bottom {
+    border-bottom-style: solid;
+    border-bottom-color: var(--tab-border-color);
+    border-bottom-width: var(--tab-border-width);
+}
+
+.margin-bot-1 {
+    margin-bottom: 1em;
+}
+
+.margin-bot-half {
+    margin-bottom: .5em;
+}
+
+.margin-right-1 {
+    margin-right: 1em;
+}
+
 /** Typography classes **/
 
 .menu-font {
     font-size: var(--menu-font-size);
+}
+
+.menu-font-2 {
+    font-size: calc(var(--menu-font-size) / 1.5);
 }
 
 .content-font {

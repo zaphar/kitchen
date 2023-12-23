@@ -47,12 +47,12 @@ pub fn TabbedView<'a, G: Html>(cx: Scope<'a>, state: TabState<'a, G>) -> View<G>
             .collect(),
     );
     view! {cx,
-        nav(class="menu-bg expand-height menu-font") {
-            ul(class="tabs pad-left no-list") {
+        nav(class="menu-bg menu-font-2 flex-item-shrink") {
+            ul(class="tabs pad-left no-list row-flex align-center") {
                 (menu)
             }
         }
-        main(class="content-font") {
+        main(class="flex-item-grow content-font") {
             (children)
         }
     }

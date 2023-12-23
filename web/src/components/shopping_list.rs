@@ -109,12 +109,12 @@ fn make_ingredients_rows<'ctx, G: Html>(
                 view! {cx,
                     tr {
                         td {
-                            input(bind:value=amt_signal, type="text", on:change=move |_| {
+                            input(bind:value=amt_signal, class="width-5", type="text", on:change=move |_| {
                                 sh.dispatch(cx, Message::UpdateAmt(k_clone.clone(), amt_signal.get_untracked().as_ref().clone()));
                             })
                         }
                         td {
-                            input(type="button", class="no-print destructive", value="X", on:click={
+                            input(type="button", class="fit-content no-print destructive", value="X", on:click={
                                 move |_| {
                                     sh.dispatch(cx, Message::AddFilteredIngredient(k.clone()));
                             }})
@@ -143,14 +143,14 @@ fn make_extras_rows<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> V
                 view! {cx,
                     tr {
                         td {
-                            input(bind:value=amt_signal, type="text", on:change=move |_| {
+                            input(bind:value=amt_signal, class="width-5", type="text", on:change=move |_| {
                                 sh.dispatch(cx, Message::UpdateExtra(idx,
                                     amt_signal.get_untracked().as_ref().clone(),
                                     name_signal.get_untracked().as_ref().clone()));
                             })
                         }
                         td {
-                            input(type="button", class="no-print destructive", value="X", on:click=move |_| {
+                            input(type="button", class="fit-content no-print destructive", value="X", on:click=move |_| {
                                 sh.dispatch(cx, Message::RemoveExtra(idx));
                             })
                         }

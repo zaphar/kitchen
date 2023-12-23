@@ -49,7 +49,7 @@ fn CategoryRow<'ctx, G: Html>(cx: Scope<'ctx>, props: CategoryRowProps<'ctx>) ->
     });
     view! {cx,
         tr() {
-            td() {
+            td(class="margin-bot-1 border-bottom") {
                 (ingredient_clone) br()
                 Indexed(
                     iterable=recipes,
