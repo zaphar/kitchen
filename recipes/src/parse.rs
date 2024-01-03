@@ -419,8 +419,6 @@ pub fn measure(i: StrIter) -> abortable_parser::Result<StrIter, Measure> {
     }
 }
 
-// TODO(jwall): I think this is a mistake. We should rethink what noralizing means or we should
-// remove it.
 pub fn normalize_name(name: &str) -> String {
     let parts: Vec<&str> = name.split_whitespace().collect();
     if parts.len() >= 2 {
@@ -428,9 +426,8 @@ pub fn normalize_name(name: &str) -> String {
         // NOTE(jwall): The below unwrap is safe because of the length
         // check above.
         let last = parts.last().unwrap();
-        let normalized = last.to_singular();
         prefix.push(' ');
-        prefix.push_str(&normalized);
+        prefix.push_str(&last.to_string());
         return prefix;
     }
     return name.trim().to_lowercase().to_owned();
