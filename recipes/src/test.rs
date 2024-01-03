@@ -302,7 +302,7 @@ fn test_ingredient_parse() {
         (
             "1 can baked beans",
             Ingredient::new(
-                "baked bean",
+                "baked beans",
                 None,
                 Package("can".into(), Quantity::Whole(1)),
             ),
