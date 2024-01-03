@@ -21,7 +21,7 @@ use std::{
     cmp::{Ordering, PartialEq, PartialOrd},
     convert::TryFrom,
     fmt::Display,
-    ops::{Add, Div, Mul, Sub},
+    ops::{Add, Div, Mul, Sub}, rc::Rc,
 };
 
 use num_rational::Ratio;
@@ -179,6 +179,20 @@ impl VolumeMeasure {
 
 macro_rules! volume_op {
     ($trait:ident, $method:ident) => {
+        impl $trait for &VolumeMeasure {
+            type Output = VolumeMeasure;
+
+            fn $method(self, lhs: Self) -> Self::Output {
+                let (l, r) = (self.get_ml(), lhs.get_ml());
+                let result = ML($trait::$method(l, r));
+                if self.metric() {
+                    result.normalize()
+                } else {
+                    result.into_tsp().normalize()
+                }
+            }
+        }
+
         impl $trait for VolumeMeasure {
             type Output = Self;
 
@@ -293,6 +307,20 @@ impl WeightMeasure {
 
 macro_rules! weight_op {
     ($trait:ident, $method:ident) => {
+        impl $trait for &WeightMeasure {
+            type Output = WeightMeasure;
+
+            fn $method(self, lhs: Self) -> Self::Output {
+                let (l, r) = (self.get_grams(), lhs.get_grams());
+                let result = WeightMeasure::Gram($trait::$method(l, r));
+                if self.metric() {
+                    result.normalize()
+                } else {
+                    result.into_oz().normalize()
+                }
+            }
+        }
+        
         impl $trait for WeightMeasure {
             type Output = Self;
 
@@ -335,18 +363,19 @@ impl Display for WeightMeasure {
 
 use WeightMeasure::{Gram, Kilogram, Oz, Pound};
 
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord)]
 /// Measurements in a Recipe with associated units for them.
 pub enum Measure {
     /// Volume measurements as meter cubed base unit
     Volume(VolumeMeasure),
     /// Simple count of items
     Count(Quantity),
+    Package(Rc<str>, Quantity),
     /// Weight measure as Grams base unit
     Weight(WeightMeasure),
 }
 
-use Measure::{Count, Volume, Weight};
+use Measure::{Count, Volume, Weight, Package};
 
 impl Measure {
     pub fn tsp(qty: Quantity) -> Self {
@@ -407,11 +436,16 @@ impl Measure {
         Weight(Oz(qty))
     }
 
+    pub fn pkg<S: Into<Rc<str>>>(name: S, qty: Quantity) -> Self {
+        Package(name.into(), qty)
+    }
+
     pub fn measure_type(&self) -> String {
         match self {
             Volume(_) => "Volume",
             Count(_) => "Count",
             Weight(_) => "Weight",
+            Package(_, _) => "Package",
         }
         .to_owned()
     }
@@ -421,6 +455,7 @@ impl Measure {
             Volume(vm) => vm.plural(),
             Count(qty) => qty.plural(),
             Weight(wm) => wm.plural(),
+            Package(_, qty) => qty.plural(),
         }
     }
 
@@ -429,6 +464,7 @@ impl Measure {
             Volume(vm) => Volume(vm.normalize()),
             Count(qty) => Count(qty.clone()),
             Weight(wm) => Weight(wm.normalize()),
+            Package(nm, qty) => Package(nm.clone(), qty.clone()),
         }
     }
 }
@@ -439,6 +475,7 @@ impl Display for Measure {
             Volume(vm) => write!(w, "{}", vm),
             Count(qty) => write!(w, "{}", qty),
             Weight(wm) => write!(w, "{}", wm),
+            Package(nm, qty) => write!(w, "{} {}", qty, nm),
         }
     }
 }
@@ -533,6 +570,22 @@ impl TryFrom<f32> for Quantity {
 
 macro_rules! quantity_op {
     ($trait:ident, $method:ident) => {
+        impl $trait for &Quantity {
+            type Output = Quantity;
+
+            fn $method(self, lhs: Self) -> Self::Output {
+                match (self, lhs) {
+                    (Whole(rhs), Whole(lhs)) => Frac($trait::$method(
+                        Ratio::from_integer(*rhs),
+                        Ratio::from_integer(*lhs),
+                    )),
+                    (Frac(rhs), Frac(lhs)) => Frac($trait::$method(rhs, lhs)),
+                    (Whole(rhs), Frac(lhs)) => Frac($trait::$method(Ratio::from_integer(*rhs), lhs)),
+                    (Frac(rhs), Whole(lhs)) => Frac($trait::$method(rhs, Ratio::from_integer(*lhs))),
+                }
+            }
+        }
+
         impl $trait for Quantity {
             type Output = Self;
 

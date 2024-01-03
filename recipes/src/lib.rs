@@ -156,16 +156,25 @@ impl IngredientAccumulator {
                 set.insert(recipe_title.clone());
                 self.inner.insert(key, (i.clone(), set));
             } else {
-                let amt = match (self.inner[&key].0.amt, i.amt) {
-                    (Volume(rvm), Volume(lvm)) => Volume(lvm + rvm),
-                    (Count(lqty), Count(rqty)) => Count(lqty + rqty),
-                    (Weight(lqty), Weight(rqty)) => Weight(lqty + rqty),
+                let amts = match (&self.inner[&key].0.amt, &i.amt) {
+                    (Volume(rvm), Volume(lvm)) => vec![Volume(lvm + rvm)],
+                    (Count(lqty), Count(rqty)) => vec![Count(lqty + rqty)],
+                    (Weight(lqty), Weight(rqty)) => vec![Weight(lqty + rqty)],
+                    (Package(lnm, lqty), Package(rnm, rqty)) => {
+                        if lnm == rnm {
+                            vec![Package(lnm.clone(), lqty + rqty)]
+                        } else {
+                            vec![Package(lnm.clone(), lqty.clone()), Package(rnm.clone(), rqty.clone())]
+                        }
+                    }
                     _ => unreachable!(),
                 };
-                self.inner.get_mut(&key).map(|(i, set)| {
-                    i.amt = amt;
-                    set.insert(recipe_title.clone());
-                });
+                for amt in amts {
+                    self.inner.get_mut(&key).map(|(i, set)| {
+                        i.amt = amt;
+                        set.insert(recipe_title.clone());
+                    });
+                }
             }
         }
     }
