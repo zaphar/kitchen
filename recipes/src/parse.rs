@@ -400,7 +400,7 @@ pub fn measure(i: StrIter) -> abortable_parser::Result<StrIter, Measure> {
                     "oz" => Weight(Oz(qty)),
                     "kg" | "kilogram" => Weight(Kilogram(qty)),
                     "g" | "gram" => Weight(Gram(qty)),
-                    "pkg" | "package" | "can" | "bag" | "bottle" | "bot"  => Measure::pkg(s, qty),
+                    "pkg" | "package" | "can" | "bag" | "bottle" | "bot" => Measure::pkg(s, qty),
                     _u => {
                         eprintln!("Invalid unit: {}", _u);
                         unreachable!()

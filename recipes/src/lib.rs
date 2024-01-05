@@ -164,7 +164,10 @@ impl IngredientAccumulator {
                         if lnm == rnm {
                             vec![Package(lnm.clone(), lqty + rqty)]
                         } else {
-                            vec![Package(lnm.clone(), lqty.clone()), Package(rnm.clone(), rqty.clone())]
+                            vec![
+                                Package(lnm.clone(), lqty.clone()),
+                                Package(rnm.clone(), rqty.clone()),
+                            ]
                         }
                     }
                     _ => unreachable!(),
