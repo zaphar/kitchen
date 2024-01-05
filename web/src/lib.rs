@@ -15,10 +15,10 @@ mod api;
 mod app_state;
 mod components;
 mod js_lib;
+mod linear;
 mod pages;
 mod routing;
 mod web;
-mod linear;
 
 use sycamore::prelude::*;
 use wasm_bindgen::prelude::wasm_bindgen;

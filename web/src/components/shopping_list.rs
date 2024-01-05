@@ -194,9 +194,7 @@ fn make_shopping_table<'ctx, G: Html>(
 #[instrument(skip_all)]
 #[component]
 pub fn ShoppingList<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
-    let show_staples = sh.get_selector(cx, |state| {
-        state.get().use_staples
-    });
+    let show_staples = sh.get_selector(cx, |state| state.get().use_staples);
     view! {cx,
         h1 { "Shopping List " }
         label(for="show_staples_cb") { "Show staples" }

@@ -16,7 +16,7 @@ use sycamore::prelude::*;
 use tracing::{debug, error};
 use wasm_bindgen::JsCast;
 use wasm_web_component::{web_component, WebComponentBinding};
-use web_sys::{CustomEvent, Event, HtmlElement, InputEvent, ShadowRoot, window};
+use web_sys::{window, CustomEvent, Event, HtmlElement, InputEvent, ShadowRoot};
 
 use crate::js_lib::LogFailures;
 
@@ -153,7 +153,12 @@ impl WebComponentBinding for NumberSpinner {
     ) {
         let nval_el = self.get_input_el();
         let name = name.as_string().unwrap();
-        debug!(?name, ?old_value, ?new_value, "COUNTS: handling attribute change");
+        debug!(
+            ?name,
+            ?old_value,
+            ?new_value,
+            "COUNTS: handling attribute change"
+        );
         match name.as_str() {
             "val" => {
                 debug!("COUNTS: got an updated value");
@@ -236,9 +241,15 @@ where
     create_effect(cx, move || {
         let new_count = *counter.get();
         debug!(new_count, "COUNTS: Updating spinner with new value");
-        if let Some(el) = window().unwrap().document().unwrap().get_element_by_id(id.as_str()) {
+        if let Some(el) = window()
+            .unwrap()
+            .document()
+            .unwrap()
+            .get_element_by_id(id.as_str())
+        {
             debug!("COUNTS: found element");
-            el.set_attribute("val", new_count.to_string().as_str()).unwrap();
+            el.set_attribute("val", new_count.to_string().as_str())
+                .unwrap();
         }
     });
     let id = name.clone();

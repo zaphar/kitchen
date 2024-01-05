@@ -16,7 +16,8 @@ use tracing::error;
 use web_sys::{window, Storage, Window};
 
 pub fn get_storage() -> Storage {
-    get_window().local_storage()
+    get_window()
+        .local_storage()
         .expect("Failed to get storage")
         .expect("No storage available")
 }
@@ -26,8 +27,7 @@ pub fn get_ms_timestamp() -> u32 {
 }
 
 pub fn get_window() -> Window {
-    window()
-        .expect("No window present")
+    window().expect("No window present")
 }
 
 pub trait LogFailures<V, E> {

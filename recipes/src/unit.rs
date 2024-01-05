@@ -21,7 +21,8 @@ use std::{
     cmp::{Ordering, PartialEq, PartialOrd},
     convert::TryFrom,
     fmt::Display,
-    ops::{Add, Div, Mul, Sub}, rc::Rc,
+    ops::{Add, Div, Mul, Sub},
+    rc::Rc,
 };
 
 use num_rational::Ratio;
@@ -320,7 +321,7 @@ macro_rules! weight_op {
                 }
             }
         }
-        
+
         impl $trait for WeightMeasure {
             type Output = Self;
 
@@ -375,7 +376,7 @@ pub enum Measure {
     Weight(WeightMeasure),
 }
 
-use Measure::{Count, Volume, Weight, Package};
+use Measure::{Count, Package, Volume, Weight};
 
 impl Measure {
     pub fn tsp(qty: Quantity) -> Self {
@@ -580,8 +581,12 @@ macro_rules! quantity_op {
                         Ratio::from_integer(*lhs),
                     )),
                     (Frac(rhs), Frac(lhs)) => Frac($trait::$method(rhs, lhs)),
-                    (Whole(rhs), Frac(lhs)) => Frac($trait::$method(Ratio::from_integer(*rhs), lhs)),
-                    (Frac(rhs), Whole(lhs)) => Frac($trait::$method(rhs, Ratio::from_integer(*lhs))),
+                    (Whole(rhs), Frac(lhs)) => {
+                        Frac($trait::$method(Ratio::from_integer(*rhs), lhs))
+                    }
+                    (Frac(rhs), Whole(lhs)) => {
+                        Frac($trait::$method(rhs, Ratio::from_integer(*lhs)))
+                    }
                 }
             }
         }

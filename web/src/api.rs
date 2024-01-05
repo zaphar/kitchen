@@ -25,7 +25,10 @@ use recipes::{IngredientKey, RecipeEntry};
 use wasm_bindgen::JsValue;
 use web_sys::Storage;
 
-use crate::{app_state::{AppState, parse_recipes}, js_lib};
+use crate::{
+    app_state::{parse_recipes, AppState},
+    js_lib,
+};
 
 #[derive(Debug)]
 pub struct Error(String);
@@ -111,7 +114,8 @@ impl LocalStore {
         self.store.get("app_state").map_or(None, |val| {
             val.map(|s| {
                 debug!("Found an app_state object");
-                let mut app_state: AppState = from_str(&s).expect("Failed to deserialize app state");
+                let mut app_state: AppState =
+                    from_str(&s).expect("Failed to deserialize app state");
                 let recipes = parse_recipes(&self.get_recipes()).expect("Failed to parse recipes");
                 if let Some(recipes) = recipes {
                     debug!("Populating recipes");
@@ -160,12 +164,12 @@ impl LocalStore {
     }
 
     fn migrate_local_store(&self) {
-        for k in self.get_storage_keys()
-            .into_iter()
-            .filter(|k| k.starts_with("categor") || k == "inventory" || k.starts_with("plan") || k == "staples") {
-                // Deleting old local store key
-               debug!("Deleting old local store key {}", k);         
-               self.store.delete(&k).expect("Failed to delete storage key");
+        for k in self.get_storage_keys().into_iter().filter(|k| {
+            k.starts_with("categor") || k == "inventory" || k.starts_with("plan") || k == "staples"
+        }) {
+            // Deleting old local store key
+            debug!("Deleting old local store key {}", k);
+            self.store.delete(&k).expect("Failed to delete storage key");
         }
     }
 
@@ -280,9 +284,10 @@ impl HttpStore {
             )
             .mode(web_sys::RequestMode::SameOrigin)
             .credentials(web_sys::RequestCredentials::SameOrigin)
-            .build().expect("Failed to build request");
-       debug!(?request, "Sending auth request");
-       let result = request.send().await;
+            .build()
+            .expect("Failed to build request");
+        debug!(?request, "Sending auth request");
+        let result = request.send().await;
         if let Ok(resp) = &result {
             if resp.status() == 200 {
                 let user_data = resp
@@ -762,7 +767,10 @@ impl HttpStore {
         }
     }
 
-    pub async fn store_staples<S: AsRef<str> + serde::Serialize>(&self, content: S) -> Result<(), Error> {
+    pub async fn store_staples<S: AsRef<str> + serde::Serialize>(
+        &self,
+        content: S,
+    ) -> Result<(), Error> {
         let mut path = self.v2_path();
         path.push_str("/staples");
         let resp = gloo_net::http::Request::post(&path)
