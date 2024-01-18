@@ -18,9 +18,13 @@ use sycamore::prelude::*;
 
 #[component]
 pub fn PlanPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
+    let current_plan = sh.get_selector(cx, |state| {
+        state.get().selected_plan_date
+    });
     view! {cx,
         PlanningPage(
             selected=Some("Plan".to_owned()),
+            plan_date = current_plan,
         ) { RecipePlan(sh) }
     }
 }

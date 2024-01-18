@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crate::components::tabs::*;
+use chrono::NaiveDate;
 use sycamore::prelude::*;
 
 pub mod cook;
@@ -25,14 +26,19 @@ pub use plan::*;
 pub use select::*;
 
 #[derive(Props)]
-pub struct PageState<'a, G: Html> {
-    pub children: Children<'a, G>,
+pub struct PageState<'ctx, G: Html> {
+    pub children: Children<'ctx, G>,
     pub selected: Option<String>,
+    pub plan_date: &'ctx ReadSignal<Option<NaiveDate>>,
 }
 
 #[component]
-pub fn PlanningPage<'a, G: Html>(cx: Scope<'a>, state: PageState<'a, G>) -> View<G> {
-    let PageState { children, selected } = state;
+pub fn PlanningPage<'ctx, G: Html>(cx: Scope<'ctx>, state: PageState<'ctx, G>) -> View<G> {
+    let PageState {
+        children,
+        selected,
+        plan_date,
+    } = state;
     let children = children.call(cx);
     let planning_tabs: Vec<(String, &'static str)> = vec![
         ("/ui/planning/select".to_owned(), "Select"),
@@ -45,6 +51,10 @@ pub fn PlanningPage<'a, G: Html>(cx: Scope<'a>, state: PageState<'a, G>) -> View
         TabbedView(
             selected=selected,
             tablist=planning_tabs,
-        ) { (children) }
+        ) { div {
+                "Plan Date: " (plan_date.get().map_or(String::from("Unknown"), |d| format!("{}", d)))
+            }
+            (children)
+        }
     }
 }

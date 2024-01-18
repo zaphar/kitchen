@@ -32,9 +32,13 @@ pub fn SelectPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
         plans.sort_unstable_by(|d1, d2| d2.cmp(d1));
         plans
     });
+    let current_plan = sh.get_selector(cx, |state| {
+        state.get().selected_plan_date
+    });
     view! {cx,
         PlanningPage(
             selected=Some("Select".to_owned()),
+            plan_date = current_plan.clone(),
         ) {
             PlanList(sh=sh, list=plan_dates)
             button(on:click=move |_| {
