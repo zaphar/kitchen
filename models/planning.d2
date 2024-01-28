@@ -1,0 +1,17 @@
+Meal Planning: {
+    shape: sequence_diagram
+    user: Cook; client: Kitchen frontend; kitchen: Kitchen backend
+
+    user -> client: Start new meal Plan
+    client -> kitchen: new plan created
+    user -> client: Add recipe to meal plan
+    client -> kitchen: Update meal plan with recipe
+    client -> client: cache updated meal plan
+    user -> client: Do inventory
+    client -> kitchen: Store inventory mutations
+    client -> client: cache inventory mutations
+    user -> client: Undo mutation
+    client -> kitchen: Store inventory mutations
+    client -> client: cache inventory mutations
+    user -> user: Cook recipes
+}
