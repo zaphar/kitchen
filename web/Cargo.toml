@@ -56,6 +56,7 @@ features = [
     "Event",
     "InputEvent",
     "CustomEvent",
+    "CustomEventInit",
     "EventTarget",
     "History",
     "HtmlAnchorElement",

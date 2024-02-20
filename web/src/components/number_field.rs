@@ -14,9 +14,9 @@
 use maud::html;
 use sycamore::prelude::*;
 use tracing::{debug, error};
-use wasm_bindgen::JsCast;
+use wasm_bindgen::{JsCast, JsValue};
 use wasm_web_component::{web_component, WebComponentBinding};
-use web_sys::{window, CustomEvent, Event, HtmlElement, InputEvent, ShadowRoot};
+use web_sys::{window, CustomEvent, CustomEventInit, Event, HtmlElement, InputEvent, ShadowRoot};
 
 use crate::js_lib::LogFailures;
 
@@ -135,11 +135,10 @@ impl WebComponentBinding for NumberSpinner {
                 return;
             }
         };
+        let mut eventDict = CustomEventInit::new();
+        eventDict.detail(&JsValue::from_f64(self.value as f64));
         element
-            .set_attribute("val", &format!("{}", self.value))
-            .swallow_and_log();
-        element
-            .dispatch_event(&CustomEvent::new("updated").unwrap())
+            .dispatch_event(&CustomEvent::new_with_event_init_dict("updated", &eventDict).unwrap())
             .unwrap();
         debug!("Dispatched updated event");
     }
@@ -147,9 +146,9 @@ impl WebComponentBinding for NumberSpinner {
     fn attribute_changed_mut(
         &mut self,
         _element: &web_sys::HtmlElement,
-        name: wasm_bindgen::JsValue,
-        old_value: wasm_bindgen::JsValue,
-        new_value: wasm_bindgen::JsValue,
+        name: JsValue,
+        old_value: JsValue,
+        new_value: JsValue,
     ) {
         let nval_el = self.get_input_el();
         let name = name.as_string().unwrap();
@@ -213,7 +212,7 @@ impl WebComponentBinding for NumberSpinner {
 #[derive(Props)]
 pub struct NumberProps<'ctx, F>
 where
-    F: Fn(Event),
+    F: Fn(CustomEvent),
 {
     name: String,
     class: String,
@@ -225,7 +224,7 @@ where
 #[component]
 pub fn NumberField<'ctx, F, G: Html>(cx: Scope<'ctx>, props: NumberProps<'ctx, F>) -> View<G>
 where
-    F: Fn(web_sys::Event) + 'ctx,
+    F: Fn(CustomEvent) + 'ctx,
 {
     let NumberProps {
         name,
@@ -238,27 +237,13 @@ where
     // TODO(jwall): I'm pretty sure this triggers: https://github.com/sycamore-rs/sycamore/issues/602
     // Which means I probably have to wait till v0.9.0 drops or switch to leptos.
     let id = name.clone();
-    create_effect(cx, move || {
-        let new_count = *counter.get();
-        debug!(new_count, "COUNTS: Updating spinner with new value");
-        if let Some(el) = window()
-            .unwrap()
-            .document()
-            .unwrap()
-            .get_element_by_id(id.as_str())
-        {
-            debug!("COUNTS: found element");
-            el.set_attribute("val", new_count.to_string().as_str())
-                .unwrap();
-        }
-    });
-    let id = name.clone();
+    let initial_count = *counter.get();
     view! {cx,
-        number-spinner(id=id, class=(class), val=*counter.get(), min=min, on:updated=move |evt: Event| {
-            let target: HtmlElement = evt.target().unwrap().dyn_into().unwrap();
-            let val: f64 = target.get_attribute("val").unwrap().parse().unwrap();
+        number-spinner(id=id, class=(class), val=(initial_count), min=min, on:updated=move |evt: Event| {
+            let event = evt.unchecked_into::<CustomEvent>();
+            let val: f64 = event.detail().as_f64().unwrap();
             counter.set(val);
-            on_change.as_ref().map(|f| f(evt));
+            on_change.as_ref().map(|f| f(event));
             debug!(counter=%(counter.get_untracked()), "set counter to new value");
         })
     }
