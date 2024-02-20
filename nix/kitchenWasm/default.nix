@@ -35,6 +35,7 @@ stdenv.mkDerivation {
     # TODO(jwall): Build this from the root rather than the src.
     buildPhase = ''
         echo building with wasm-pack
+        wasm-pack --version
         mkdir -p $out
         cd web
         cp -r static $out
