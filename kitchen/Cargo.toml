@@ -51,7 +51,7 @@ features = ["serde", "v4"]
 
 [dependencies.axum]
 version = "0.5.16"
-features = ["headers", "http2"]
+features = ["headers", "http2", "rustls-tls"]
 
 [dependencies.clap]
 version = "3.2.16"
