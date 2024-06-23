@@ -34,13 +34,20 @@ stdenv.mkDerivation {
     '';
     # TODO(jwall): Build this from the root rather than the src.
     buildPhase = ''
+        set -x
         echo building with wasm-pack
         wasm-pack --version
         mkdir -p $out
         cd web
         cp -r static $out
-        RUST_LOG=info wasm-pack build --mode no-install --release --target web --out-dir $out ${features};
+        cargo build --lib --release --target wasm32-unknown-unknown --target-dir $out --offline
+        wasm-bindgen $out/wasm32-unknown-unknown/release/kitchen_wasm.wasm --out-dir $out --typescript --target web
+        wasm-opt $out/kitchen_wasm_bg.wasm -o $out/kitchen_wasm_bg-opt.wasm -O
+        rm -f $out/kitchen_wasm_bg.wasm
+        mv $out/kitchen_wasm_bg-opt.wasm $out/kitchen_wasm_bg.wasm
         cp -r index.html $out
         cp -r favicon.ico $out
+        rm -rf $out/release
+        rm -rf $out/wasm32-unknown-unknown
     '';
 }
