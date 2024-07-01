@@ -1,8 +1,8 @@
 set -x
 buildtype=$1;
 
-if [ -eq ${buildtype} = "release" ]; then
-	builtype_flag="--release"
+if [ ${buildtype} = "release" ]; then
+	buildtype_flag="--release"
 fi
 
 cargo build --lib ${buildtype_flag} --target wasm32-unknown-unknown --target-dir $out --features debug_logs

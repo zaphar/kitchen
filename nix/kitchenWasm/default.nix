@@ -32,8 +32,10 @@ stdenv.mkDerivation {
         mkdir -p $out
         cd web
         cp -r static $out
-        cargo build --lib --release --target wasm32-unknown-unknown --target-dir $out ${features} --offline
-        wasm-bindgen $out/wasm32-unknown-unknown/release/kitchen_wasm.wasm --out-dir $out --typescript --target web
+		sh ../scripts/wasm-build.sh release
+        #cargo build --lib --release --target wasm32-unknown-unknown --target-dir $out ${features} --offline
+        #wasm-bindgen $out/wasm32-unknown-unknown/release/kitchen_wasm.wasm --out-dir $out --typescript --target web
+		#sh ../scripts/wasm-opt.sh release
         wasm-opt $out/kitchen_wasm_bg.wasm -o $out/kitchen_wasm_bg-opt.wasm -O
         rm -f $out/kitchen_wasm_bg.wasm
         mv $out/kitchen_wasm_bg-opt.wasm $out/kitchen_wasm_bg.wasm
