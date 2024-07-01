@@ -6,10 +6,6 @@ A web assembly experiment in Meal Planning and Shopping List management.
 
 Ensure you have rust installed with support for the web assembly target. You can see instructions here: [Rust wasm book](https://rustwasm.github.io/docs/book/game-of-life/setup.html).
 
-You will also want to have trunk installed. You can see instructions for that here: [trunk](https://trunkrs.dev/)
-
-Then obtain the source. We do not at this time publish kitchen on [crates.io](https://crates.io/).
-
 ```sh
 git clone https://github.com/zaphar/kitchen
 cd kitchen
@@ -23,7 +19,7 @@ make release
 
 # Hacking on kitchen
 
-If you want to hack on kitchen, then you may find it useful to use trunk in dev mode. The run script will run build the app and run trunk with it watching for changes and reloading on demand in your browser.
+The run script will run build the app and run it for you.
 
 ```sh
 ./run.sh
