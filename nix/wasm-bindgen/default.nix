@@ -8,9 +8,7 @@ in
 , nodejs
 , pkg-config
 , openssl
-, stdenv
 , curl
-, runCommand
 }:
 
 # This package is special so we don't use the naersk infrastructure to build it.
