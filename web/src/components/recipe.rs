@@ -79,12 +79,14 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
 
     debug!("creating editor view");
     view! {cx,
-        label(for="recipe_category") { "Category" }
-        input(name="recipe_category", bind:value=category, on:change=move |_| dirty.set(true))
-        div(class="grid") {
-            div {
-                label(for="recipe_text") { "Recipe" }
-                textarea(name="recipe_text", bind:value=text, aria-invalid=aria_hint.get(), rows=20, on:change=move |_| {
+        div {
+            label(for="recipe_category") { "Category" }
+            input(name="recipe_category", bind:value=category, on:change=move |_| dirty.set(true))
+        }
+        div {
+            div(class="row-flex") {
+                label(for="recipe_text", class="block align-stretch expand-height") { "Recipe: " }
+                textarea(class="width-third", name="recipe_text", bind:value=text, aria-invalid=aria_hint.get(), cols="50", rows=20, on:change=move |_| {
                     dirty.set(true);
                     check_recipe_parses(text.get_untracked().as_str(), error_text, aria_hint);
                 }, on:input=move |_| {
@@ -97,34 +99,36 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
             }
             div(class="parse") { (error_text.get()) }
         }
-        span(role="button", on:click=move |_| {
-            let unparsed = text.get_untracked();
-            if check_recipe_parses(unparsed.as_str(), error_text, aria_hint) {
-                debug!("triggering a save");
-                if !*dirty.get_untracked() {
-                    debug!("Recipe text is unchanged");
-                    return;
+        div {
+            button(on:click=move |_| {
+                let unparsed = text.get_untracked();
+                if check_recipe_parses(unparsed.as_str(), error_text, aria_hint) {
+                    debug!("triggering a save");
+                    if !*dirty.get_untracked() {
+                        debug!("Recipe text is unchanged");
+                        return;
+                    }
+                    debug!("Recipe text is changed");
+                    let category = category.get_untracked();
+                    let category = if category.is_empty() {
+                        None
+                    } else {
+                        Some(category.as_ref().clone())
+                    };
+                    let recipe_entry = RecipeEntry(
+                                    id.get_untracked().as_ref().clone(),
+                                    text.get_untracked().as_ref().clone(),
+                                    category,
+                    );
+                    sh.dispatch(cx, Message::SaveRecipe(recipe_entry, None));
+                    dirty.set(false);
                 }
-                debug!("Recipe text is changed");
-                let category = category.get_untracked();
-                let category = if category.is_empty() {
-                    None
-                } else {
-                    Some(category.as_ref().clone())
-                };
-                let recipe_entry = RecipeEntry(
-                                id.get_untracked().as_ref().clone(),
-                                text.get_untracked().as_ref().clone(),
-                                category,
-                );
-                sh.dispatch(cx, Message::SaveRecipe(recipe_entry, None));
-                dirty.set(false);
-            }
-            // TODO(jwall): Show error message if trying to save when recipe doesn't parse.
-        }) { "Save" } " "
-        span(role="button", on:click=move |_| {
-            sh.dispatch(cx, Message::RemoveRecipe(id.get_untracked().as_ref().to_owned(), Some(Box::new(|| sycamore_router::navigate("/ui/planning/plan")))));
-        }) { "delete" } " "
+                // TODO(jwall): Show error message if trying to save when recipe doesn't parse.
+            }) { "Save" } " "
+            button(on:click=move |_| {
+                sh.dispatch(cx, Message::RemoveRecipe(id.get_untracked().as_ref().to_owned(), Some(Box::new(|| sycamore_router::navigate("/ui/planning/plan")))));
+            }) { "delete" } " "
+        }
     }
 }
 
@@ -142,7 +146,7 @@ fn Steps<G: Html>(cx: Scope, steps: Vec<recipes::Step>) -> View<G> {
         view! {cx,
             div {
                 h3 { "Step " (idx + 1) }
-                ul(class="ingredients") {
+                ul(class="ingredients no-list") {
                     (ingredient_fragments)
                 }
                 div(class="instructions") {

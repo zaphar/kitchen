@@ -174,8 +174,9 @@ impl StateMachine {
         local_store: &LocalStore,
         original: &Signal<AppState>,
     ) -> Result<(), crate::api::Error> {
-        // TODO(jwall): We use a linear Signal in here to ensure that we only
-        // call set on the signal once.
+        // NOTE(jwall): We use a linear Signal in here to ensure that we only
+        // call set on the signal once. When the LinearSignal get's dropped it
+        // will call set on the contained Signal.
         let mut original: LinearSignal<AppState> = original.into();
         if let Some(state) = local_store.fetch_app_state() {
             original = original.update(state);

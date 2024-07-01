@@ -24,7 +24,10 @@ pub struct LinearSignal<'ctx, Payload> {
 
 impl<'ctx, Payload> Into<LinearSignal<'ctx, Payload>> for &'ctx Signal<Payload> {
     fn into(self) -> LinearSignal<'ctx, Payload> {
-        LinearSignal { signal: self, nv: None }
+        LinearSignal {
+            signal: self,
+            nv: None,
+        }
     }
 }
 

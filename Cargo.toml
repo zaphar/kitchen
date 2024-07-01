@@ -1,5 +1,6 @@
 [workspace]
 members = [ "recipes", "kitchen", "web", "api" ]
+resolver = "2"
 
 [patch.crates-io]
 # TODO(jwall): When the fix for RcSignal Binding is released we can drop this patch.

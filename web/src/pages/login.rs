@@ -27,9 +27,13 @@ pub fn LoginForm<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View
             input(type="text", id="username", bind:value=username)
             label(for="password") { "Password" }
             input(type="password", bind:value=password)
-            span(role="button", on:click=move |_| {
+            button(on:click=move |evt: web_sys::Event| {
                 info!("Attempting login request");
                 let (username, password) = ((*username.get_untracked()).clone(), (*password.get_untracked()).clone());
+                // NOTE(jwall): This is required if we want to keep the below auth request from
+                // failing to send with blocked by browser. This is because it's on a click and
+                // the form tries to do a submit event and aborts our network request.
+                evt.prevent_default();
                 if username != "" && password != "" {
                     spawn_local_scoped(cx, async move {
                         let store = crate::api::HttpStore::get_from_context(cx);

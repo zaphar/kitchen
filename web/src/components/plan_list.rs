@@ -1,4 +1,3 @@
-use chrono::NaiveDate;
 // Copyright 2023 Jeremy Wall (Jeremy@marzhilsltudios.com)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,6 +11,7 @@ use chrono::NaiveDate;
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use chrono::NaiveDate;
 use sycamore::prelude::*;
 
 use crate::app_state::{Message, StateHandler};
@@ -23,30 +23,25 @@ pub struct PlanListProps<'ctx> {
     list: &'ctx ReadSignal<Vec<NaiveDate>>,
 }
 
-// TODO(jwall): We also need a "new plan button"
 #[instrument(skip_all, fields(dates=?props.list))]
 #[component]
 pub fn PlanList<'ctx, G: Html>(cx: Scope<'ctx>, props: PlanListProps<'ctx>) -> View<G> {
     let PlanListProps { sh, list } = props;
     view! {cx,
         div() {
-            table() {
+            div(class="column-flex") {
                 Indexed(
                     iterable=list,
                     view=move |cx, date| {
                         let date_display = format!("{}", date);
                         view!{cx,
-                            tr() {
-                                td() {
-                                    span(role="button", class="outline", on:click=move |_| {
-                                        sh.dispatch(cx, Message::SelectPlanDate(date, None))
-                                    }) { (date_display) }
-                                }
-                                td() {
-                                    span(role="button", class="destructive", on:click=move |_| {
-                                        sh.dispatch(cx, Message::DeletePlan(date, None))
-                                    }) { "Delete Plan" }
-                                }
+                            div(class="row-flex margin-bot-half") {
+                                button(class="outline margin-right-1", on:click=move |_| {
+                                    sh.dispatch(cx, Message::SelectPlanDate(date, None))
+                                }) { (date_display) }
+                                button(class="destructive", on:click=move |_| {
+                                    sh.dispatch(cx, Message::DeletePlan(date, None))
+                                }) { "Delete Plan" }
                             }
                         }
                     },

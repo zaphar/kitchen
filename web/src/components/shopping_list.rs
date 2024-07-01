@@ -109,12 +109,12 @@ fn make_ingredients_rows<'ctx, G: Html>(
                 view! {cx,
                     tr {
                         td {
-                            input(bind:value=amt_signal, type="text", on:change=move |_| {
+                            input(bind:value=amt_signal, class="width-5", type="text", on:change=move |_| {
                                 sh.dispatch(cx, Message::UpdateAmt(k_clone.clone(), amt_signal.get_untracked().as_ref().clone()));
                             })
                         }
                         td {
-                            input(type="button", class="no-print destructive", value="X", on:click={
+                            input(type="button", class="fit-content no-print destructive", value="X", on:click={
                                 move |_| {
                                     sh.dispatch(cx, Message::AddFilteredIngredient(k.clone()));
                             }})
@@ -143,14 +143,14 @@ fn make_extras_rows<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> V
                 view! {cx,
                     tr {
                         td {
-                            input(bind:value=amt_signal, type="text", on:change=move |_| {
+                            input(bind:value=amt_signal, class="width-5", type="text", on:change=move |_| {
                                 sh.dispatch(cx, Message::UpdateExtra(idx,
                                     amt_signal.get_untracked().as_ref().clone(),
                                     name_signal.get_untracked().as_ref().clone()));
                             })
                         }
                         td {
-                            input(type="button", class="no-print destructive", value="X", on:click=move |_| {
+                            input(type="button", class="fit-content no-print destructive", value="X", on:click=move |_| {
                                 sh.dispatch(cx, Message::RemoveExtra(idx));
                             })
                         }
@@ -194,9 +194,7 @@ fn make_shopping_table<'ctx, G: Html>(
 #[instrument(skip_all)]
 #[component]
 pub fn ShoppingList<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View<G> {
-    let show_staples = sh.get_selector(cx, |state| {
-        state.get().use_staples
-    });
+    let show_staples = sh.get_selector(cx, |state| state.get().use_staples);
     view! {cx,
         h1 { "Shopping List " }
         label(for="show_staples_cb") { "Show staples" }
@@ -205,15 +203,15 @@ pub fn ShoppingList<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> V
             sh.dispatch(cx, Message::UpdateUseStaples(value));
         })
         (make_shopping_table(cx, sh, show_staples))
-        span(role="button", class="no-print", on:click=move |_| {
+        button(class="no-print", on:click=move |_| {
             info!("Registering add item request for inventory");
             sh.dispatch(cx, Message::AddExtra(String::new(), String::new()));
         }) { "Add Item" } " "
-        span(role="button", class="no-print", on:click=move |_| {
+        button(class="no-print", on:click=move |_| {
             info!("Registering reset request for inventory");
             sh.dispatch(cx, Message::ResetInventory);
         }) { "Reset" } " "
-        span(role="button", class="no-print", on:click=move |_| {
+        button(class="no-print", on:click=move |_| {
             info!("Registering save request for inventory");
             sh.dispatch(cx, Message::SaveState(None));
         }) { "Save" } " "

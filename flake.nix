@@ -25,7 +25,7 @@
             let
                 overlays = [ rust-overlay.overlays.default ];
                 pkgs = import nixpkgs { inherit system overlays; };
-                rust-wasm = pkgs.rust-bin.stable."1.74.1".default.override {
+                rust-wasm = pkgs.rust-bin.stable."1.77.0".default.override {
                   extensions = [ "rust-src" ];
                   # Add wasm32 as an extra target besides the native target.
                   targets = [ "wasm32-unknown-unknown" ];
@@ -45,6 +45,14 @@
                 wasm-bindgen = pkgs.callPackage wasm-bindgenGen { inherit pkgs; };
                 kitchenWasm = kitchenWasmGen {
                     inherit pkgs rust-wasm wasm-bindgen version;
+                    lockFile = ./Cargo.lock;
+                    outputHashes = {
+                        # I'm maintaining some patches for these so the lockfile hashes are a little
+                        # incorrect. We override those here.
+                        "wasm-web-component-0.2.0" = "sha256-quuPgzGb2F96blHmD3BAUjsWQYbSyJGZl27PVrwL92k=";
+                        "sycamore-0.8.2" = "sha256-D968+8C5EelGGmot9/LkAlULZOf/Cr+1WYXRCMwb1nQ=";
+                        "sqlx-0.6.2" = "sha256-X/LFvtzRfiOIEZJiVzmFvvULPpjhqvI99pSwH7a//GM=";
+                    };
                 };
                 kitchen = (kitchenGen {
                     inherit pkgs version naersk-lib kitchenWasm rust-wasm;

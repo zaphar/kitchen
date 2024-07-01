@@ -14,6 +14,11 @@
 mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 mkfile_dir := $(dir $(mkfile_path))
 sqlite_url := sqlite://$(mkfile_dir)/.session_store/store.db
+out := dist
+project := kitchen
+
+export out
+export kitchen
 
 kitchen: wasm kitchen/src/*.rs
 	cd kitchen; cargo build
@@ -27,15 +32,18 @@ static-prep: web/index.html web/favicon.ico web/static/*.css
 	cp -r web/favicon.ico web/dist/
 	cp -r web/static web/dist/
 
-wasmrelease: wasmrelease-dist static-prep
+wasmrelease: wasm-opt static-prep
+
+wasm-opt: wasmrelease-dist
+	cd web; sh ../scripts/wasm-opt.sh release
 
 wasmrelease-dist: web/src/*.rs web/src/components/*.rs
-	cd web; wasm-pack build --mode no-install --release --target web --no-typescript --out-name kitchen_wasm --out-dir dist/
+	cd web; sh ../scripts/wasm-build.sh release
 
 wasm: wasm-dist static-prep
 
 wasm-dist: web/src/*.rs web/src/components/*.rs
-	cd web; wasm-pack build --mode no-install --target web --no-typescript --out-dir dist/ --features debug_logs
+	cd web; sh ../scripts/wasm-build.sh debug
 
 clean:
 	rm -rf web/dist/*
@@ -50,5 +58,5 @@ sqlx-add-%:
 sqlx-revert:
 	cd kitchen; cargo sqlx migrate revert --database-url $(sqlite_url)
 
-sqlx-prepare:
+sqlx-prepare: kitchen
 	cd kitchen; cargo sqlx prepare --database-url $(sqlite_url)

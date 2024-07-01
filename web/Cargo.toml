@@ -43,12 +43,12 @@ features = ["fmt", "time"]
 version = "0.4.22"
 features = ["serde"]
 
-[dependencies.reqwasm]
-version = "0.5.0"
+[dependencies.gloo-net]
+version = "0.4.0"
 
 [dependencies.wasm-bindgen]
 # we need wasm-bindgen v0.2.84 exactly
-version = "= 0.2.84"
+version = "= 0.2.89"
 
 [dependencies.web-sys]
 version = "0.3"
@@ -56,6 +56,7 @@ features = [
     "Event",
     "InputEvent",
     "CustomEvent",
+    "CustomEventInit",
     "EventTarget",
     "History",
     "HtmlAnchorElement",

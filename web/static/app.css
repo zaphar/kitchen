@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Jeremy Wall
+ * Copyright 2023 Jeremy Wall
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,12 +21,34 @@
     --unicode-button-size: 2em;
     --toast-anim-duration: 3s;
     --notification-font-size: calc(var(--font-size) / 2);
-    --error-message-color: rgba(255, 98, 0, 0.797);
+    --error-message-color: #CD5C08;
     --error-message-bg: grey;
-    --border-width: 2px;
+    --border-width: 3px;
     --cell-margin: 1em;
+    --nav-margin: 2em;
+    --main-color: #A9907E;
+    --light-accent: #F3DEBA;
+    --dark-accent: #ABC4AA;
+    --heavy-accent: #675D50;
+    --text-color: black;
+    --menu-bg: var(--main-color);
+    --header-bg: var(--light-accent);
+    --font-size: 1.5rem;
+    --menu-font-size: 2em;
+    --cell-target: 30%;
 }
 
+/** TODO(jwall): Dark color scheme?
+@media (prefers-color-scheme: dark) {
+    :root {
+      --text-color: white;
+      --menu-bg: var(--main-color);
+      --header-bg: var(--dark-accent);
+    }
+}
+**/
+
+/** TODO(jwall): Seperate these out into composable classes **/
 @media print {
 
     .no-print,
@@ -39,28 +61,138 @@
     }
 }
 
-@media (min-width: 768px) {
-    :root {
-        --font-size: 35px;
-    }
-}
-
-@media (prefers-color-scheme: dark) {
-    :root {
-        --tab-border-color: lightgrey;
-    }
-}
-
+/** Resets **/
 body {
-    padding: 10px;
-    margin: 10px;
+    margin: 0px;
+    padding: 0px;
+    background-color: var(--header-bg);
+    font-size: var(--font-size)
 }
 
-nav>ul.tabs>li {
-    border-style: none;
+body * {
+    color: black;
+    font-size: inherit;
 }
 
-nav>ul.tabs>li.selected {
+a {
+    text-decoration: none;
+}
+
+/** layout classes **/
+
+.column-flex {
+  display: flex;
+  flex-direction: column;
+}
+
+.row-flex {
+  display: flex;
+  flex-direction: row;
+}
+
+.flex-item-grow {
+  flex: 1 0 auto;
+}
+
+.flex-item-shrink {
+  flex: 0 1 auto;
+}
+
+.flex-wrap-start {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
+.expand-height {
+  height: 100%;
+  min-height: fit-content;
+}
+
+.align-center {
+    align-items: center;
+}
+
+.align-stretch {
+    align-items: stretch;
+}
+
+.width-third {
+    min-width: fit-content;
+    width: 33%;
+}
+
+.inline-block {
+    display: inline-block;
+}
+
+.block {
+    display: block;
+}
+
+.no-list {
+    list-style-type: none;
+}
+
+.fit-content {
+    width: fit-content;
+}
+
+.width-10 {
+    width: 10em;
+}
+
+.width-5 {
+    width: 5em;
+}
+
+.border-bottom {
+    border-bottom-style: solid;
+    border-bottom-color: var(--tab-border-color);
+    border-bottom-width: var(--tab-border-width);
+}
+
+.margin-bot-1 {
+    margin-bottom: 1em;
+}
+
+.margin-bot-half {
+    margin-bottom: .5em;
+}
+
+.margin-right-1 {
+    margin-right: 1em;
+}
+
+/** Typography classes **/
+
+.menu-font {
+    font-size: var(--menu-font-size);
+}
+
+.menu-font-2 {
+    font-size: calc(var(--menu-font-size) / 1.5);
+}
+
+.content-font {
+    font-size: 1.5em;
+}
+
+/** element specific styling **/
+nav li {
+    margin-right: var(--nav-margin);
+}
+
+/** color and borders **/
+.header-bg {
+    background-color: var(--header-bg);
+}
+
+.heavy-bottom-border {
+    border-bottom: var(--border-width) solid var(--heavy-accent)
+}
+
+/** Situational **/
+.selected {
     border-style: none;
     border-bottom-style: var(--tab-border-style);
     border-bottom-color: var(--tab-border-color);
@@ -74,10 +206,40 @@ nav>h1 {
     display: inline;
     vertical-align: middle;
     text-align: left;
+    color: black;
+}
+
+main {
+    border-bottom-left-radius: 1em;
+    padding: 1em;
+    width: 100%;
+    overflow-block: scroll;
+}
+
+.cell {
+    margin: 1em;
+    width: var(--cell-target);
+}
+
+.justify-end {
+    justify-content: flex-end;
+}
+
+.menu-bg {
+  background-color: var(--menu-bg);
+}
+
+.pad-left {
+    padding-left: .5em;
+}
+
+.app nav li {
+    margin-bottom: var(--nav-margin);
 }
 
 .destructive {
-    background-color: firebrick !important;
+    background-color: #CD5C08 !important;
+    font-weight: bold;
 }
 
 .item-count-inc-dec {
@@ -128,25 +290,4 @@ nav>h1 {
     to {
         opacity: 0
     }
-}
-
-.recipe_selector {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    align-items: stretch;
-    align-content: stretch;
-}
-
-.recipe_selector .cell {
-    margin: 1em;
-    width: calc(100% / 5);
-}
-
-.cell {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    align-items: stretch;
-    align-content: stretch;
 }

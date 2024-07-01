@@ -52,7 +52,7 @@ pub fn CategoryGroup<'ctx, G: Html>(
     });
     view! {cx,
         h2 { (category) }
-        div(class="recipe_selector no-print") {
+        div(class="no-print row-flex flex-wrap-start align-stretch") {
             (View::new_fragment(
                 rows.get().iter().cloned().map(|r| {
                     view ! {cx,
@@ -61,7 +61,7 @@ pub fn CategoryGroup<'ctx, G: Html>(
                             view=move |cx, sig| {
                                 let title = create_memo(cx, move || sig.get().1.title.clone());
                                 view! {cx,
-                                    div(class="cell") { RecipeSelection(i=sig.get().0.to_owned(), title=title, sh=sh) }
+                                    div(class="cell column-flex justify-end align-stretch") { RecipeSelection(i=sig.get().0.to_owned(), title=title, sh=sh) }
                                 }
                             },
                             key=|sig| sig.get().0.to_owned(),
@@ -108,13 +108,13 @@ pub fn RecipePlan<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
             },
             key=|(ref cat, _)| cat.clone(),
         )
-        span(role="button", on:click=move |_| {
+        button(on:click=move |_| {
             sh.dispatch(cx, Message::LoadState(None));
         }) { "Reset" } " "
-        span(role="button", on:click=move |_| {
+        button(on:click=move |_| {
             sh.dispatch(cx, Message::ResetRecipeCounts);
         }) { "Clear All" } " "
-        span(role="button", on:click=move |_| {
+        button(on:click=move |_| {
             // Poor man's click event signaling.
             sh.dispatch(cx, Message::SaveState(None));
         }) { "Save Plan" } " "

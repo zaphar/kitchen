@@ -334,7 +334,14 @@ make_fn!(unit<StrIter, String>,
             text_token!("kg"),
             text_token!("grams"),
             text_token!("gram"),
-            text_token!("g")),
+            text_token!("g"),
+            text_token!("pkg"),
+            text_token!("package"),
+            text_token!("bottle"),
+            text_token!("bot"),
+            text_token!("bag"),
+            text_token!("can")
+            ),
         _ => ws,
         (u.to_lowercase().to_singular())
     )
@@ -393,6 +400,7 @@ pub fn measure(i: StrIter) -> abortable_parser::Result<StrIter, Measure> {
                     "oz" => Weight(Oz(qty)),
                     "kg" | "kilogram" => Weight(Kilogram(qty)),
                     "g" | "gram" => Weight(Gram(qty)),
+                    "pkg" | "package" | "can" | "bag" | "bottle" | "bot" => Measure::pkg(s, qty),
                     _u => {
                         eprintln!("Invalid unit: {}", _u);
                         unreachable!()
@@ -418,9 +426,8 @@ pub fn normalize_name(name: &str) -> String {
         // NOTE(jwall): The below unwrap is safe because of the length
         // check above.
         let last = parts.last().unwrap();
-        let normalized = last.to_singular();
         prefix.push(' ');
-        prefix.push_str(&normalized);
+        prefix.push_str(&last.to_string());
         return prefix;
     }
     return name.trim().to_lowercase().to_owned();

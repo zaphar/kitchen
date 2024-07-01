@@ -235,38 +235,76 @@ fn test_ingredient_name_parse() {
 #[test]
 fn test_ingredient_parse() {
     for (i, expected) in vec![
-        //(
-        //    "1 cup flour ",
-        //    Ingredient::new("flour", None, Volume(Cup(Quantity::Whole(1))), ""),
-        //),
-        //(
-        //    "\t1 cup flour ",
-        //    Ingredient::new("flour", None, Volume(Cup(Quantity::Whole(1))), ""),
-        //),
-        //(
-        //    "1 cup apple (chopped)",
-        //    Ingredient::new(
-        //        "apple",
-        //        Some("chopped".to_owned()),
-        //        Volume(Cup(Quantity::Whole(1))),
-        //        "",
-        //    ),
-        //),
-        //(
-        //    "1 cup apple (chopped) ",
-        //    Ingredient::new(
-        //        "apple",
-        //        Some("chopped".to_owned()),
-        //        Volume(Cup(Quantity::Whole(1))),
-        //        "",
-        //    ),
-        //),
+        (
+            "1 cup flour ",
+            Ingredient::new("flour", None, Volume(Cup(Quantity::Whole(1)))),
+        ),
+        (
+            "\t1 cup flour ",
+            Ingredient::new("flour", None, Volume(Cup(Quantity::Whole(1)))),
+        ),
+        (
+            "1 cup apple (chopped)",
+            Ingredient::new(
+                "apple",
+                Some("chopped".to_owned()),
+                Volume(Cup(Quantity::Whole(1))),
+            ),
+        ),
+        (
+            "1 cup apple (chopped) ",
+            Ingredient::new(
+                "apple",
+                Some("chopped".to_owned()),
+                Volume(Cup(Quantity::Whole(1))),
+            ),
+        ),
         (
             "1 green bell pepper (chopped) ",
             Ingredient::new(
                 "green bell pepper",
                 Some("chopped".to_owned()),
                 Count(Quantity::Whole(1)),
+            ),
+        ),
+        (
+            "1 pkg green onion",
+            Ingredient::new(
+                "green onion",
+                None,
+                Package("pkg".into(), Quantity::Whole(1)),
+            ),
+        ),
+        (
+            "1 bottle green onion",
+            Ingredient::new(
+                "green onion",
+                None,
+                Package("bottle".into(), Quantity::Whole(1)),
+            ),
+        ),
+        (
+            "1 bot green onion",
+            Ingredient::new(
+                "green onion",
+                None,
+                Package("bot".into(), Quantity::Whole(1)),
+            ),
+        ),
+        (
+            "1 bag green onion",
+            Ingredient::new(
+                "green onion",
+                None,
+                Package("bag".into(), Quantity::Whole(1)),
+            ),
+        ),
+        (
+            "1 can baked beans",
+            Ingredient::new(
+                "baked beans",
+                None,
+                Package("can".into(), Quantity::Whole(1)),
             ),
         ),
     ] {

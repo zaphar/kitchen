@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use sycamore::{futures::spawn_local_scoped, prelude::*};
-use tracing::{info, debug, instrument};
+use tracing::{debug, info, instrument};
 
 use crate::app_state::Message;
 use crate::{api, routing::Handler as RouteHandler};
