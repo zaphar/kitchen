@@ -1,6 +1,5 @@
 {pkgs? (import <nixpkgs>) {},
  version,
- features ? "",
  rust-wasm,
  wasm-bindgen,
  lockFile,
@@ -27,18 +26,15 @@ stdenv.mkDerivation {
         cp -r ./cargo-vendor-dir/.cargo ./
         cp -r $src/* ./
     '';
-    # TODO(jwall): Build this from the root rather than the src.
+    # TODO(jwall): Use the makefile for as much of this as possible.
     buildPhase = ''
         mkdir -p $out
         cd web
         cp -r static $out
+		export project=kitchen
 		sh ../scripts/wasm-build.sh release
-        #cargo build --lib --release --target wasm32-unknown-unknown --target-dir $out ${features} --offline
-        #wasm-bindgen $out/wasm32-unknown-unknown/release/kitchen_wasm.wasm --out-dir $out --typescript --target web
-		#sh ../scripts/wasm-opt.sh release
-        wasm-opt $out/kitchen_wasm_bg.wasm -o $out/kitchen_wasm_bg-opt.wasm -O
+		sh ../scripts/wasm-opt.sh release
         rm -f $out/kitchen_wasm_bg.wasm
-        mv $out/kitchen_wasm_bg-opt.wasm $out/kitchen_wasm_bg.wasm
         cp -r index.html $out
         cp -r favicon.ico $out
         rm -rf $out/release

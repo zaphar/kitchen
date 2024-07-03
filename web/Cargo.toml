@@ -47,7 +47,6 @@ features = ["serde"]
 version = "0.4.0"
 
 [dependencies.wasm-bindgen]
-# we need wasm-bindgen v0.2.84 exactly
 version = "= 0.2.89"
 
 [dependencies.web-sys]
@@ -71,7 +70,12 @@ features = [
     "PopStateEvent",
     "Url",
     "Window",
-    "Storage"
+    "IdbFactory",
+	"IdbOpenDbRequest",
+	"IdbRequest",
+	"IdbDatabase",
+	"IdbRequestReadyState",
+    "Storage",
 ]
 
 [dependencies.sycamore]

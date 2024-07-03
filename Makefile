@@ -14,11 +14,8 @@
 mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 mkfile_dir := $(dir $(mkfile_path))
 sqlite_url := sqlite://$(mkfile_dir)/.session_store/store.db
-out := dist
-project := kitchen
-
-export out
-export kitchen
+export out := dist
+export project := kitchen
 
 kitchen: wasm kitchen/src/*.rs
 	cd kitchen; cargo build
