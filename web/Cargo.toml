@@ -27,6 +27,8 @@ sycamore-router = "0.8"
 js-sys = "0.3.60"
 wasm-web-component = { git = "https://github.com/zaphar/wasm-web-components.git", rev = "v0.3.0" }
 maud = "*"
+indexed-db = "0.4.1"
+anyhow = "1.0.86"
 
 [dependencies.serde]
 version = "<=1.0.171"

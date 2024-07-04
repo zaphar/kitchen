@@ -14,6 +14,25 @@
 use js_sys::Date;
 use tracing::error;
 use web_sys::{window, Storage, Window};
+use indexed_db::{self, Factory, Database};
+use anyhow::{Result, Context};
+
+pub async fn get_indexed_db(name: &str, version: Option<u32>) -> Result<Database<std::io::Error>> {
+    let version = version.unwrap_or(0);
+    let factory = Factory::<std::io::Error>::get().context("opening IndexedDB")?;
+    let db = factory.open(name, version, |evt| async move {
+        // NOTE(zaphar): This is the on upgradeneeded handler. It get's called on new databases or
+        // database with an older version than the one we requested to build.
+        let db = evt.database();
+        // NOTE(jwall): This needs to be somewhat clever in handling version upgrades.
+        if db.version() == 0 {
+            // We use out of line keys for this object store
+            db.build_object_store("store").create()?;
+        }
+        Ok(())
+    }).await.context(format!("Openong or creating the database {}", name))?;
+    Ok(db)
+}
 
 pub fn get_storage() -> Storage {
     get_window()
