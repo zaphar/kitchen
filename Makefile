@@ -55,5 +55,5 @@ sqlx-add-%:
 sqlx-revert:
 	cd kitchen; cargo sqlx migrate revert --database-url $(sqlite_url)
 
-sqlx-prepare: kitchen
+sqlx-prepare: wasm
 	cd kitchen; cargo sqlx prepare --database-url $(sqlite_url)
