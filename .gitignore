@@ -1,11 +1,10 @@
 target/
 .lsp/
-.clj-kondo/
 web/dist/
-webdist/
 nix/*/result
 result
 .vscode/
 .session_store/
 .gitignore/ 
-.DS_Store/ 
+.DS_Store/
+.env
