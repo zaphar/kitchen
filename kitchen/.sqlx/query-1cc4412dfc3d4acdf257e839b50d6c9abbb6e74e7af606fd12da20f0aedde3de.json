@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "select recipe_id, recipe_text, category from recipes where user_id = ? and recipe_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "recipe_id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "recipe_text",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "category",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "1cc4412dfc3d4acdf257e839b50d6c9abbb6e74e7af606fd12da20f0aedde3de"
+}

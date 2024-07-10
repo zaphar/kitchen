@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "select content from staples where user_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "content",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "64af3f713eb4c61ac02cab2dfea83d0ed197e602e99079d4d32cb38d677edf2e"
+}

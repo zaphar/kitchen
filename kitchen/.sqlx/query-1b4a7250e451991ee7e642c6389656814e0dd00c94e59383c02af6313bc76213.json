@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "insert into staples (user_id, content) values (?, ?)\n    on conflict(user_id) do update set content = excluded.content",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "1b4a7250e451991ee7e642c6389656814e0dd00c94e59383c02af6313bc76213"
+}

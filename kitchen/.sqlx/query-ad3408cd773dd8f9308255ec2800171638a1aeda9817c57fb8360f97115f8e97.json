@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "with max_date as (\n    select user_id, max(date(plan_date)) as plan_date from plan_recipes group by user_id\n)\n\nselect plan_recipes.plan_date as \"plan_date: NaiveDate\", plan_recipes.recipe_id, plan_recipes.count\n    from plan_recipes\n    inner join max_date on plan_recipes.user_id = max_date.user_id\nwhere\n    plan_recipes.user_id = ?\n    and plan_recipes.plan_date = max_date.plan_date",
+  "describe": {
+    "columns": [
+      {
+        "name": "plan_date: NaiveDate",
+        "ordinal": 0,
+        "type_info": "Date"
+      },
+      {
+        "name": "recipe_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "count",
+        "ordinal": 2,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "ad3408cd773dd8f9308255ec2800171638a1aeda9817c57fb8360f97115f8e97"
+}

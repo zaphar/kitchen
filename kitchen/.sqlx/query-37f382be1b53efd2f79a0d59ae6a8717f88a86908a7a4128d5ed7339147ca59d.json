@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "select ingredient_name, category_name from category_mappings where user_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "ingredient_name",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "category_name",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "37f382be1b53efd2f79a0d59ae6a8717f88a86908a7a4128d5ed7339147ca59d"
+}

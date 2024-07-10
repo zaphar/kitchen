@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "insert into recipes (user_id, recipe_id, recipe_text, category) values (?, ?, ?, ?)\n    on conflict(user_id, recipe_id) do update set recipe_text=excluded.recipe_text, category=excluded.category",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "05a9f963e3f18b8ceb787c33b6dbdac993f999ff32bb5155f2dff8dc18d840bf"
+}

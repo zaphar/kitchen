@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "delete from filtered_ingredients where user_id = ? and plan_date = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "23beb05e40cf011170182d4e98cdf1faa3d8df6e5956e471245e666f32e56962"
+}

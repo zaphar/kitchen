@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "insert into plan_table (user_id, plan_date) values (?, ?)\n    on conflict (user_id, plan_date) do nothing;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "288535e7b9e1f02ad1b677e3dddc85f38c0766ce16d26fc1bdd2bf90ab9a7f7c"
+}

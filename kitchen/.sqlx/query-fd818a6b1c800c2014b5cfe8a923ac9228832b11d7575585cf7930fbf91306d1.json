@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "select distinct plan_date as \"plan_date: NaiveDate\" from plan_table\nwhere user_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "plan_date: NaiveDate",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "fd818a6b1c800c2014b5cfe8a923ac9228832b11d7575585cf7930fbf91306d1"
+}

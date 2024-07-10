@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "delete from modified_amts where user_id = ? and plan_date = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "10e1c111a16d647a106a3147f4e61e34b0176860ca99cb62cb43dc72550ad990"
+}

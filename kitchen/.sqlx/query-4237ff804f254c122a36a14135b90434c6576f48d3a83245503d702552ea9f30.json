@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "select\n    name,\n    amt\nfrom extra_items\nwhere\n    user_id = ?\n    and plan_date = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "name",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "amt",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "4237ff804f254c122a36a14135b90434c6576f48d3a83245503d702552ea9f30"
+}

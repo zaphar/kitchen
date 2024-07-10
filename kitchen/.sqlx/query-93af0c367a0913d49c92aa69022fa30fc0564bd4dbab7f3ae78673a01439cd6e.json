@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "delete from plan_recipes where user_id = ? and plan_date = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "93af0c367a0913d49c92aa69022fa30fc0564bd4dbab7f3ae78673a01439cd6e"
+}

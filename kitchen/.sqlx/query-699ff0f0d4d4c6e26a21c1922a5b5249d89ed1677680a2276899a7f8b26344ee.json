@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "select\n    modified_amts.name,\n    modified_amts.form,\n    modified_amts.measure_type,\n    modified_amts.amt\nfrom modified_amts\nwhere\n    user_id = ?\n    and plan_date = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "name",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "form",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "measure_type",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "amt",
+        "ordinal": 3,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "699ff0f0d4d4c6e26a21c1922a5b5249d89ed1677680a2276899a7f8b26344ee"
+}
