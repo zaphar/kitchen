@@ -119,6 +119,7 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
                                     id.get_untracked().as_ref().clone(),
                                     text.get_untracked().as_ref().clone(),
                                     category,
+                                    None,
                     );
                     sh.dispatch(cx, Message::SaveRecipe(recipe_entry, None));
                     dirty.set(false);

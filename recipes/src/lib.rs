@@ -50,11 +50,11 @@ impl Mealplan {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct RecipeEntry(pub String, pub String, pub Option<String>);
+pub struct RecipeEntry(pub String, pub String, pub Option<String>, pub Option<i64>);
 
 impl RecipeEntry {
     pub fn new<IS: Into<String>, TS: Into<String>>(recipe_id: IS, text: TS) -> Self {
-        Self(recipe_id.into(), text.into(), None)
+        Self(recipe_id.into(), text.into(), None, None)
     }
 
     pub fn set_recipe_id<S: Into<String>>(&mut self, id: S) {
@@ -79,6 +79,10 @@ impl RecipeEntry {
 
     pub fn category(&self) -> Option<&String> {
         self.2.as_ref()
+    }
+    
+    pub fn serving_count(&self) -> Option<i64> {
+        self.3.clone()
     }
 }
 

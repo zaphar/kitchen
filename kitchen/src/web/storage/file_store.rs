@@ -98,7 +98,7 @@ impl AsyncFileStore {
                 let file_name = entry.file_name().to_string_lossy().to_string();
                 debug!("adding recipe file {}", file_name);
                 let recipe_contents = read_to_string(entry.path()).await?;
-                entry_vec.push(RecipeEntry(file_name, recipe_contents, None));
+                entry_vec.push(RecipeEntry(file_name, recipe_contents, None, None));
             } else {
                 warn!(
                     file = %entry.path().to_string_lossy(),
@@ -121,6 +121,7 @@ impl AsyncFileStore {
             return Ok(Some(RecipeEntry(
                 id.as_ref().to_owned(),
                 recipe_contents,
+                None,
                 None,
             )));
         } else {

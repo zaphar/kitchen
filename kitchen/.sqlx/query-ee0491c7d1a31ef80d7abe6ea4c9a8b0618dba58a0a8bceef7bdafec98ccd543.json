@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "select recipe_id, recipe_text, category from recipes where user_id = ? and recipe_id = ?",
+  "query": "select recipe_id, recipe_text, category, serving_count from recipes where user_id = ? and recipe_id = ?",
   "describe": {
     "columns": [
       {
@@ -17,6 +17,11 @@
         "name": "category",
         "ordinal": 2,
         "type_info": "Text"
+      },
+      {
+        "name": "serving_count",
+        "ordinal": 3,
+        "type_info": "Int64"
       }
     ],
     "parameters": {
@@ -25,8 +30,9 @@
     "nullable": [
       false,
       true,
+      true,
       true
     ]
   },
-  "hash": "1cc4412dfc3d4acdf257e839b50d6c9abbb6e74e7af606fd12da20f0aedde3de"
+  "hash": "ee0491c7d1a31ef80d7abe6ea4c9a8b0618dba58a0a8bceef7bdafec98ccd543"
 }
