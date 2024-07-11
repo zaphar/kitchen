@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "insert into filtered_ingredients(user_id, name, form, measure_type, plan_date)\n    values (?, ?, ?, ?, ?) on conflict(user_id, name, form, measure_type, plan_date) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "5883c4a57def93cca45f8f9d81c8bba849547758217cd250e7ab28cc166ab42b"
+}

@@ -53,6 +53,7 @@ pub fn AddRecipe<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View
                 .replace("TITLE_PLACEHOLDER", recipe_title.get().as_str())
                 .replace("\r", ""),
             category,
+            None,
         )
     });
 

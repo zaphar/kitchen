@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "delete from extra_items where user_id = ? and plan_date = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "6f11d90875a6230766a5f9bd1d67665dc4d00c13d7e81b0d18d60baa67987da9"
+}

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "select category_text from categories where user_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "category_text",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "c988364f9f83f4fa8bd0e594bab432ee7c9ec47ca40f4d16e5e2a8763653f377"
+}

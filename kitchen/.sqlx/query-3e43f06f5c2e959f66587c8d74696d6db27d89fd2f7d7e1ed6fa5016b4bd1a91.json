@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "with latest_dates as (\n    select user_id, max(date(plan_date)) as plan_date from plan_recipes\n    where user_id = ?\n    group by user_id\n)\n\nselect\n    modified_amts.name,\n    modified_amts.form,\n    modified_amts.measure_type,\n    modified_amts.amt\nfrom latest_dates\ninner join modified_amts on\n    latest_dates.user_id = modified_amts.user_id\n    and latest_dates.plan_date = modified_amts.plan_date",
+  "describe": {
+    "columns": [
+      {
+        "name": "name",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "form",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "measure_type",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "amt",
+        "ordinal": 3,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "3e43f06f5c2e959f66587c8d74696d6db27d89fd2f7d7e1ed6fa5016b4bd1a91"
+}

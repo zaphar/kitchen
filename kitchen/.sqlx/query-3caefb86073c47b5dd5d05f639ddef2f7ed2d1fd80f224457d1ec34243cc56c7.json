@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "insert into extra_items (user_id, name, plan_date, amt)\nvalues (?, ?, date(), ?)\non conflict (user_id, name, plan_date) do update set amt=excluded.amt",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "3caefb86073c47b5dd5d05f639ddef2f7ed2d1fd80f224457d1ec34243cc56c7"
+}

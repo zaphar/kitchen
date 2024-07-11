@@ -429,20 +429,10 @@ impl APIStore for SqliteStore {
         user_id: S,
         id: S,
     ) -> Result<Option<RecipeEntry>> {
-        // NOTE(jwall): We allow dead code becaue Rust can't figure out that
-        // this code is actually constructed but it's done via the query_as
-        // macro.
-        #[allow(dead_code)]
-        struct RecipeRow {
-            pub recipe_id: String,
-            pub recipe_text: Option<String>,
-            pub category: Option<String>,
-        }
         let id = id.as_ref();
         let user_id = user_id.as_ref();
-        let entry = sqlx::query_as!(
-            RecipeRow,
-            "select recipe_id, recipe_text, category from recipes where user_id = ? and recipe_id = ?",
+        let entry = sqlx::query!(
+            "select recipe_id, recipe_text, category, serving_count from recipes where user_id = ? and recipe_id = ?",
             user_id,
             id,
         )
@@ -453,7 +443,8 @@ impl APIStore for SqliteStore {
             RecipeEntry(
                 row.recipe_id.clone(),
                 row.recipe_text.clone().unwrap_or_else(|| String::new()),
-                row.category.clone()
+                row.category.clone(),
+                row.serving_count.clone(),
             )
         })
         .nth(0);
@@ -461,18 +452,8 @@ impl APIStore for SqliteStore {
     }
 
     async fn get_recipes_for_user(&self, user_id: &str) -> Result<Option<Vec<RecipeEntry>>> {
-        // NOTE(jwall): We allow dead code becaue Rust can't figure out that
-        // this code is actually constructed but it's done via the query_as
-        // macro.
-        #[allow(dead_code)]
-        struct RecipeRow {
-            pub recipe_id: String,
-            pub recipe_text: Option<String>,
-            pub category: Option<String>,
-        }
-        let rows = sqlx::query_as!(
-            RecipeRow,
-            "select recipe_id, recipe_text, category from recipes where user_id = ?",
+        let rows = sqlx::query!(
+            "select recipe_id, recipe_text, category, serving_count from recipes where user_id = ?",
             user_id,
         )
         .fetch_all(self.pool.as_ref())
@@ -483,6 +464,7 @@ impl APIStore for SqliteStore {
                 row.recipe_id.clone(),
                 row.recipe_text.clone().unwrap_or_else(|| String::new()),
                 row.category.clone(),
+                row.serving_count.clone(),
             )
         })
         .collect();
@@ -498,13 +480,15 @@ impl APIStore for SqliteStore {
             let recipe_id = entry.recipe_id().to_owned();
             let recipe_text = entry.recipe_text().to_owned();
             let category = entry.category();
+            let serving_count = entry.serving_count();
             sqlx::query!(
-                "insert into recipes (user_id, recipe_id, recipe_text, category) values (?, ?, ?, ?)
+                "insert into recipes (user_id, recipe_id, recipe_text, category, serving_count) values (?, ?, ?, ?, ?)
     on conflict(user_id, recipe_id) do update set recipe_text=excluded.recipe_text, category=excluded.category",
                 user_id,
                 recipe_id,
                 recipe_text,
                 category,
+                serving_count,
             )
             .execute(self.pool.as_ref())
             .await?;
@@ -520,7 +504,7 @@ impl APIStore for SqliteStore {
                 user_id,
                 recipe_id,
             )
-            .execute(&mut transaction)
+            .execute(&mut *transaction)
             .await?;
         }
         transaction.commit().await?;
@@ -552,10 +536,10 @@ impl APIStore for SqliteStore {
             user_id,
             date,
         )
-        .execute(&mut transaction)
+        .execute(&mut *transaction)
         .await?;
         sqlx::query_file!("src/web/storage/init_meal_plan.sql", user_id, date)
-            .execute(&mut transaction)
+            .execute(&mut *transaction)
             .await?;
         for (id, count) in recipe_counts {
             sqlx::query_file!(
@@ -565,7 +549,7 @@ impl APIStore for SqliteStore {
                 id,
                 count
             )
-            .execute(&mut transaction)
+            .execute(&mut *transaction)
             .await?;
         }
         transaction.commit().await?;
@@ -645,35 +629,35 @@ impl APIStore for SqliteStore {
             user_id,
             date
         )
-        .execute(&mut transaction)
+        .execute(&mut *transaction)
         .await?;
         sqlx::query!(
             "delete from plan_recipes where user_id = ? and plan_date = ?",
             user_id,
             date
         )
-        .execute(&mut transaction)
+        .execute(&mut *transaction)
         .await?;
         sqlx::query!(
             "delete from filtered_ingredients where user_id = ? and plan_date = ?",
             user_id,
             date
         )
-        .execute(&mut transaction)
+        .execute(&mut *transaction)
         .await?;
         sqlx::query!(
             "delete from modified_amts where user_id = ? and plan_date = ?",
             user_id,
             date
         )
-        .execute(&mut transaction)
+        .execute(&mut *transaction)
         .await?;
         sqlx::query!(
             "delete from extra_items where user_id = ? and plan_date = ?",
             user_id,
             date
         )
-        .execute(&mut transaction)
+        .execute(&mut *transaction)
         .await?;
         transaction.commit().await?;
         Ok(())
@@ -921,7 +905,7 @@ impl APIStore for SqliteStore {
             user_id,
             date
         )
-        .execute(&mut transaction)
+        .execute(&mut *transaction)
         .await?;
         for key in filtered_ingredients {
             let name = key.name();
@@ -935,7 +919,7 @@ impl APIStore for SqliteStore {
                 measure_type,
                 date,
             )
-            .execute(&mut transaction)
+            .execute(&mut *transaction)
             .await?;
         }
         sqlx::query!(
@@ -943,7 +927,7 @@ impl APIStore for SqliteStore {
             user_id,
             date
         )
-        .execute(&mut transaction)
+        .execute(&mut *transaction)
         .await?;
         // store the modified amts
         for (key, amt) in modified_amts {
@@ -960,7 +944,7 @@ impl APIStore for SqliteStore {
                 amt,
                 date,
             )
-            .execute(&mut transaction)
+            .execute(&mut *transaction)
             .await?;
         }
         sqlx::query!(
@@ -968,7 +952,7 @@ impl APIStore for SqliteStore {
             user_id,
             date
         )
-        .execute(&mut transaction)
+        .execute(&mut *transaction)
         .await?;
         // Store the extra items
         for (name, amt) in extra_items {
@@ -979,7 +963,7 @@ impl APIStore for SqliteStore {
                 amt,
                 date
             )
-            .execute(&mut transaction)
+            .execute(&mut *transaction)
             .await?;
         }
         transaction.commit().await?;
@@ -1007,7 +991,7 @@ impl APIStore for SqliteStore {
                 form,
                 measure_type,
             )
-            .execute(&mut transaction)
+            .execute(&mut *transaction)
             .await?;
         }
         // store the modified amts
@@ -1024,13 +1008,13 @@ impl APIStore for SqliteStore {
                 measure_type,
                 amt,
             )
-            .execute(&mut transaction)
+            .execute(&mut *transaction)
             .await?;
         }
         // Store the extra items
         for (name, amt) in extra_items {
             sqlx::query_file!("src/web/storage/store_extra_items.sql", user_id, name, amt)
-                .execute(&mut transaction)
+                .execute(&mut *transaction)
                 .await?;
         }
         transaction.commit().await?;

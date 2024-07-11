@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "delete from recipes where user_id = ? and recipe_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "6c43908d90f229b32ed8b1b076be9b452a995e1b42ba2554e947c515b031831a"
+}

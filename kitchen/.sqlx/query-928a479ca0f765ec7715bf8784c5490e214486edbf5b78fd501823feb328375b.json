@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "select session_value from sessions where id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "session_value",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "928a479ca0f765ec7715bf8784c5490e214486edbf5b78fd501823feb328375b"
+}

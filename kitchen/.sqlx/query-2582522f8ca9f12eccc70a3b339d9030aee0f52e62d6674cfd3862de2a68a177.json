@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "insert into category_mappings\n    (user_id, ingredient_name, category_name)\n    values (?, ?, ?)\n    on conflict (user_id, ingredient_name)\n        do update set category_name=excluded.category_name\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "2582522f8ca9f12eccc70a3b339d9030aee0f52e62d6674cfd3862de2a68a177"
+}

@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "select\n    filtered_ingredients.name,\n    filtered_ingredients.form,\n    filtered_ingredients.measure_type\nfrom filtered_ingredients\nwhere\n     user_id = ?\n     and plan_date = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "name",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "form",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "measure_type",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "7695a0602395006f9b76ecd4d0cb5ecd5dee419b71b3b0b9ea4f47a83f3df41a"
+}

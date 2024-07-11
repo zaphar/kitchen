@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "insert into modified_amts(user_id, name, form, measure_type, amt, plan_date)\n    values (?, ?, ?, ?, ?, date()) on conflict (user_id, name, form, measure_type, plan_date) do update set amt=excluded.amt",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "6e28698330e42fd6c87ba1e6f1deb664c0d3995caa2b937ceac8c908e98aded6"
+}
