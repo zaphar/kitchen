@@ -38,7 +38,7 @@ pub fn SelectPage<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> Vie
     view! {cx,
         PlanningPage(
             selected=Some("Select".to_owned()),
-            plan_date = current_plan.clone(),
+            plan_date = current_plan,
         ) {
             PlanList(sh=sh, list=plan_dates)
             button(on:click=move |_| {

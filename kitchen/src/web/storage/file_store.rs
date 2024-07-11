@@ -22,6 +22,7 @@ use tracing::{debug, instrument};
 
 use super::RecipeEntry;
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Error(String);
 

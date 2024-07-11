@@ -12,11 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    app_state::StateHandler,
-    components::{Footer, Header},
-    pages::*,
-};
+use crate::{app_state::StateHandler, components::Header, pages::*};
 use sycamore::prelude::*;
 use sycamore_router::{HistoryIntegration, Route, Router};
 use tracing::{debug, instrument};

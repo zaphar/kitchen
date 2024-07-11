@@ -16,9 +16,7 @@ use sycamore::prelude::*;
 use tracing::{debug, error};
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_web_component::{web_component, WebComponentBinding};
-use web_sys::{window, CustomEvent, CustomEventInit, Event, HtmlElement, InputEvent, ShadowRoot};
-
-use crate::js_lib::LogFailures;
+use web_sys::{CustomEvent, CustomEventInit, Event, HtmlElement, InputEvent, ShadowRoot};
 
 #[web_component(
     observed_attrs = "['val', 'min', 'max', 'step']",
@@ -135,10 +133,10 @@ impl WebComponentBinding for NumberSpinner {
                 return;
             }
         };
-        let mut eventDict = CustomEventInit::new();
-        eventDict.detail(&JsValue::from_f64(self.value as f64));
+        let mut event_dict = CustomEventInit::new();
+        event_dict.detail(&JsValue::from_f64(self.value as f64));
         element
-            .dispatch_event(&CustomEvent::new_with_event_init_dict("updated", &eventDict).unwrap())
+            .dispatch_event(&CustomEvent::new_with_event_init_dict("updated", &event_dict).unwrap())
             .unwrap();
         debug!("Dispatched updated event");
     }

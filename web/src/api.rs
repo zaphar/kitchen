@@ -30,6 +30,7 @@ use crate::{
     js_lib,
 };
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Error(String);
 
