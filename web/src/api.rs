@@ -100,7 +100,7 @@ const APP_STATE_KEY: &'static str = "app-state";
 impl LocalStore {
     pub fn new() -> Self {
         Self {
-            store: DBFactory::new("app-state", Some(0)),
+            store: DBFactory::new("app-state", Some(1)),
             //old_store: js_lib::get_storage(),
         }
     }

@@ -45,7 +45,7 @@ impl<'name> DBFactory<'name> {
             // database with an older version than the one we requested to build.
             let db = evt.database();
             // NOTE(jwall): This needs to be somewhat clever in handling version upgrades.
-            if db.version() == 0 {
+            if db.version() == 1 {
                 // We use out of line keys for this object store
                 db.build_object_store(STORE_NAME).create()?;
             }
