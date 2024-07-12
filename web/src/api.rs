@@ -81,10 +81,6 @@ impl From<gloo_net::Error> for Error {
     }
 }
 
-fn recipe_key<S: std::fmt::Display>(id: S) -> String {
-    format!("recipe:{}", id)
-}
-
 fn token68(user: String, pass: String) -> String {
     base64::engine::general_purpose::STANDARD.encode(format!("{}:{}", user, pass))
 }
@@ -305,7 +301,7 @@ impl LocalStore {
     }
 
     pub async fn get_recipe_entry(&self, id: &str) -> Option<RecipeEntry> {
-        let key = to_value(&recipe_key(id)).expect("Failed to serialize key");
+        let key = to_value(id).expect("Failed to serialize key");
         self.store
             .ro_transaction(&[js_lib::RECIPE_STORE_NAME], |trx| async move {
                 let object_store = trx
@@ -347,7 +343,7 @@ impl LocalStore {
         for entry in entries {
             let entry = entry.clone();
             let key =
-                to_value(&recipe_key(entry.recipe_id())).expect("Failed to serialize recipe key");
+                to_value(entry.recipe_id()).expect("Failed to serialize recipe key");
             self.store
                 .rw_transaction(&[js_lib::RECIPE_STORE_NAME], |trx| async move {
                     let object_store = trx
@@ -364,14 +360,13 @@ impl LocalStore {
                 })
                 .await
                 .expect("Failed to store recipe entry");
-            //self.set_recipe_entry(entry).await;
         }
     }
 
     /// Set recipe entry in local storage.
     pub async fn set_recipe_entry(&self, entry: &RecipeEntry) {
         let entry = entry.clone();
-        let key = to_value(&recipe_key(entry.recipe_id())).expect("Failed to serialize recipe key");
+        let key = to_value(entry.recipe_id()).expect("Failed to serialize recipe key");
         self.store
             .rw_transaction(&[js_lib::RECIPE_STORE_NAME], |trx| async move {
                 let object_store = trx
