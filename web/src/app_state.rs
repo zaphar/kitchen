@@ -40,9 +40,11 @@ pub struct AppState {
     pub recipe_counts: BTreeMap<String, usize>,
     pub recipe_categories: BTreeMap<String, String>,
     pub extras: Vec<(String, String)>,
-    #[serde(skip)] // FIXME(jwall): This should really be storable I think?
+    // FIXME(jwall): This should really be storable I think?
+    #[serde(skip_deserializing,skip_serializing)]
     pub staples: Option<BTreeSet<Ingredient>>,
-    #[serde(skip)] // FIXME(jwall): This should really be storable I think?
+    // FIXME(jwall): This should really be storable I think?
+    #[serde(skip_deserializing,skip_serializing)]
     pub recipes: BTreeMap<String, Recipe>,
     pub category_map: BTreeMap<String, String>,
     pub filtered_ingredients: BTreeSet<IngredientKey>,
@@ -178,7 +180,7 @@ impl StateMachine {
         // call set on the signal once. When the LinearSignal get's dropped it
         // will call set on the contained Signal.
         let mut original: LinearSignal<AppState> = original.into();
-        if let Some(state) = local_store.fetch_app_state() {
+        if let Some(state) = local_store.fetch_app_state().await {
             original = original.update(state);
         }
         let mut state = original.get().as_ref().clone();
@@ -201,7 +203,7 @@ impl StateMachine {
 
         info!("Synchronizing recipe");
         if let Some(recipe_entries) = recipe_entries {
-            local_store.set_all_recipes(recipe_entries);
+            local_store.set_all_recipes(recipe_entries).await;
             state.recipe_categories = recipe_entries
                 .iter()
                 .map(|entry| {
@@ -255,11 +257,11 @@ impl StateMachine {
         info!("Checking for user account data");
         if let Some(user_data) = store.fetch_user_data().await {
             debug!("Successfully got account data from server");
-            local_store.set_user_data(Some(&user_data));
+            local_store.set_user_data(Some(&user_data)).await;
             state.auth = Some(user_data);
         } else {
             debug!("Using account data from local store");
-            let user_data = local_store.get_user_data();
+            let user_data = local_store.get_user_data().await;
             state.auth = user_data;
         }
         info!("Synchronizing categories");
@@ -293,7 +295,7 @@ impl StateMachine {
             }
         }
         // Finally we store all of this app state back to our localstore
-        local_store.store_app_state(&state);
+        local_store.store_app_state(&state).await;
         original.update(state);
         Ok(())
     }
@@ -349,8 +351,9 @@ impl MessageMapper<Message, AppState> for StateMachine {
                         .or_insert(cat);
                 }
                 let store = self.store.clone();
-                self.local_store.set_recipe_entry(&entry);
+                let local_store = self.local_store.clone();
                 spawn_local_scoped(cx, async move {
+                    local_store.set_recipe_entry(&entry).await;
                     if let Err(e) = store.store_recipes(vec![entry]).await {
                         // FIXME(jwall): We should have a global way to trigger error messages
                         error!(err=?e, "Unable to save Recipe");
@@ -363,9 +366,10 @@ impl MessageMapper<Message, AppState> for StateMachine {
             Message::RemoveRecipe(recipe, callback) => {
                 original_copy.recipe_counts.remove(&recipe);
                 original_copy.recipes.remove(&recipe);
-                self.local_store.delete_recipe_entry(&recipe);
                 let store = self.store.clone();
+                let local_store = self.local_store.clone();
                 spawn_local_scoped(cx, async move {
+                    local_store.delete_recipe_entry(&recipe).await;
                     if let Err(err) = store.delete_recipe(&recipe).await {
                         error!(?err, "Failed to delete recipe");
                     }
@@ -396,8 +400,11 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 original_copy.modified_amts.insert(key, amt);
             }
             Message::SetUserData(user_data) => {
-                self.local_store.set_user_data(Some(&user_data));
-                original_copy.auth = Some(user_data);
+                let local_store = self.local_store.clone();
+                original_copy.auth = Some(user_data.clone());
+                spawn_local_scoped(cx, async move {
+                    local_store.set_user_data(Some(&user_data)).await;
+                });
             }
             Message::SaveState(f) => {
                 let mut original_copy = original_copy.clone();
@@ -417,7 +424,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                     if let Err(e) = store.store_app_state(&original_copy).await {
                         error!(err=?e, "Error saving app state");
                     };
-                    local_store.store_app_state(&original_copy);
+                    local_store.store_app_state(&original_copy).await;
                     original.set(original_copy);
                     f.map(|f| f());
                 });
@@ -478,7 +485,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                         .store_plan_for_date(vec![], &date)
                         .await
                         .expect("Failed to init meal plan for date");
-                    local_store.store_app_state(&original_copy);
+                    local_store.store_app_state(&original_copy).await;
                     original.set(original_copy);
 
                     callback.map(|f| f());
@@ -501,7 +508,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                         original_copy.filtered_ingredients = BTreeSet::new();
                         original_copy.modified_amts = BTreeMap::new();
                         original_copy.extras = Vec::new();
-                        local_store.store_app_state(&original_copy);
+                        local_store.store_app_state(&original_copy).await;
                         original.set(original_copy);
 
                         callback.map(|f| f());
@@ -513,8 +520,13 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 return;
             }
         }
-        self.local_store.store_app_state(&original_copy);
-        original.set(original_copy);
+        spawn_local_scoped(cx, {
+            let local_store = self.local_store.clone();
+            async move {
+            local_store.store_app_state(&original_copy).await;
+            original.set(original_copy);
+        }
+        });
     }
 }
 

@@ -8,8 +8,14 @@ edition = "2021"
 
 [dependencies]
 abortable_parser = "~0.2.6"
-chrono = "~0.4"
-serde = "1.0.144"
+
+[dependencies.chrono]
+version = "0.4.22"
+features = ["serde"]
+
+[dependencies.serde]
+version = "1.0.204"
+features = ["derive"]
 
 [dependencies.num-rational]
 version = "~0.4.0"

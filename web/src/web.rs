@@ -20,20 +20,20 @@ use crate::{api, routing::Handler as RouteHandler};
 #[instrument]
 #[component]
 pub fn UI<G: Html>(cx: Scope) -> View<G> {
+    let view = create_signal(cx, View::empty());
     api::HttpStore::provide_context(cx, "/api".to_owned());
     let store = api::HttpStore::get_from_context(cx).as_ref().clone();
     info!("Starting UI");
-    let local_store = api::LocalStore::new();
-    let app_state = if let Some(app_state) = local_store.fetch_app_state() {
-        app_state
-    } else {
-        crate::app_state::AppState::new()
-    };
-    debug!(?app_state, "Loaded app state from local storage");
-    let sh = crate::app_state::get_state_handler(cx, app_state, store);
-    let view = create_signal(cx, View::empty());
     spawn_local_scoped(cx, {
         async move {
+            let local_store = api::LocalStore::new();
+            let app_state = if let Some(app_state) = local_store.fetch_app_state().await {
+                app_state
+            } else {
+                crate::app_state::AppState::new()
+            };
+            debug!(?app_state, "Loaded app state from local storage");
+            let sh = crate::app_state::get_state_handler(cx, app_state, store);
             sh.dispatch(cx, Message::LoadState(None));
             view.set(view! { cx,
                 RouteHandler(sh=sh)

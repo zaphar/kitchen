@@ -6,10 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = "<=1.0.171"
 recipes = { path = "../recipes" }
 chrono = "0.4.22"
 
+[dependencies.serde]
+version = "1.0.204"
+features = ["derive"]
 
 [dependencies.axum]
 version = "0.5.16"
