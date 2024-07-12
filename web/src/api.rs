@@ -19,7 +19,7 @@ use gloo_net;
 // TODO(jwall): Remove this when we have gone a few migrations past.
 use serde_json::{from_str, to_string};
 use sycamore::prelude::*;
-use tracing::{debug, error, instrument};
+use tracing::{debug, error, field::debug, instrument};
 
 use anyhow::Result;
 use client_api::*;
@@ -109,12 +109,13 @@ impl LocalStore {
 
     pub async fn migrate(&self) {
         // 1. migrate app-state from localstore to indexeddb
-        if let Ok(Some(v)) = self.old_store.get(APP_STATE_KEY) {
+        debug("Peforming localstorage migration");
+        if let Ok(Some(v)) = self.old_store.get("app_state") {
             if let Ok(Some(local_state)) = from_str::<Option<AppState>>(&v) {
                 self.store_app_state(&local_state).await;
             }
         }
-        let _ = self.old_store.remove_item(APP_STATE_KEY);
+        let _ = self.old_store.remove_item("app_state");
         // 2. migrate user-state from localstore to indexeddb
         if let Ok(Some(v)) = self.old_store.get(USER_DATA_KEY) {
             if let Ok(local_user_data) = from_str::<Option<UserData>>(&v) {
@@ -122,7 +123,23 @@ impl LocalStore {
             }
         }
         let _ = self.old_store.remove_item(USER_DATA_KEY);
-        // 3. Recipes?
+        // 3. Recipes
+        let store_len = self.old_store.length().unwrap();
+        let mut key_list = Vec::new();
+        for i in 0..store_len {
+            let key = self.old_store.key(i).unwrap().unwrap();
+            if key.starts_with("recipe:") {
+                key_list.push(key);
+            }
+        }
+        for k in key_list {
+            if let Ok(Some(recipe)) = self.old_store.get(&k) {
+                if let Ok(recipe) = from_str::<RecipeEntry>(&recipe) {
+                    self.set_recipe_entry(&recipe).await;
+                }
+            }
+            let _ = self.old_store.delete(&k);
+        }
     }
 
     pub async fn store_app_state(&self, state: &AppState) {
@@ -306,11 +323,6 @@ impl LocalStore {
             })
             .await
             .expect("Failed to get recipes")
-        // FIXME(zaphar): Migration from local storage to indexed db
-        //self.store
-        //    .get(&key)
-        //    .expect(&format!("Failed to get recipe {}", key))
-        //    .map(|entry| from_str(&entry).expect(&format!("Failed to get recipe {}", key)))
     }
 
     /// Sets the set of recipes to the entries passed in. Deletes any recipes not
@@ -331,10 +343,6 @@ impl LocalStore {
                 })
                 .await
                 .expect("Failed to delete user_data");
-            // FIXME(zaphar): Migration from local storage to indexed db
-            //self.store
-            //    .delete(&recipe_key)
-            //    .expect(&format!("Failed to get recipe {}", recipe_key));
         }
         for entry in entries {
             let entry = entry.clone();
@@ -380,13 +388,6 @@ impl LocalStore {
             })
             .await
             .expect("Failed to store recipe entry");
-        // FIXME(zaphar): Migration from local storage to indexed db
-        //self.store
-        //    .set(
-        //        &recipe_key(entry.recipe_id()),
-        //        &to_string(&entry).expect(&format!("Failed to get recipe {}", entry.recipe_id())),
-        //    )
-        //    .expect(&format!("Failed to store recipe {}", entry.recipe_id()))
     }
 
     /// Delete recipe entry from local storage.
@@ -405,10 +406,6 @@ impl LocalStore {
             })
             .await
             .expect("Failed to delete user_data");
-        // FIXME(zaphar): Migration from local storage to indexed db
-        //self.store
-        //    .delete(&recipe_key(recipe_id))
-        //    .expect(&format!("Failed to delete recipe {}", recipe_id))
     }
 }
 
