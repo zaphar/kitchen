@@ -17,6 +17,7 @@ use web_sys::{window, Window};
 use indexed_db::{self, Factory, Database, Transaction};
 use anyhow::{Result, Context};
 use std::future::Future;
+use std::collections::HashSet;
 
 pub fn get_storage() -> web_sys::Storage {
     get_window()
@@ -50,19 +51,29 @@ impl<'name> DBFactory<'name> {
             // NOTE(zaphar): This is the on upgradeneeded handler. It get's called on new databases or
             // database with an older version than the one we requested to build.
             let db = evt.database();
+            let stores = db.object_store_names().into_iter().collect::<HashSet<String>>();
             // NOTE(jwall): This needs to be somewhat clever in handling version upgrades.
-            if db.version() == 1 {
-                // We use out of line keys for this object store
-                db.build_object_store(STATE_STORE_NAME).create()?;
-                let recipe_store = db.build_object_store(RECIPE_STORE_NAME).create()?;
-                recipe_store.build_index(CATEGORY_IDX, "category")
-                    .create()?;
-                recipe_store.build_index(SERVING_COUNT_IDX, "serving_count")
-                    .create()?;
+            if db.version() > 0 {
+                self.version1_setup(&stores, db).await?;
             }
             Ok(())
         }).await.context(format!("Opening or creating the database {}", self.name))?;
         Ok(db)
+    }
+
+    async fn version1_setup<'db>(&self, stores: &HashSet<String>, db: &'db Databse<std::io::Error>) -> std::result::Result<(), std::io::Error> {
+                // We use out of line keys for this object store
+                if !stores.contains(STATE_STORE_NAME) {
+                    db.build_object_store(STATE_STORE_NAME).create()?;
+                }
+                if !stores.contains(RECIPE_STORE_NAME) {
+                    let recipe_store = db.build_object_store(RECIPE_STORE_NAME).create()?;
+                    recipe_store.build_index(CATEGORY_IDX, "category")
+                        .create()?;
+                    recipe_store.build_index(SERVING_COUNT_IDX, "serving_count")
+                        .create()?;
+                }
+        Ok(())
     }
 
     pub async fn rw_transaction<Fun, RetFut, Ret>(&self, stores: &[&str], transaction: Fun) -> indexed_db::Result<Ret, std::io::Error>
