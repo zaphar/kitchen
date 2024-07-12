@@ -27,6 +27,8 @@ pub fn UI<G: Html>(cx: Scope) -> View<G> {
     spawn_local_scoped(cx, {
         async move {
             let local_store = api::LocalStore::new();
+            // TODO(jwall): At some point we can drop this potentially?
+            local_store.migrate().await;
             let app_state = if let Some(app_state) = local_store.fetch_app_state().await {
                 app_state
             } else {

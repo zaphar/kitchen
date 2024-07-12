@@ -17,7 +17,7 @@ use base64::{self, Engine};
 use chrono::NaiveDate;
 use gloo_net;
 // TODO(jwall): Remove this when we have gone a few migrations past.
-//use serde_json::{from_str, to_string};
+use serde_json::{from_str, to_string};
 use sycamore::prelude::*;
 use tracing::{debug, error, instrument};
 
@@ -26,6 +26,7 @@ use client_api::*;
 use recipes::{IngredientKey, RecipeEntry};
 use serde_wasm_bindgen::{from_value, to_value};
 use wasm_bindgen::JsValue;
+use web_sys::Storage;
 // TODO(jwall): Remove this when we have gone a few migrations past.
 //use web_sys::Storage;
 
@@ -90,19 +91,36 @@ fn token68(user: String, pass: String) -> String {
 
 #[derive(Clone, Debug)]
 pub struct LocalStore {
-    // FIXME(zaphar): Migration from local storage to indexed db
-    //old_store: Storage,
+    // TODO(zaphar): Remove this when it's safe to delete the migration
+    old_store: Storage,
     store: DBFactory<'static>,
 }
 
 const APP_STATE_KEY: &'static str = "app-state";
+const USER_DATA_KEY: &'static str = "user_data";
 
 impl LocalStore {
     pub fn new() -> Self {
         Self {
             store: DBFactory::default(),
-            //old_store: js_lib::get_storage(),
+            old_store: js_lib::get_storage(),
         }
+    }
+
+    pub async fn migrate(&self) {
+        // 1. migrate app-state from localstore to indexeddb
+        if let Ok(Some(v)) = self.old_store.get("app_state") {
+            if let Ok(Some(local_state)) = from_str::<Option<AppState> >(&v) {
+                self.store_app_state(&local_state).await;
+            }
+        }
+        // 2. migrate user-state from localstore to indexeddb
+        if let Ok(Some(v)) = self.old_store.get(USER_DATA_KEY) {
+            if let Ok(local_user_data) = from_str::<Option<UserData> >(&v) {
+                self.set_user_data(local_user_data.as_ref()).await;
+            }
+        }
+        // 3. Recipes?
     }
 
     pub async fn store_app_state(&self, state: &AppState) {
@@ -131,10 +149,6 @@ impl LocalStore {
             })
             .await
             .expect("Failed to store app-state");
-        // FIXME(zaphar): Migration from local storage to indexed db
-        //self.store
-        //    .set("app_state", &state)
-        //    .expect("Failed to set our app state");
     }
 
     pub async fn fetch_app_state(&self) -> Option<AppState> {
@@ -163,30 +177,13 @@ impl LocalStore {
             })
             .await
             .expect("Failed to fetch app-state")
-        // FIXME(zaphar): Migration from local storage to indexed db
-        //self.store.get("app_state").map_or(None, |val| {
-        //    val.map(|s| {
-        //        debug!("Found an app_state object");
-        //        let mut app_state: AppState =
-        //            from_str(&s).expect("Failed to deserialize app state");
-        //        let recipes = parse_recipes(&self.get_recipes()).expect("Failed to parse recipes");
-        //        if let Some(recipes) = recipes {
-        //            debug!("Populating recipes");
-        //            for (id, recipe) in recipes {
-        //                debug!(id, "Adding recipe from local storage");
-        //                app_state.recipes.insert(id, recipe);
-        //            }
-        //        }
-        //        app_state
-        //    })
-        //})
     }
 
     /// Gets user data from local storage.
     pub async fn get_user_data(&self) -> Option<UserData> {
         self.store
             .ro_transaction(&[js_lib::STATE_STORE_NAME], |trx| async move {
-                let key = to_value("user_data").expect("Failed to serialize key");
+                let key = to_value(USER_DATA_KEY).expect("Failed to serialize key");
                 let object_store = trx
                     .object_store(js_lib::STATE_STORE_NAME)
                     .expect("Failed to get object store");
@@ -202,16 +199,11 @@ impl LocalStore {
             })
             .await
             .expect("Failed to fetch user_data")
-        // FIXME(zaphar): Migration from local storage to indexed db
-        //self.store
-        //    .get("user_data")
-        //    .map_or(None, |val| val.map(|val| from_str(&val).unwrap_or(None)))
-        //    .flatten()
     }
 
     // Set's user data to local storage.
     pub async fn set_user_data(&self, data: Option<&UserData>) {
-        let key = to_value("user_data").expect("Failed to serialize key");
+        let key = to_value(USER_DATA_KEY).expect("Failed to serialize key");
         if let Some(data) = data {
             let data = data.clone();
             self.store
@@ -230,13 +222,6 @@ impl LocalStore {
                 })
                 .await
                 .expect("Failed to set user_data");
-            // FIXME(zaphar): Migration from local storage to indexed db
-            //self.store
-            //    .set(
-            //        "user_data",
-            //        &to_string(data).expect("Failed to desrialize user_data"),
-            //    )
-            //    .expect("Failed to set user_data");
         } else {
             self.store
                 .rw_transaction(&[js_lib::STATE_STORE_NAME], |trx| async move {
@@ -251,10 +236,6 @@ impl LocalStore {
                 })
                 .await
                 .expect("Failed to delete user_data");
-            // FIXME(zaphar): Migration from local storage to indexed db
-            //self.store
-            //    .delete("user_data")
-            //    .expect("Failed to delete user_data");
         }
     }
 
@@ -342,7 +323,6 @@ impl LocalStore {
     /// Sets the set of recipes to the entries passed in. Deletes any recipes not
     /// in the list.
     pub async fn set_all_recipes(&self, entries: &Vec<RecipeEntry>) {
-        // FIXME(zaphar): Migration from local storage to indexed db
         for recipe_key in self.get_recipe_keys().await {
             let key = to_value(&recipe_key).expect("Failed to serialize key");
             self.store
@@ -358,6 +338,7 @@ impl LocalStore {
                 })
                 .await
                 .expect("Failed to delete user_data");
+        // FIXME(zaphar): Migration from local storage to indexed db
             //self.store
             //    .delete(&recipe_key)
             //    .expect(&format!("Failed to get recipe {}", recipe_key));

@@ -11,13 +11,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use anyhow::{Context, Result};
+use indexed_db::{self, Database, Factory, Transaction};
 use js_sys::Date;
+use std::collections::HashSet;
+use std::future::Future;
 use tracing::error;
 use web_sys::{window, Window};
-use indexed_db::{self, Factory, Database, Transaction};
-use anyhow::{Result, Context};
-use std::future::Future;
-use std::collections::HashSet;
 
 pub fn get_storage() -> web_sys::Storage {
     get_window()
@@ -40,62 +40,91 @@ pub struct DBFactory<'name> {
 
 impl Default for DBFactory<'static> {
     fn default() -> Self {
-        DBFactory { name: STATE_STORE_NAME, version: Some(DB_VERSION) }
+        DBFactory {
+            name: STATE_STORE_NAME,
+            version: Some(DB_VERSION),
+        }
     }
+}
+
+async fn version1_setup<'db>(
+    stores: &HashSet<String>,
+    db: &'db Database<std::io::Error>,
+) -> Result<(), indexed_db::Error<std::io::Error>> {
+    // We use out of line keys for this object store
+    if !stores.contains(STATE_STORE_NAME) {
+        db.build_object_store(STATE_STORE_NAME).create()?;
+    }
+    if !stores.contains(RECIPE_STORE_NAME) {
+        let recipe_store = db.build_object_store(RECIPE_STORE_NAME).create()?;
+        recipe_store
+            .build_index(CATEGORY_IDX, "category")
+            .create()?;
+        recipe_store
+            .build_index(SERVING_COUNT_IDX, "serving_count")
+            .create()?;
+    }
+    Ok(())
 }
 
 impl<'name> DBFactory<'name> {
     pub async fn get_indexed_db(&self) -> Result<Database<std::io::Error>> {
         let factory = Factory::<std::io::Error>::get().context("opening IndexedDB")?;
-        let db = factory.open(self.name, self.version.unwrap_or(0), |evt| async move {
-            // NOTE(zaphar): This is the on upgradeneeded handler. It get's called on new databases or
-            // database with an older version than the one we requested to build.
-            let db = evt.database();
-            let stores = db.object_store_names().into_iter().collect::<HashSet<String>>();
-            // NOTE(jwall): This needs to be somewhat clever in handling version upgrades.
-            if db.version() > 0 {
-                self.version1_setup(&stores, db).await?;
-            }
-            Ok(())
-        }).await.context(format!("Opening or creating the database {}", self.name))?;
+        let db = factory
+            .open(self.name, self.version.unwrap_or(0), |evt| async move {
+                // NOTE(zaphar): This is the on upgradeneeded handler. It get's called on new databases or
+                // databases with an older version than the one we requested to build.
+                let db = evt.database();
+                let stores = db
+                    .object_store_names()
+                    .into_iter()
+                    .collect::<HashSet<String>>();
+                // NOTE(jwall): This needs to be somewhat clever in handling version upgrades.
+                if db.version() > 0 {
+                    version1_setup(&stores, db).await?;
+                }
+                Ok(())
+            })
+            .await
+            .context(format!("Opening or creating the database {}", self.name))?;
         Ok(db)
     }
 
-    async fn version1_setup<'db>(&self, stores: &HashSet<String>, db: &'db Databse<std::io::Error>) -> std::result::Result<(), std::io::Error> {
-                // We use out of line keys for this object store
-                if !stores.contains(STATE_STORE_NAME) {
-                    db.build_object_store(STATE_STORE_NAME).create()?;
-                }
-                if !stores.contains(RECIPE_STORE_NAME) {
-                    let recipe_store = db.build_object_store(RECIPE_STORE_NAME).create()?;
-                    recipe_store.build_index(CATEGORY_IDX, "category")
-                        .create()?;
-                    recipe_store.build_index(SERVING_COUNT_IDX, "serving_count")
-                        .create()?;
-                }
-        Ok(())
+    pub async fn rw_transaction<Fun, RetFut, Ret>(
+        &self,
+        stores: &[&str],
+        transaction: Fun,
+    ) -> indexed_db::Result<Ret, std::io::Error>
+    where
+        Fun: 'static + FnOnce(Transaction<std::io::Error>) -> RetFut,
+        RetFut: 'static + Future<Output = indexed_db::Result<Ret, std::io::Error>>,
+        Ret: 'static,
+    {
+        self.get_indexed_db()
+            .await
+            .expect("Failed to open database")
+            .transaction(stores)
+            .rw()
+            .run(transaction)
+            .await
     }
 
-    pub async fn rw_transaction<Fun, RetFut, Ret>(&self, stores: &[&str], transaction: Fun) -> indexed_db::Result<Ret, std::io::Error>
-where
-    Fun: 'static + FnOnce(Transaction<std::io::Error>) -> RetFut,
-    RetFut: 'static + Future<Output = indexed_db::Result<Ret, std::io::Error>>,
-    Ret: 'static,
+    pub async fn ro_transaction<Fun, RetFut, Ret>(
+        &self,
+        stores: &[&str],
+        transaction: Fun,
+    ) -> indexed_db::Result<Ret, std::io::Error>
+    where
+        Fun: 'static + FnOnce(Transaction<std::io::Error>) -> RetFut,
+        RetFut: 'static + Future<Output = indexed_db::Result<Ret, std::io::Error>>,
+        Ret: 'static,
     {
-        self.get_indexed_db().await.expect("Failed to open database")
-            .transaction(stores).rw()
-            .run(transaction).await
-    }
-    
-    pub async fn ro_transaction<Fun, RetFut, Ret>(&self, stores: &[&str], transaction: Fun) -> indexed_db::Result<Ret, std::io::Error>
-where
-    Fun: 'static + FnOnce(Transaction<std::io::Error>) -> RetFut,
-    RetFut: 'static + Future<Output = indexed_db::Result<Ret, std::io::Error>>,
-    Ret: 'static,
-    {
-        self.get_indexed_db().await.expect("Failed to open database")
+        self.get_indexed_db()
+            .await
+            .expect("Failed to open database")
             .transaction(stores)
-            .run(transaction).await
+            .run(transaction)
+            .await
     }
 }
 
