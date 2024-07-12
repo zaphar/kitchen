@@ -100,13 +100,13 @@ const APP_STATE_KEY: &'static str = "app-state";
 impl LocalStore {
     pub fn new() -> Self {
         Self {
-            store: DBFactory::new("app-state", Some(1)),
+            store: DBFactory::default(),
             //old_store: js_lib::get_storage(),
         }
     }
 
     pub async fn store_app_state(&self, state: &AppState) {
-        self.migrate_local_store().await;
+        //self.migrate_local_store().await;
         let state = match to_value(state) {
             Ok(state) => state,
             Err(err) => {
@@ -116,9 +116,9 @@ impl LocalStore {
         };
         let key = to_value(APP_STATE_KEY).expect("Failed to serialize key");
         self.store
-            .rw_transaction(|trx| async move {
+            .rw_transaction(&[js_lib::STATE_STORE_NAME], |trx| async move {
                 let object_store = trx
-                    .object_store(js_lib::STORE_NAME)
+                    .object_store(js_lib::STATE_STORE_NAME)
                     .expect("Failed to get object store");
                 object_store
                     .put_kv(
@@ -141,10 +141,10 @@ impl LocalStore {
         debug!("Loading state from local store");
         let recipes = parse_recipes(&self.get_recipes().await).expect("Failed to parse recipes");
         self.store
-            .ro_transaction(|trx| async move {
+            .ro_transaction(&[js_lib::STATE_STORE_NAME], |trx| async move {
                 let key = to_value(APP_STATE_KEY).expect("Failed to serialize key");
                 let object_store = trx
-                    .object_store(js_lib::STORE_NAME)
+                    .object_store(js_lib::STATE_STORE_NAME)
                     .expect("Failed to get object store");
                 let mut app_state: AppState =
                     match object_store.get(&key).await.expect("Failed to read from") {
@@ -185,10 +185,10 @@ impl LocalStore {
     /// Gets user data from local storage.
     pub async fn get_user_data(&self) -> Option<UserData> {
         self.store
-            .ro_transaction(|trx| async move {
+            .ro_transaction(&[js_lib::STATE_STORE_NAME], |trx| async move {
                 let key = to_value("user_data").expect("Failed to serialize key");
                 let object_store = trx
-                    .object_store(js_lib::STORE_NAME)
+                    .object_store(js_lib::STATE_STORE_NAME)
                     .expect("Failed to get object store");
                 let user_data: UserData = match object_store
                     .get(&key)
@@ -215,9 +215,9 @@ impl LocalStore {
         if let Some(data) = data {
             let data = data.clone();
             self.store
-                .rw_transaction(|trx| async move {
+                .rw_transaction(&[js_lib::STATE_STORE_NAME], |trx| async move {
                     let object_store = trx
-                        .object_store(js_lib::STORE_NAME)
+                        .object_store(js_lib::STATE_STORE_NAME)
                         .expect("Failed to get object store");
                     object_store
                         .put_kv(
@@ -239,9 +239,9 @@ impl LocalStore {
             //    .expect("Failed to set user_data");
         } else {
             self.store
-                .rw_transaction(|trx| async move {
+                .rw_transaction(&[js_lib::STATE_STORE_NAME], |trx| async move {
                     let object_store = trx
-                        .object_store(js_lib::STORE_NAME)
+                        .object_store(js_lib::STATE_STORE_NAME)
                         .expect("Failed to get object store");
                     object_store
                         .delete(&key)
@@ -258,12 +258,12 @@ impl LocalStore {
         }
     }
 
-    async fn get_storage_keys(&self) -> Vec<String> {
+    async fn get_recipe_keys(&self) -> impl Iterator<Item = String> {
         self.store
-            .ro_transaction(|trx| async move {
+            .ro_transaction(&[js_lib::RECIPE_STORE_NAME], |trx| async move {
                 let mut keys = Vec::new();
                 let object_store = trx
-                    .object_store(js_lib::STORE_NAME)
+                    .object_store(js_lib::RECIPE_STORE_NAME)
                     .expect("Failed to get object store");
                 let key_vec = object_store
                     .get_all_keys(None)
@@ -277,39 +277,7 @@ impl LocalStore {
                 Ok(keys)
             })
             .await
-            .expect("Failed to get storage keys")
-    }
-
-    async fn migrate_local_store(&self) {
-        // FIXME(zaphar): Migration from local storage to indexed db
-        for k in self.get_storage_keys().await.into_iter().filter(|k| {
-            k.starts_with("categor") || k == "inventory" || k.starts_with("plan") || k == "staples"
-        }) {
-            // Deleting old local store key
-            let key = to_value(&k).expect("Failed to serialize key");
-            self.store
-                .rw_transaction(|trx| async move {
-                    let object_store = trx
-                        .object_store(js_lib::STORE_NAME)
-                        .expect("Failed to get object store");
-                    object_store
-                        .delete(&key)
-                        .await
-                        .expect("Failed to delete user_data");
-                    Ok(())
-                })
-                .await
-                .expect("Failed to delete user_data");
-            //debug!("Deleting old local store key {}", k);
-            //self.store.delete(&k).expect("Failed to delete storage key");
-        }
-    }
-
-    async fn get_recipe_keys(&self) -> impl Iterator<Item = String> {
-        self.get_storage_keys()
-            .await
-            .into_iter()
-            .filter(|k| k.starts_with("recipe:"))
+            .expect("Failed to get storage keys").into_iter()
     }
 
     /// Gets all the recipes from local storage.
@@ -319,9 +287,9 @@ impl LocalStore {
             let key = to_value(&recipe_key).expect("Failed to serialize key");
             let entry = self
                 .store
-                .ro_transaction(|trx| async move {
+                .ro_transaction(&[js_lib::RECIPE_STORE_NAME], |trx| async move {
                     let object_store = trx
-                        .object_store(js_lib::STORE_NAME)
+                        .object_store(js_lib::RECIPE_STORE_NAME)
                         .expect("Failed to get object store");
                     let entry: Option<RecipeEntry> = match object_store
                         .get(&key)
@@ -348,9 +316,9 @@ impl LocalStore {
     pub async fn get_recipe_entry(&self, id: &str) -> Option<RecipeEntry> {
         let key = to_value(&recipe_key(id)).expect("Failed to serialize key");
         self.store
-            .ro_transaction(|trx| async move {
+            .ro_transaction(&[js_lib::RECIPE_STORE_NAME], |trx| async move {
                 let object_store = trx
-                    .object_store(js_lib::STORE_NAME)
+                    .object_store(js_lib::RECIPE_STORE_NAME)
                     .expect("Failed to get object store");
                 let entry: Option<RecipeEntry> = match object_store
                     .get(&key)
@@ -378,9 +346,9 @@ impl LocalStore {
         for recipe_key in self.get_recipe_keys().await {
             let key = to_value(&recipe_key).expect("Failed to serialize key");
             self.store
-                .rw_transaction(|trx| async move {
+                .rw_transaction(&[js_lib::STATE_STORE_NAME], |trx| async move {
                     let object_store = trx
-                        .object_store(js_lib::STORE_NAME)
+                        .object_store(js_lib::STATE_STORE_NAME)
                         .expect("Failed to get object store");
                     object_store
                         .delete(&key)
@@ -398,9 +366,9 @@ impl LocalStore {
             let entry = entry.clone();
             let key =
                 to_value(&recipe_key(entry.recipe_id())).expect("Failed to serialize recipe key");
-            self.store.rw_transaction(|trx| async move {
+            self.store.rw_transaction(&[js_lib::RECIPE_STORE_NAME], |trx| async move {
                 let object_store = trx
-                    .object_store(js_lib::STORE_NAME)
+                    .object_store(js_lib::RECIPE_STORE_NAME)
                     .expect("Failed to get object store");
                 object_store
                     .put_kv(
@@ -419,9 +387,9 @@ impl LocalStore {
     pub async fn set_recipe_entry(&self, entry: &RecipeEntry) {
         let entry = entry.clone();
         let key = to_value(&recipe_key(entry.recipe_id())).expect("Failed to serialize recipe key");
-        self.store.rw_transaction(|trx| async move {
+        self.store.rw_transaction(&[js_lib::RECIPE_STORE_NAME], |trx| async move {
             let object_store = trx
-                .object_store(js_lib::STORE_NAME)
+                .object_store(js_lib::RECIPE_STORE_NAME)
                 .expect("Failed to get object store");
             object_store
                 .put_kv(
@@ -445,9 +413,9 @@ impl LocalStore {
     pub async fn delete_recipe_entry(&self, recipe_id: &str) {
         let key = to_value(recipe_id).expect("Failed to serialize key");
         self.store
-            .rw_transaction(|trx| async move {
+            .rw_transaction(&[js_lib::RECIPE_STORE_NAME], |trx| async move {
                 let object_store = trx
-                    .object_store(js_lib::STORE_NAME)
+                    .object_store(js_lib::RECIPE_STORE_NAME)
                     .expect("Failed to get object store");
                 object_store
                     .delete(&key)

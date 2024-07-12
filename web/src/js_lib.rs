@@ -25,7 +25,9 @@ pub fn get_storage() -> web_sys::Storage {
         .expect("No storage available")
 }
 
-pub const STORE_NAME: &'static str = "state-store";
+pub const STATE_STORE_NAME: &'static str = "state-store";
+pub const RECIPE_STORE_NAME: &'static str = "recipe-store";
+pub const DB_VERSION: u32 = 1;
 
 #[derive(Clone, Debug)]
 pub struct DBFactory<'name> {
@@ -33,11 +35,13 @@ pub struct DBFactory<'name> {
     version: Option<u32>,
 }
 
-impl<'name> DBFactory<'name> {
-    pub fn new(name: &'name str, version: Option<u32>) -> Self {
-        Self { name, version }
+impl Default for DBFactory<'static> {
+    fn default() -> Self {
+        DBFactory { name: STATE_STORE_NAME, version: Some(DB_VERSION) }
     }
+}
 
+impl<'name> DBFactory<'name> {
     pub async fn get_indexed_db(&self) -> Result<Database<std::io::Error>> {
         let factory = Factory::<std::io::Error>::get().context("opening IndexedDB")?;
         let db = factory.open(self.name, self.version.unwrap_or(0), |evt| async move {
@@ -47,32 +51,34 @@ impl<'name> DBFactory<'name> {
             // NOTE(jwall): This needs to be somewhat clever in handling version upgrades.
             if db.version() == 1 {
                 // We use out of line keys for this object store
-                db.build_object_store(STORE_NAME).create()?;
+                db.build_object_store(STATE_STORE_NAME).create()?;
+                db.build_object_store(RECIPE_STORE_NAME).create()?;
+                // TODO(jwall): Do we need indexes?
             }
             Ok(())
         }).await.context(format!("Opening or creating the database {}", self.name))?;
         Ok(db)
     }
 
-    pub async fn rw_transaction<Fun, RetFut, Ret>(&self, transaction: Fun) -> indexed_db::Result<Ret, std::io::Error>
+    pub async fn rw_transaction<Fun, RetFut, Ret>(&self, stores: &[&str], transaction: Fun) -> indexed_db::Result<Ret, std::io::Error>
 where
     Fun: 'static + FnOnce(Transaction<std::io::Error>) -> RetFut,
     RetFut: 'static + Future<Output = indexed_db::Result<Ret, std::io::Error>>,
     Ret: 'static,
     {
         self.get_indexed_db().await.expect("Failed to open database")
-            .transaction(&[STORE_NAME]).rw()
+            .transaction(stores).rw()
             .run(transaction).await
     }
     
-    pub async fn ro_transaction<Fun, RetFut, Ret>(&self, transaction: Fun) -> indexed_db::Result<Ret, std::io::Error>
+    pub async fn ro_transaction<Fun, RetFut, Ret>(&self, stores: &[&str], transaction: Fun) -> indexed_db::Result<Ret, std::io::Error>
 where
     Fun: 'static + FnOnce(Transaction<std::io::Error>) -> RetFut,
     RetFut: 'static + Future<Output = indexed_db::Result<Ret, std::io::Error>>,
     Ret: 'static,
     {
         self.get_indexed_db().await.expect("Failed to open database")
-            .transaction(&[STORE_NAME])
+            .transaction(stores)
             .run(transaction).await
     }
 }
