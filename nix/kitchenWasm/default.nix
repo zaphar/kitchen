@@ -4,6 +4,7 @@
  wasm-bindgen,
  lockFile,
  outputHashes,
+ cargo-wasm2map,
 }:
 with pkgs;
 let
@@ -18,7 +19,7 @@ stdenv.mkDerivation {
     inherit src pname;
     version = version;
     # we need wasmb-bindgen v0.2.83 exactly
-    buildInputs = [ rust-wasm wasm-bindgen wasm-pack binaryen];
+    buildInputs = [ rust-wasm wasm-bindgen wasm-pack binaryen cargo-wasm2map];
     propagatedBuildInputs = [ rust-wasm wasm-bindgen wasm-pack binaryen];
     phases = [ "postUnpackPhase" "buildPhase"];
     postUnpackPhase = ''
@@ -34,6 +35,7 @@ stdenv.mkDerivation {
 		export project=kitchen
 		sh ../scripts/wasm-build.sh release
 		sh ../scripts/wasm-opt.sh release
+		sh ../scripts/wasm-sourcemap.sh
         rm -f $out/kitchen_wasm_bg.wasm
         cp -r index.html $out
         cp -r favicon.ico $out

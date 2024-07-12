@@ -41,6 +41,7 @@ wasm: wasm-dist static-prep
 
 wasm-dist: web/src/*.rs web/src/components/*.rs
 	cd web; sh ../scripts/wasm-build.sh debug
+	cd web; sh ../scripts/wasm-sourcemap.sh
 
 clean:
 	rm -rf web/dist/*

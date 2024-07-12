@@ -11,8 +11,9 @@
         };
         naersk.url = "github:nix-community/naersk";
         flake-compat = { url = "github:edolstra/flake-compat"; flake = false; };
+		cargo-wasm2map-src = { url = "github:mtolmacs/wasm2map"; flake = false; };
     };
-    outputs = {nixpkgs, flake-utils, rust-overlay, naersk, ...}:
+    outputs = {nixpkgs, flake-utils, rust-overlay, naersk, cargo-wasm2map-src, ...}:
         let
             kitchenGen = (import ./nix/kitchen/default.nix);
             kitchenWasmGen = (import ./nix/kitchenWasm/default.nix);
@@ -42,9 +43,16 @@
                 wasm-pack = wasm-packGen {
                     inherit rust-wasm naersk-lib pkgs;
                 };
+				cargo-wasm2map = naersk-lib.buildPackage {
+					pname = "cargo-wasm2map";
+					version = "v0.1.0";
+					build-inputs = [ rust-wasm ];
+					src = cargo-wasm2map-src;
+					cargoBuildOptions = opts: opts ++ ["-p" "cargo-wasm2map" ];
+				};
                 wasm-bindgen = pkgs.callPackage wasm-bindgenGen { inherit pkgs; };
                 kitchenWasm = kitchenWasmGen {
-                    inherit pkgs rust-wasm wasm-bindgen version;
+                    inherit pkgs rust-wasm wasm-bindgen version cargo-wasm2map;
                     lockFile = ./Cargo.lock;
                     outputHashes = {
                         # I'm maintaining some patches for these so the lockfile hashes are a little
@@ -89,7 +97,7 @@
                     program = "${kitchen}/bin/kitchen";
                 };
                 devShell = pkgs.callPackage ./nix/devShell/default.nix {
-                    inherit rust-wasm wasm-bindgen;
+                    inherit rust-wasm wasm-bindgen cargo-wasm2map;
                     wasm-pack-hermetic = wasm-pack;
                 };
             } 
