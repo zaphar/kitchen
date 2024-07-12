@@ -440,12 +440,12 @@ impl APIStore for SqliteStore {
         .await?
         .iter()
         .map(|row| {
-            RecipeEntry(
-                row.recipe_id.clone(),
-                row.recipe_text.clone().unwrap_or_else(|| String::new()),
-                row.category.clone(),
-                row.serving_count.clone(),
-            )
+            RecipeEntry {
+                id: row.recipe_id.clone(),
+                text: row.recipe_text.clone().unwrap_or_else(|| String::new()),
+                category: row.category.clone(),
+                serving_count: row.serving_count.clone(),
+            }
         })
         .nth(0);
         Ok(entry)
@@ -460,12 +460,12 @@ impl APIStore for SqliteStore {
         .await?
         .iter()
         .map(|row| {
-            RecipeEntry(
-                row.recipe_id.clone(),
-                row.recipe_text.clone().unwrap_or_else(|| String::new()),
-                row.category.clone(),
-                row.serving_count.clone(),
-            )
+            RecipeEntry {
+                id: row.recipe_id.clone(),
+                text: row.recipe_text.clone().unwrap_or_else(|| String::new()),
+                category: row.category.clone(),
+                serving_count: row.serving_count.clone(),
+            }
         })
         .collect();
         Ok(Some(rows))

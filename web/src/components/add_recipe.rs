@@ -42,19 +42,19 @@ pub fn AddRecipe<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> View
         } else {
             Some(category)
         };
-        RecipeEntry(
-            recipe_title
+        RecipeEntry {
+            id: recipe_title
                 .get()
                 .as_ref()
                 .to_lowercase()
                 .replace(" ", "_")
                 .replace("\n", ""),
-            STARTER_RECIPE
+            text: STARTER_RECIPE
                 .replace("TITLE_PLACEHOLDER", recipe_title.get().as_str())
                 .replace("\r", ""),
             category,
-            None,
-        )
+            serving_count: None,
+        }
     });
 
     view! {cx,

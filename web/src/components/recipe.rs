@@ -115,12 +115,12 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
                     } else {
                         Some(category.as_ref().clone())
                     };
-                    let recipe_entry = RecipeEntry(
-                                    id.get_untracked().as_ref().clone(),
-                                    text.get_untracked().as_ref().clone(),
+                    let recipe_entry = RecipeEntry {
+                                    id: id.get_untracked().as_ref().clone(),
+                                    text: text.get_untracked().as_ref().clone(),
                                     category,
-                                    None,
-                    );
+                                    serving_count: None,
+                    };
                     sh.dispatch(cx, Message::SaveRecipe(recipe_entry, None));
                     dirty.set(false);
                 }

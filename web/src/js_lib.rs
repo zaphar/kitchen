@@ -27,6 +27,8 @@ pub fn get_storage() -> web_sys::Storage {
 
 pub const STATE_STORE_NAME: &'static str = "state-store";
 pub const RECIPE_STORE_NAME: &'static str = "recipe-store";
+pub const SERVING_COUNT_IDX: &'static str = "recipe-serving-count";
+pub const CATEGORY_IDX: &'static str = "recipe-category";
 pub const DB_VERSION: u32 = 1;
 
 #[derive(Clone, Debug)]
@@ -52,8 +54,11 @@ impl<'name> DBFactory<'name> {
             if db.version() == 1 {
                 // We use out of line keys for this object store
                 db.build_object_store(STATE_STORE_NAME).create()?;
-                db.build_object_store(RECIPE_STORE_NAME).create()?;
-                // TODO(jwall): Do we need indexes?
+                let recipe_store = db.build_object_store(RECIPE_STORE_NAME).create()?;
+                recipe_store.build_index(CATEGORY_IDX, "category")
+                    .create()?;
+                recipe_store.build_index(SERVING_COUNT_IDX, "serving_count")
+                    .create()?;
             }
             Ok(())
         }).await.context(format!("Opening or creating the database {}", self.name))?;
