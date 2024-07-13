@@ -37,7 +37,7 @@ fn bool_true() -> bool {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AppState {
-    pub recipe_counts: BTreeMap<String, usize>,
+    pub recipe_counts: BTreeMap<String, u32>,
     pub recipe_categories: BTreeMap<String, String>,
     pub extras: Vec<(String, String)>,
     // FIXME(jwall): This should really be storable I think?
@@ -77,7 +77,7 @@ impl AppState {
 
 pub enum Message {
     ResetRecipeCounts,
-    UpdateRecipeCount(String, usize),
+    UpdateRecipeCount(String, u32),
     AddExtra(String, String),
     RemoveExtra(usize),
     UpdateExtra(usize, String, String),
@@ -171,6 +171,7 @@ impl StateMachine {
         Self { store, local_store }
     }
 
+    #[instrument(skip_all)]
     async fn load_state(
         store: &HttpStore,
         local_store: &LocalStore,
@@ -238,7 +239,7 @@ impl StateMachine {
             // set the counts.
             let mut plan_map = BTreeMap::new();
             for (id, count) in plan {
-                plan_map.insert(id, count as usize);
+                plan_map.insert(id, count as u32);
             }
             state.recipe_counts = plan_map;
             for (id, _) in state.recipes.iter() {
@@ -470,7 +471,7 @@ impl MessageMapper<Message, AppState> for StateMachine {
                         // Note(jwall): This is a little unusual but because this
                         // is async code we can't rely on the set below.
                         original_copy.recipe_counts =
-                            BTreeMap::from_iter(plan.drain(0..).map(|(k, v)| (k, v as usize)));
+                            BTreeMap::from_iter(plan.drain(0..).map(|(k, v)| (k, v as u32)));
                     }
                     let (filtered, modified, extras) = store
                         .fetch_inventory_for_date(&date)
