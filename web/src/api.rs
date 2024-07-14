@@ -17,9 +17,9 @@ use base64::{self, Engine};
 use chrono::NaiveDate;
 use gloo_net;
 // TODO(jwall): Remove this when we have gone a few migrations past.
-use serde_json::{from_str, to_string};
+use serde_json::from_str;
 use sycamore::prelude::*;
-use tracing::{debug, error, field::debug, instrument};
+use tracing::{debug, error, instrument};
 
 use anyhow::Result;
 use client_api::*;
@@ -27,10 +27,9 @@ use recipes::{IngredientKey, RecipeEntry};
 use serde_wasm_bindgen::{from_value, Serializer};
 use wasm_bindgen::JsValue;
 // TODO(jwall): Remove this when we have gone a few migrations past.
-use web_sys::{window, Storage};
+use web_sys::Storage;
 
-fn to_js<T: serde::ser::Serialize>(value: T) -> Result<JsValue, serde_wasm_bindgen::Error>
-{
+fn to_js<T: serde::ser::Serialize>(value: T) -> Result<JsValue, serde_wasm_bindgen::Error> {
     let s = Serializer::new().serialize_maps_as_objects(true);
     value.serialize(&s)
 }
@@ -96,7 +95,10 @@ where
 {
     match res {
         Ok(v) => Ok(v),
-        Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, format!("{:?}", e))),
+        Err(e) => Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("{:?}", e),
+        )),
     }
 }
 
@@ -206,12 +208,8 @@ impl LocalStore {
         self.store
             .ro_transaction(&[js_lib::STATE_STORE_NAME], |trx| async move {
                 let key = to_js(USER_DATA_KEY).expect("Failed to serialize key");
-                let object_store = trx
-                    .object_store(js_lib::STATE_STORE_NAME)?;
-                let user_data: UserData = match object_store
-                    .get(&key)
-                    .await?
-                {
+                let object_store = trx.object_store(js_lib::STATE_STORE_NAME)?;
+                let user_data: UserData = match object_store.get(&key).await? {
                     Some(s) => convert_to_io_error(from_value(s))?,
                     None => return Ok(None),
                 };
@@ -229,13 +227,9 @@ impl LocalStore {
             let data = data.clone();
             self.store
                 .rw_transaction(&[js_lib::STATE_STORE_NAME], |trx| async move {
-                    let object_store = trx
-                        .object_store(js_lib::STATE_STORE_NAME)?;
+                    let object_store = trx.object_store(js_lib::STATE_STORE_NAME)?;
                     object_store
-                        .put_kv(
-                            &key,
-                            &convert_to_io_error(to_js(&data))?,
-                        )
+                        .put_kv(&key, &convert_to_io_error(to_js(&data))?)
                         .await?;
                     Ok(())
                 })
@@ -244,11 +238,8 @@ impl LocalStore {
         } else {
             self.store
                 .rw_transaction(&[js_lib::STATE_STORE_NAME], |trx| async move {
-                    let object_store = trx
-                        .object_store(js_lib::STATE_STORE_NAME)?;
-                    object_store
-                        .delete(&key)
-                        .await?;
+                    let object_store = trx.object_store(js_lib::STATE_STORE_NAME)?;
+                    object_store.delete(&key).await?;
                     Ok(())
                 })
                 .await
@@ -261,11 +252,8 @@ impl LocalStore {
         self.store
             .ro_transaction(&[js_lib::RECIPE_STORE_NAME], |trx| async move {
                 let mut keys = Vec::new();
-                let object_store = trx
-                    .object_store(js_lib::RECIPE_STORE_NAME)?;
-                let key_vec = object_store
-                    .get_all_keys(None)
-                    .await?;
+                let object_store = trx.object_store(js_lib::RECIPE_STORE_NAME)?;
+                let key_vec = object_store.get_all_keys(None).await?;
                 for k in key_vec {
                     if let Ok(v) = from_value(k) {
                         keys.push(v);
@@ -284,16 +272,11 @@ impl LocalStore {
         self.store
             .ro_transaction(&[js_lib::RECIPE_STORE_NAME], |trx| async move {
                 let mut recipe_list = Vec::new();
-                let object_store = trx
-                    .object_store(js_lib::RECIPE_STORE_NAME)?;
-                let mut c = object_store
-                    .cursor()
-                    .open()
-                    .await?;
+                let object_store = trx.object_store(js_lib::RECIPE_STORE_NAME)?;
+                let mut c = object_store.cursor().open().await?;
                 while let Some(value) = c.value() {
                     recipe_list.push(convert_to_io_error(from_value(value))?);
-                    c.advance(1)
-                        .await?;
+                    c.advance(1).await?;
                 }
                 if recipe_list.is_empty() {
                     return Ok(None);
@@ -309,12 +292,8 @@ impl LocalStore {
         let key = to_js(id).expect("Failed to serialize key");
         self.store
             .ro_transaction(&[js_lib::RECIPE_STORE_NAME], |trx| async move {
-                let object_store = trx
-                    .object_store(js_lib::RECIPE_STORE_NAME)?;
-                let entry: Option<RecipeEntry> = match object_store
-                    .get(&key)
-                    .await?
-                {
+                let object_store = trx.object_store(js_lib::RECIPE_STORE_NAME)?;
+                let entry: Option<RecipeEntry> = match object_store.get(&key).await? {
                     Some(v) => convert_to_io_error(from_value(v))?,
                     None => None,
                 };
@@ -332,11 +311,8 @@ impl LocalStore {
             let key = to_js(&recipe_key).expect("Failed to serialize key");
             self.store
                 .rw_transaction(&[js_lib::STATE_STORE_NAME], |trx| async move {
-                    let object_store = trx
-                        .object_store(js_lib::STATE_STORE_NAME)?;
-                    object_store
-                        .delete(&key)
-                        .await?;
+                    let object_store = trx.object_store(js_lib::STATE_STORE_NAME)?;
+                    object_store.delete(&key).await?;
                     Ok(())
                 })
                 .await
@@ -347,13 +323,9 @@ impl LocalStore {
             let key = to_js(entry.recipe_id()).expect("Failed to serialize recipe key");
             self.store
                 .rw_transaction(&[js_lib::RECIPE_STORE_NAME], |trx| async move {
-                    let object_store = trx
-                        .object_store(js_lib::RECIPE_STORE_NAME)?;
+                    let object_store = trx.object_store(js_lib::RECIPE_STORE_NAME)?;
                     object_store
-                        .put_kv(
-                            &key,
-                           &convert_to_io_error(to_js(&entry))?,
-                        )
+                        .put_kv(&key, &convert_to_io_error(to_js(&entry))?)
                         .await?;
                     Ok(())
                 })
@@ -369,13 +341,9 @@ impl LocalStore {
         let key = to_js(entry.recipe_id()).expect("Failed to serialize recipe key");
         self.store
             .rw_transaction(&[js_lib::RECIPE_STORE_NAME], |trx| async move {
-                let object_store = trx
-                    .object_store(js_lib::RECIPE_STORE_NAME)?;
+                let object_store = trx.object_store(js_lib::RECIPE_STORE_NAME)?;
                 object_store
-                    .put_kv(
-                        &key,
-                        &convert_to_io_error(to_js(&entry))?,
-                    )
+                    .put_kv(&key, &convert_to_io_error(to_js(&entry))?)
                     .await?;
                 Ok(())
             })
@@ -389,11 +357,8 @@ impl LocalStore {
         let key = to_js(recipe_id).expect("Failed to serialize key");
         self.store
             .rw_transaction(&[js_lib::RECIPE_STORE_NAME], |trx| async move {
-                let object_store = trx
-                    .object_store(js_lib::RECIPE_STORE_NAME)?;
-                object_store
-                    .delete(&key)
-                    .await?;
+                let object_store = trx.object_store(js_lib::RECIPE_STORE_NAME)?;
+                object_store.delete(&key).await?;
                 Ok(())
             })
             .await

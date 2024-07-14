@@ -220,7 +220,7 @@ pub struct Step {
 impl Step {
     pub fn new<S: Into<String>>(prep_time: Option<std::time::Duration>, instructions: S) -> Self {
         Self {
-            prep_time: prep_time,
+            prep_time,
             instructions: instructions.into(),
             ingredients: Vec::new(),
         }
