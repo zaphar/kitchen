@@ -60,8 +60,14 @@ pub fn CategoryGroup<'ctx, G: Html>(
                             iterable=r,
                             view=move |cx, sig| {
                                 let title = create_memo(cx, move || sig.get().1.title.clone());
+                                let serving_count = create_memo(cx, move || sig.get().1.serving_count.clone());
                                 view! {cx,
-                                    div(class="cell column-flex justify-end align-stretch") { RecipeSelection(i=sig.get().0.to_owned(), title=title, sh=sh) }
+                                    div(class="cell column-flex justify-end align-stretch") { 
+                                        RecipeSelection(
+                                            i=sig.get().0.to_owned(),
+                                            title=title, sh=sh,
+                                            serving_count=serving_count,
+                                        ) }
                                 }
                             },
                             key=|sig| sig.get().0.to_owned(),

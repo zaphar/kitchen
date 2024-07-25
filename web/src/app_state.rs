@@ -151,13 +151,14 @@ pub fn parse_recipes(
         Some(parsed) => {
             let mut parsed_map = BTreeMap::new();
             for r in parsed {
-                let recipe = match parse::as_recipe(&r.recipe_text()) {
+                let mut recipe = match parse::as_recipe(&r.recipe_text()) {
                     Ok(r) => r,
                     Err(e) => {
                         error!("Error parsing recipe {}", e);
                         continue;
                     }
                 };
+                recipe.serving_count = r.serving_count;
                 parsed_map.insert(r.recipe_id().to_owned(), recipe);
             }
             Ok(Some(parsed_map))

@@ -101,6 +101,7 @@ impl RecipeEntry {
 pub struct Recipe {
     pub title: String,
     pub desc: Option<String>,
+    pub serving_count: Option<i64>,
     pub steps: Vec<Step>,
 }
 
@@ -110,6 +111,7 @@ impl Recipe {
             title: title.into(),
             desc: desc.map(|s| s.into()),
             steps: Vec::new(),
+            serving_count:  Default::default(),
         }
     }
 

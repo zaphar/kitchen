@@ -49,7 +49,15 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
     let store = crate::api::HttpStore::get_from_context(cx);
     let recipe: &Signal<RecipeEntry> =
         create_signal(cx, RecipeEntry::new(&recipe_id, String::new()));
-    let text = create_signal(cx, String::new());
+    let text = create_signal(cx, String::from("0"));
+    let serving_count_str = create_signal(cx, String::new());
+    let serving_count = create_memo(cx, || {
+        if let Ok(count) = serving_count_str.get().parse::<i64>() {
+            count
+        } else {
+            0
+        }
+    });
     let error_text = create_signal(cx, String::from("Parse results..."));
     let aria_hint = create_signal(cx, "false");
     let category = create_signal(cx, "Entree".to_owned());
@@ -82,6 +90,10 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
         div {
             label(for="recipe_category") { "Category" }
             input(name="recipe_category", bind:value=category, on:change=move |_| dirty.set(true))
+        }
+        div {
+            label(for="serving_count") { "Serving Count" }
+            input(name="serving_count", bind:value=serving_count_str, on:change=move |_| dirty.set(true))
         }
         div {
             div(class="row-flex") {
@@ -119,7 +131,7 @@ pub fn Editor<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
                                     id: id.get_untracked().as_ref().clone(),
                                     text: text.get_untracked().as_ref().clone(),
                                     category,
-                                    serving_count: None,
+                                    serving_count: Some(*serving_count.get()),
                     };
                     sh.dispatch(cx, Message::SaveRecipe(recipe_entry, None));
                     dirty.set(false);
@@ -171,18 +183,22 @@ pub fn Viewer<'ctx, G: Html>(cx: Scope<'ctx>, props: RecipeComponentProps<'ctx>)
     let recipe_signal = sh.get_selector(cx, move |state| {
         if let Some(recipe) = state.get().recipes.get(&recipe_id) {
             let title = recipe.title.clone();
+            let serving_count = recipe.serving_count.clone();
             let desc = recipe.desc.clone().unwrap_or_else(|| String::new());
             let steps = recipe.steps.clone();
-            Some((title, desc, steps))
+            Some((title, serving_count, desc, steps))
         } else {
             None
         }
     });
-    if let Some((title, desc, steps)) = recipe_signal.get().as_ref().clone() {
+    if let Some((title, serving_count, desc, steps)) = recipe_signal.get().as_ref().clone() {
         debug!("Viewing recipe.");
         view.set(view! {cx,
             div(class="recipe") {
                 h1(class="recipe_title") { (title) }
+                 div(class="serving_count") {
+                     "Serving Count: " (serving_count.map(|v| format!("{}", v)).unwrap_or_else(|| "Unconfigured".to_owned()))
+                 }
                  div(class="recipe_description") {
                      (desc)
                  }

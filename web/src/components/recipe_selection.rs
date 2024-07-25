@@ -23,6 +23,7 @@ use crate::components::NumberField;
 pub struct RecipeCheckBoxProps<'ctx> {
     pub i: String,
     pub title: &'ctx ReadSignal<String>,
+    pub serving_count: &'ctx ReadSignal<Option<i64>>,
     pub sh: StateHandler<'ctx>,
 }
 
@@ -35,7 +36,7 @@ pub fn RecipeSelection<'ctx, G: Html>(
     cx: Scope<'ctx>,
     props: RecipeCheckBoxProps<'ctx>,
 ) -> View<G> {
-    let RecipeCheckBoxProps { i, title, sh } = props;
+    let RecipeCheckBoxProps { i, title, sh, serving_count, } = props;
     let id = Rc::new(i);
     let id_for_count = id.clone();
     // NOTE(jwall): The below get's a little tricky. We need a separate signal to bind for the
@@ -66,6 +67,9 @@ pub fn RecipeSelection<'ctx, G: Html>(
     let for_id = name.clone();
     view! {cx,
         label(for=for_id, class="flex-item-grow") { a(href=href) { (*title) } }
+        div {
+            "Serves: " (serving_count.get().map(|v| v.to_string()).unwrap_or("Unconfigured".to_owned()))
+        }
         NumberField(name=name, class="flex-item-shrink".to_string(), counter=count, min=0.0, on_change=Some(move |_| {
             debug!(idx=%id, count=%(*count.get_untracked()), "setting recipe count");
             sh.dispatch(cx, Message::UpdateRecipeCount(id.as_ref().clone(), *count.get_untracked() as u32));
