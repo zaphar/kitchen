@@ -14,6 +14,7 @@
 use async_std::sync::Arc;
 use std::collections::BTreeSet;
 use std::str::FromStr;
+use std::time::Duration;
 use std::{collections::BTreeMap, path::Path};
 
 use argon2::{
@@ -259,6 +260,7 @@ impl SqliteStore {
         std::fs::create_dir_all(&path)?;
         let url = format!("sqlite://{}/store.db", path.as_ref().to_string_lossy());
         let options = SqliteConnectOptions::from_str(&url)?
+            .busy_timeout(Duration::from_secs(5))
             .journal_mode(SqliteJournalMode::Wal)
             .create_if_missing(true);
         info!(?options, "Connecting to sqlite db");
