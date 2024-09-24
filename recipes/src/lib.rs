@@ -111,7 +111,7 @@ impl Recipe {
             title: title.into(),
             desc: desc.map(|s| s.into()),
             steps: Vec::new(),
-            serving_count:  Default::default(),
+            serving_count: Default::default(),
         }
     }
 

@@ -41,10 +41,10 @@ pub struct AppState {
     pub recipe_categories: BTreeMap<String, String>,
     pub extras: Vec<(String, String)>,
     // FIXME(jwall): This should really be storable I think?
-    #[serde(skip_deserializing,skip_serializing)]
+    #[serde(skip_deserializing, skip_serializing)]
     pub staples: Option<BTreeSet<Ingredient>>,
     // FIXME(jwall): This should really be storable I think?
-    #[serde(skip_deserializing,skip_serializing)]
+    #[serde(skip_deserializing, skip_serializing)]
     pub recipes: BTreeMap<String, Recipe>,
     pub category_map: BTreeMap<String, String>,
     pub filtered_ingredients: BTreeSet<IngredientKey>,
@@ -525,9 +525,9 @@ impl MessageMapper<Message, AppState> for StateMachine {
         spawn_local_scoped(cx, {
             let local_store = self.local_store.clone();
             async move {
-            local_store.store_app_state(&original_copy).await;
-            original.set(original_copy);
-        }
+                local_store.store_app_state(&original_copy).await;
+                original.set(original_copy);
+            }
         });
     }
 }
