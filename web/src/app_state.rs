@@ -151,14 +151,13 @@ pub fn parse_recipes(
         Some(parsed) => {
             let mut parsed_map = BTreeMap::new();
             for r in parsed {
-                let mut recipe = match parse::as_recipe(&r.recipe_text()) {
+                let recipe = match r.try_into() {
                     Ok(r) => r,
                     Err(e) => {
                         error!("Error parsing recipe {}", e);
                         continue;
                     }
                 };
-                recipe.serving_count = r.serving_count;
                 parsed_map.insert(r.recipe_id().to_owned(), recipe);
             }
             Ok(Some(parsed_map))
@@ -335,20 +334,16 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 }
             },
             Message::SaveRecipe(entry, callback) => {
-                let recipe =
-                    parse::as_recipe(entry.recipe_text()).expect("Failed to parse RecipeEntry");
-                original_copy
-                    .recipes
-                    .insert(entry.recipe_id().to_owned(), recipe);
+                let recipe_id = entry.recipe_id().to_owned();
+                let recipe: Recipe = (&entry).try_into().expect("Failed to parse RecipeEntry");
+                original_copy.recipes.insert(recipe_id.clone(), recipe);
                 if !original_copy.recipe_counts.contains_key(entry.recipe_id()) {
-                    original_copy
-                        .recipe_counts
-                        .insert(entry.recipe_id().to_owned(), 0);
+                    original_copy.recipe_counts.insert(recipe_id.clone(), 0);
                 }
                 if let Some(cat) = entry.category().cloned() {
                     original_copy
                         .recipe_categories
-                        .entry(entry.recipe_id().to_owned())
+                        .entry(recipe_id.clone())
                         .and_modify(|c| *c = cat.clone())
                         .or_insert(cat);
                 }

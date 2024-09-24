@@ -148,6 +148,16 @@ impl Recipe {
     }
 }
 
+impl TryFrom<&RecipeEntry> for Recipe {
+    type Error = String;
+
+    fn try_from(value: &RecipeEntry) -> Result<Self, Self::Error> {
+        let mut parsed = parse::as_recipe(&value.text)?;
+        parsed.serving_count = value.serving_count.clone();
+        Ok(parsed)
+    }
+}
+
 pub struct IngredientAccumulator {
     inner: BTreeMap<IngredientKey, (Ingredient, BTreeSet<String>)>,
 }
