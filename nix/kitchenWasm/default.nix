@@ -34,9 +34,7 @@ stdenv.mkDerivation {
         cp -r static $out
 		export project=kitchen
 		sh ../scripts/wasm-build.sh release
-		sh ../scripts/wasm-opt.sh release
 		sh ../scripts/wasm-sourcemap.sh
-        rm -f $out/kitchen_wasm_bg.wasm
         cp -r index.html $out
         cp -r favicon.ico $out
         rm -rf $out/release
