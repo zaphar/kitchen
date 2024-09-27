@@ -86,6 +86,7 @@ pub enum Message {
     UpdateCategory(String, String, Option<Box<dyn FnOnce()>>),
     ResetInventory,
     AddFilteredIngredient(IngredientKey),
+    RemoveFilteredIngredient(IngredientKey),
     UpdateAmt(IngredientKey, String),
     SetUserData(UserData),
     SaveState(Option<Box<dyn FnOnce()>>),
@@ -123,6 +124,9 @@ impl Debug for Message {
             Self::ResetInventory => write!(f, "ResetInventory"),
             Self::AddFilteredIngredient(arg0) => {
                 f.debug_tuple("AddFilteredIngredient").field(arg0).finish()
+            }
+            Self::RemoveFilteredIngredient(arg0) => {
+                f.debug_tuple("RemoveFilteredIngredient").field(arg0).finish()
             }
             Self::UpdateAmt(arg0, arg1) => {
                 f.debug_tuple("UpdateAmt").field(arg0).field(arg1).finish()
@@ -392,6 +396,9 @@ impl MessageMapper<Message, AppState> for StateMachine {
             }
             Message::AddFilteredIngredient(key) => {
                 original_copy.filtered_ingredients.insert(key);
+            }
+            Message::RemoveFilteredIngredient(key) => {
+                original_copy.filtered_ingredients.remove(&key);
             }
             Message::UpdateAmt(key, amt) => {
                 original_copy.modified_amts.insert(key, amt);
