@@ -297,7 +297,16 @@ fn make_shopping_table<'ctx, G: Html>(
                 (make_extras_rows(cx, sh))
             }
         }
-        ("Deleted Items")
+    }
+}
+
+fn make_deleted_items_table<'ctx, G: Html>(
+    cx: Scope<'ctx>,
+    sh: StateHandler<'ctx>,
+    show_staples: &'ctx ReadSignal<bool>,
+) -> View<G> {
+    view! {cx,
+        h2 { "Deleted Items" }
         table(class="pad-top shopping-list page-breaker container-fluid", role="grid") {
             tr {
                 th { " Quantity " }
@@ -324,6 +333,7 @@ pub fn ShoppingList<'ctx, G: Html>(cx: Scope<'ctx>, sh: StateHandler<'ctx>) -> V
             sh.dispatch(cx, Message::UpdateUseStaples(value));
         })
         (make_shopping_table(cx, sh, show_staples))
+        (make_deleted_items_table(cx, sh, show_staples))
         button(class="no-print", on:click=move |_| {
             info!("Registering add item request for inventory");
             sh.dispatch(cx, Message::AddExtra(String::new(), String::new()));
