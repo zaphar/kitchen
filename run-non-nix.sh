@@ -15,5 +15,5 @@ EXAMPLES=${EXAMPLES:-../examples}
 echo Starting server serving ${EXAMPLES}
 mkdir -p .session_store
 make kitchen
-./target/debug/kitchen --verbose debug serve --listen 0.0.0.0:3030 --session_dir .session_store --dir ${EXAMPLES} --tls --cert ~/tls-certs/localhost+2.pem --cert_key ~/tls-certs/localhost+2-key.pem $@
+./target/debug/kitchen --verbose debug serve --listen 127.0.0.1:3030 --session_dir .session_store --dir ${EXAMPLES} --tls --cert ~/tls-certs/localhost+2.pem --cert_key ~/tls-certs/localhost+2-key.pem $@
 # This is ghetto but I'm doing it anyway

@@ -466,24 +466,25 @@ impl MessageMapper<Message, AppState> for StateMachine {
                 let store = self.store.clone();
                 let local_store = self.local_store.clone();
                 spawn_local_scoped(cx, async move {
-                    if let Some(mut plan) = store
+                    if let Ok(Some(mut plan)) = store
                         .fetch_plan_for_date(&date)
                         .await
-                        .expect("Failed to fetch plan for date")
                     {
                         // Note(jwall): This is a little unusual but because this
                         // is async code we can't rely on the set below.
                         original_copy.recipe_counts =
                             BTreeMap::from_iter(plan.drain(0..).map(|(k, v)| (k, v as u32)));
+                        let (filtered, modified, extras) = store
+                            .fetch_inventory_for_date(&date)
+                            .await
+                            .expect("Failed to fetch inventory_data for date");
+                        original_copy.modified_amts = modified;
+                        original_copy.filtered_ingredients = filtered;
+                        original_copy.extras = extras;
+                    } else {
+                        store.store_plan_for_date(Vec::new(), &date).await.expect("failed to set plan on server");
                     }
-                    let (filtered, modified, extras) = store
-                        .fetch_inventory_for_date(&date)
-                        .await
-                        .expect("Failed to fetch inventory_data for date");
                     original_copy.plan_dates.insert(date.clone());
-                    original_copy.modified_amts = modified;
-                    original_copy.filtered_ingredients = filtered;
-                    original_copy.extras = extras;
                     original_copy.selected_plan_date = Some(date.clone());
                     store
                         .store_plan_for_date(vec![], &date)
