@@ -14,5 +14,5 @@
 EXAMPLES=${EXAMPLES:-../examples}
 echo Starting server serving ${EXAMPLES}
 mkdir .session_store
-nix run .\#kitchenDebug -- --verbose debug serve --session_dir .session_store --dir ${EXAMPLES} --tls --cert ~/tls-certs/localhost+2.pem --cert_key ~/tls-certs/localhost+2-key.pem $@
+nix run .\#kitchenDebug -- --verbose debug serve --session_dir .session_store --dir ${EXAMPLES} --tls --cert ~/tls-certs/localhost+1.pem --cert_key ~/tls-certs/localhost+1-key.pem $@
 # This is ghetto but I'm doing it anyway
