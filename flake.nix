@@ -2,16 +2,16 @@
     description = "kitchen";
     # Pin nixpkgs
     inputs = {
-        nixpkgs.url = "github:NixOS/nixpkgs";
-        gitignore = { url = "github:hercules-ci/gitignore.nix"; flake = false; };
-        flake-utils.url = "github:numtide/flake-utils";
-        rust-overlay = {
-          url = "github:oxalica/rust-overlay?ref=stable";
-          inputs.nixpkgs.follows = "nixpkgs";
-        };
-        naersk.url = "github:nix-community/naersk";
-        flake-compat = { url = "github:edolstra/flake-compat"; flake = false; };
-		cargo-wasm2map-src = { url = "github:mtolmacs/wasm2map"; flake = false; };
+       nixpkgs.url = "github:NixOS/nixpkgs";
+       gitignore = { url = "github:hercules-ci/gitignore.nix"; flake = false; };
+       flake-utils.url = "github:numtide/flake-utils";
+         rust-overlay = {
+         url = "github:oxalica/rust-overlay?ref=stable";
+         inputs.nixpkgs.follows = "nixpkgs";
+       };
+       naersk.url = "github:nix-community/naersk";
+       flake-compat = { url = "github:edolstra/flake-compat"; flake = false; };
+		   cargo-wasm2map-src = { url = "github:mtolmacs/wasm2map"; flake = false; };
     };
     outputs = {nixpkgs, flake-utils, rust-overlay, naersk, cargo-wasm2map-src, ...}:
         let
@@ -26,7 +26,7 @@
             let
                 overlays = [ rust-overlay.overlays.default ];
                 pkgs = import nixpkgs { inherit system overlays; };
-                rust-wasm = pkgs.rust-bin.stable."1.77.0".default.override {
+                rust-wasm = pkgs.rust-bin.stable."1.87.0".default.override {
                   extensions = [ "rust-src" ];
                   # Add wasm32 as an extra target besides the native target.
                   targets = [ "wasm32-unknown-unknown" ];

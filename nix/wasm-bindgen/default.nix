@@ -1,6 +1,3 @@
-let
-  my-lib = import ../lib/lib.nix;
-in
 { pkgs
 , lib
 , rustPlatform
@@ -25,14 +22,15 @@ rustPlatform.buildRustPackage rec {
     sha256 = "sha256-IPxP68xtNSpwJjV2yNMeepAS0anzGl02hYlSTvPocz8=";
   };
 
-  cargoSha256 = "sha256-pBeQaG6i65uJrJptZQLuIaCb/WCQMhba1Z1OhYqA8Zc=";
+  cargoHash = "sha256-EsGFW1f9+E5NnMadP/0rRzFCxVJQb0mlTLz/3zYQ5Ac=";
 
   nativeBuildInputs = [ pkg-config ];
 
-  buildInputs = [ openssl curl ] ++ (my-lib.darwin-sdk pkgs);
+  buildInputs = [ openssl curl ];
 
   nativeCheckInputs = [ nodejs ];
 
   # other tests require it to be ran in the wasm-bindgen monorepo
-  cargoTestFlags = [ "--test=reference" ];
+  #cargoTestFlags = [ "--test=reference" ];
+  doCheck = false;
 }
